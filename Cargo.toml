@@ -1,0 +1,67 @@
+[package]
+name = "HGE"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+#default = []
+default = ["dynamicresolution"]
+dynamicresolution = []
+
+[dependencies]
+#base stuff
+rand = "0.8.0"
+ahash = "0.8.7"
+dashmap = {version = "5.5.3", features = ["rayon"]}
+dyn-clone = "1.0.16"
+parking_lot = "0.12.1"
+anyhow = "1.0.79"
+rayon = "1.8.0"
+arc-swap = "1.6.0"
+indexmap = "2.1.0"
+rand_chacha = "0.3.1"
+rand_seeder = "0.2.3"
+HArcMut = "1.1.0"
+singletonThread = "1.0.0"
+bytemuck = "1.14.0"
+derive_more = { version = "1.0.0-beta.6", features = ["full"] }
+chrono = "0.4.31"
+sys-locale = "0.3.1"
+webbrowser = "0.8.12"
+downcast-rs = "1.2.0"
+
+#data
+#vergen = "8.2.4"
+csv = "1.3.0"
+Hconfig = { path = "../Hconfig" }
+Htrace = { path = "../Htrace" }
+base64 = "0.21.6"
+json = "0.12.4"
+rsa = { version = "0.9.6", features = ["sha2"]}
+uuid = { version = "1.6.1" , features = [ "v4", "fast-rng", "macro-diagnostics"]}
+
+#graphic
+#sdl2 = "0.35.2"
+vulkano = "0.34.1"
+vulkano-shaders = "0.34.0"
+image = "0.24.7"
+palette = "0.7.3"
+ab_glyph = "0.2.23"
+glyph_brush = "0.7.8"
+glyph_brush_layout = "0.2.3"
+
+#3D
+tobj = "4.0.0"
+cgmath = "0.18.0"
+
+#audio
+rodio = "0.17.3"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+winit = { version = "0.29.2", features = ["rwh_05"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+winit = {version="0.29.3", features = ["rwh_05", "android-game-activity"]}
+android-activity = { version = "0.5.0", features = ["game-activity"]}
