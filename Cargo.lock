@@ -59,6 +59,7 @@ dependencies = [
 [[package]]
 name = "Hconfig"
 version = "1.0.0"
+source = "git+ssh://git@github.com/hyultis/rust_Hconfig.git?branch=master#4bed9ec91804e5a64a2d16b64e77713656778825"
 dependencies = [
  "arc-swap",
  "dashmap",
@@ -69,6 +70,7 @@ dependencies = [
 [[package]]
 name = "Htrace"
 version = "0.1.0"
+source = "git+ssh://git@github.com/hyultis/rust_Htrace.git?branch=master#83e79d995e6667e726fa49461796c7b115bcefa7"
 dependencies = [
  "Hconfig",
  "anyhow",

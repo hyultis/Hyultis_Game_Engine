@@ -35,8 +35,8 @@ downcast-rs = "1.2.0"
 #data
 #vergen = "8.2.4"
 csv = "1.3.0"
-Hconfig = { path = "../Hconfig" }
-Htrace = { path = "../Htrace" }
+Hconfig = {git="ssh://git@github.com/hyultis/rust_Hconfig.git", branch = "master"}
+Htrace = {git="ssh://git@github.com/hyultis/rust_Htrace.git", branch = "master"}
 base64 = "0.21.6"
 json = "0.12.4"
 rsa = { version = "0.9.6", features = ["sha2"]}
