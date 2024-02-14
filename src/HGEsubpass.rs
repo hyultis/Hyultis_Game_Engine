@@ -18,7 +18,7 @@ use crate::Pipeline::ManagerPipeline::ManagerPipeline;
 use crate::Models3D::ManagerModels::ManagerModels;
 use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::names;
-use crate::Shaders::Shs_screen::HGE_shader_screen;
+use crate::Shaders::HGE_shader_screen::HGE_shader_screen;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum HGEsubpassName
@@ -76,7 +76,7 @@ impl HGEsubpass
 		});
 	}
 	
-	pub fn ExecAllPass(&self, render_pass: Arc<RenderPass>, primaryCommandBuffer: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>, HGEFrameC: &HGEFrame)
+	pub fn ExecAllPass(&self, render_pass: Arc<RenderPass>, primaryCommandBuffer: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>, HGEFrameC: &HGEFrame, stdAllocCommand: &StandardCommandBufferAllocator)
 	{
 		let AllSubpass = HGEsubpassName::getByOrder();
 		let length = AllSubpass.len();
@@ -84,7 +84,7 @@ impl HGEsubpass
 		{
 			//let lastinstant = Instant::now();
 			let thispass = AllSubpass[nbpass].clone();
-			primaryCommandBuffer.execute_commands(self.passExec(thispass.clone(), render_pass.clone(), HGEFrameC)).unwrap();
+			primaryCommandBuffer.execute_commands(self.passExec(thispass.clone(), render_pass.clone(), HGEFrameC, stdAllocCommand)).unwrap();
 			if (nbpass < length - 1)
 			{
 				primaryCommandBuffer.next_subpass(SubpassEndInfo::default(), SubpassBeginInfo{
@@ -96,11 +96,11 @@ impl HGEsubpass
 		}
 	}
 	
-	fn passExec(&self, thispass: HGEsubpassName, render_pass: Arc<RenderPass>, HGEFrameC: &HGEFrame) -> Arc<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>
+	fn passExec(&self, thispass: HGEsubpassName, render_pass: Arc<RenderPass>, HGEFrameC: &HGEFrame, stdAllocCommand: &StandardCommandBufferAllocator) -> Arc<SecondaryAutoCommandBuffer>
 	{
 		let subpass = Subpass::from(render_pass, thispass.getSubpassID()).unwrap();
 		let mut cmdBuilder = AutoCommandBufferBuilder::secondary(
-			&HGEMain::singleton().getAllocatorCommand(),
+			stdAllocCommand,
 			HGEMain::singleton().getDevice().getQueueGraphic().queue_family_index(),
 			CommandBufferUsage::OneTimeSubmit,
 			CommandBufferInheritanceInfo {
@@ -123,17 +123,17 @@ impl HGEsubpass
 		return ManagerBuilder::builderEnd(cmdBuilder);
 	}
 	
-	fn pass_UISolid(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>)
+	fn pass_UISolid(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>)
 	{
 		ManagerInterface::singleton().StructDraw(cmdBuilder);
 	}
 	
-	fn pass_WorldSolid(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>)
+	fn pass_WorldSolid(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>)
 	{
 		ManagerModels::singleton().ModelsDraw(cmdBuilder);
 	}
 	
-	fn pass_Final(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>, HGEFrameC: &HGEFrame)
+	fn pass_Final(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, HGEFrameC: &HGEFrame)
 	{
 		let Ok(descriptor_set) = PersistentDescriptorSet::new(
 			&HGEMain::singleton().getAllocatorSet(),

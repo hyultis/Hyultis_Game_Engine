@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, OnceLock, RwLock};
-use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
 use vulkano::pipeline::PipelineLayout;
 use vulkano::shader::ShaderModule;
@@ -16,7 +15,7 @@ pub enum Shader_type
 pub struct ShaderContent
 {
 	pub shader: BTreeMap<Shader_type,Arc<ShaderModule>>,
-	pub pushConstant_Func: Arc<dyn Fn(&mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>, Arc<PipelineLayout>,u32) + Send + Sync>,
+	pub pushConstant_Func: Arc<dyn Fn(&mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, Arc<PipelineLayout>,u32) + Send + Sync>,
 	pub constantFunc: String,
 }
 
@@ -56,7 +55,7 @@ impl ManagerShaders
 	}
 	
 	pub fn push_constants(&self, name: impl Into<String>,
-	                      cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>,
+	                      cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>,
 	                      pipeline_layout: Arc<PipelineLayout>,
 	                      offset: u32) -> bool
 	{

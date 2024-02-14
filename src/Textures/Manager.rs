@@ -31,7 +31,7 @@ use crate::Textures::Orders::Order_computeCache::Order_computeCache;
 use rayon::iter::ParallelIterator;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
-use crate::Shaders::Shs_3DVertex::HGE_shader_3Dsimple_holder;
+use crate::Shaders::HGE_shader_3Dsimple::HGE_shader_3Dsimple_holder;
 use crate::Shaders::ShaderStruct::ShaderStructHolder;
 
 pub struct ManagerTexture
@@ -689,25 +689,18 @@ impl ManagerTexture
 			return;
 		}
 		
-		println!("update descriptor");
 		
 		let newnb = Self::singleton()._textures
 			.iter()
 			.filter(|tex|{tex.state!=TextureState::CREATED}).count() as u32; // texture font statut is ignored
-		println!("newnb: {}",newnb);
 		
 		// TODO FIX DISORDER
 		HGEMain::SecondaryCmdBuffer_add(HGEMain_secondarybuffer_type::TEXTURE, cmdbuff.build().unwrap(), move ||{
-			println!("cmdbuffer send to gpu");
 			descriptorlist.iter().for_each(|(a,b)|{
-				println!("try write one descriptor");
 				Self::singleton()._persistentDescriptorSet.insert(a.clone(),b.clone());
 			});
-			println!("go callbaak");
 			Self::singleton().executeCallback();
-			println!("_updatedDescriptor = true");
 			*Self::singleton()._updatedDescriptor.write() = true;
-			println!("_NbTotalLoadedTexture update");
 			let mut tmp = Self::singleton()._NbTotalLoadedTexture.write();
 			if(*tmp<newnb)
 			{

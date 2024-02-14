@@ -7,7 +7,6 @@ use Htrace::TSpawner;
 use parking_lot::RwLock;
 use singletonThread::SingletonThread;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
-use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use crate::components::event::{event_trait, event_type};
 use crate::Interface::UiPage::UiPage;
 use crate::Shaders::StructAllCache::StructAllCache;
@@ -128,7 +127,7 @@ impl ManagerInterface
 		}
 	}
 	
-	pub fn StructDraw(&self, combuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>)
+	pub fn StructDraw(&self, combuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>)
 	{
 		self._cache.load().holderDraw(combuilder);
 		self._threadUpdate.write().thread_launch();

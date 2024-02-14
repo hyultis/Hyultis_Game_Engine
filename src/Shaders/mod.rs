@@ -1,12 +1,12 @@
 use std::fmt::{Debug, Display, Formatter};
 
 pub mod Manager;
-pub mod Shs_screen;
-pub mod Shs_2DVertex;
-pub mod Shs_3DVertex;
+pub mod HGE_shader_screen;
+pub mod HGE_shader_2Dsimple;
+pub mod HGE_shader_3Dsimple;
 pub mod ShaderStruct;
 pub mod StructAllCache;
-pub mod Shs_3Dinstance;
+pub mod HGE_shader_3Dinstance;
 
 pub enum names
 {

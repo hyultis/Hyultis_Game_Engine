@@ -1,7 +1,5 @@
-use std::sync::Arc;
 use std::time::SystemTime;
 use dashmap::DashMap;
-use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
 use crate::Shaders::ShaderStruct::ShaderStructHolder;
 
@@ -209,7 +207,7 @@ impl StructAllCache
 		}
 	}
 	
-	pub fn holderDraw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>)
+	pub fn holderDraw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>)
 	{
 		for thispipeline in &self._storedPipeline
 		{

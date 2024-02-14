@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 use cgmath::{InnerSpace, Vector3};
-use crate::Shaders::Shs_3DVertex::HGE_shader_3Dsimple;
+use crate::Shaders::HGE_shader_3Dsimple::HGE_shader_3Dsimple;
 
 pub mod ManagerModels;
 pub mod chunk;

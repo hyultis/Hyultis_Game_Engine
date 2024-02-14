@@ -5,7 +5,7 @@ use crate::components::HGEC_origin;
 use crate::components::worldPosition::worldPosition;
 use crate::Models3D::chunk_content::chunk_content;
 use crate::Models3D::ModelUtils;
-use crate::Shaders::Shs_3DVertex::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
+use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
 use crate::Shaders::StructAllCache::StructAllCache;
 
 #[derive(Clone)]

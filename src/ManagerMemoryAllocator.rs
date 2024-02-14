@@ -26,7 +26,7 @@ impl ManagerMemoryAllocator
 		});
 	}
 	
-	pub fn add(&self, device: Arc<Device>)
+	pub fn update(&self, device: Arc<Device>)
 	{
 		let memoryalloc = StandardMemoryAllocator::new_default(device.clone());
 		let stdmemall = Arc::new(memoryalloc);

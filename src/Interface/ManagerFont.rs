@@ -12,7 +12,7 @@ use image::{GrayImage, Rgba, RgbaImage};
 use parking_lot::{RwLock, RwLockReadGuard};
 use vulkano::image::sampler::{Filter, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode};
 use crate::Interface::Text::{Extra, TextCacheUpdater};
-use crate::Shaders::Shs_2DVertex::HGE_shader_2Dsimple;
+use crate::Shaders::HGE_shader_2Dsimple::HGE_shader_2Dsimple;
 use crate::Textures::generate::emptyTexture;
 use crate::Textures::Manager::ManagerTexture;
 use crate::Textures::Orders::Order_load::Order_load;

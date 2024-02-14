@@ -10,7 +10,7 @@ use crate::HGEMain::{HGEMain, HGEMain_secondarybuffer_type};
 use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Pipeline::ManagerPipeline::ManagerPipeline;
 use crate::Shaders::ShaderStruct::ShaderStructHolder;
-use crate::Shaders::Shs_3DVertex::HGE_shader_3Dsimple_holder;
+use crate::Shaders::HGE_shader_3Dsimple::HGE_shader_3Dsimple_holder;
 use crate::Textures::Manager::ManagerTexture;
 use crate::Textures::Order::Order;
 use crate::Textures::Textures::{Texture, Texture_atlasType, TextureStateGPU};

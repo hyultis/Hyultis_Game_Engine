@@ -6,7 +6,6 @@ use Htrace::HTracer::HTracer;
 use parking_lot::RwLock;
 use singletonThread::SingletonThread;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
-use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use crate::Models3D::chunk::chunk;
 use crate::Shaders::StructAllCache::StructAllCache;
 
@@ -77,7 +76,7 @@ impl ManagerModels
 		self._chunks.retain(|_,_|{false});
 	}
 	
-	pub fn ModelsDraw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>)
+	pub fn ModelsDraw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>)
 	{
 		//println!("ModelsDraw");
 		self._cache.load().holderDraw(cmdBuilder);

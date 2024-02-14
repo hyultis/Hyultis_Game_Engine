@@ -88,7 +88,7 @@ pub fn loadShaders()
 		constantFunc: "".to_string(),
 	});
 	
-	let func = |cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>, pipeline_layout: Arc<PipelineLayout>,offset: u32|{
+	let func = |cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipeline_layout: Arc<PipelineLayout>,offset: u32|{
 		let bindingcameraC = HGEMain::singleton().getCamera();
 		let cameraC = bindingcameraC.get();
 		let windowdim = HGEMain::singleton().getWindowInfos();

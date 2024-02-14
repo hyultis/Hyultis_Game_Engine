@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents};
-use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use vulkano::format::Format;
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
 use vulkano::image::view::ImageView;
@@ -47,7 +46,7 @@ impl HGEFrame
 		};
 	}
 	
-	pub fn clearBuffer(&self, cmdBuf: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>, image_index: u32)
+	pub fn clearBuffer(&self, cmdBuf: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>, image_index: u32)
 	{
 		cmdBuf.begin_render_pass(
 			RenderPassBeginInfo {
@@ -71,7 +70,7 @@ impl HGEFrame
 		).unwrap();
 	}
 	
-	pub fn add(&mut self, images: Vec<Arc<ImageView>>, render_pass: Arc<RenderPass>)
+	pub fn replace(&mut self, images: Vec<Arc<ImageView>>, render_pass: Arc<RenderPass>)
 	{
 		self.resize();
 		

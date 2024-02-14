@@ -1,12 +1,10 @@
 use std::hash::{Hash, Hasher};
 use vulkano::pipeline::graphics::vertex_input::Vertex;
-use std::sync::Arc;
 use std::convert::TryInto;
 use anyhow::anyhow;
 use Htrace::HTraceError;
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
-use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::graphics::input_assembly::PrimitiveTopology;
 use vulkano::pipeline::PipelineBindPoint;
@@ -222,7 +220,7 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 		}
 	}
 	
-	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>, pipelinename: String)
+	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
 	{
 		if (self._cacheDatasMem.is_none() || self._cacheIndicesMem.is_none())
 		{

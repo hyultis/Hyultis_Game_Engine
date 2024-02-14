@@ -3,7 +3,7 @@ use crate::components::interfacePosition::interfacePosition;
 use crate::entities::Plane::Plane;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::{UiPageContent, UiPageContent_type};
-use crate::Shaders::Shs_2DVertex::{HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
+use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
 use crate::Shaders::StructAllCache::StructAllCache;
 
 impl Plane<interfacePosition>

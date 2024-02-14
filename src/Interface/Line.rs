@@ -4,7 +4,7 @@ use crate::components::event::event_trait;
 use crate::components::interfacePosition::interfacePosition;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::UiPageContent;
-use crate::Shaders::Shs_2DVertex::{HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
+use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
 use crate::Shaders::StructAllCache::StructAllCache;
 
 #[derive(Clone)]

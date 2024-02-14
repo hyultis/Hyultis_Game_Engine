@@ -1,5 +1,5 @@
 use crate::HGEMain::HGEMain;
-use crate::Shaders::Shs_2DVertex::HGE_shader_2Dsimple;
+use crate::Shaders::HGE_shader_2Dsimple::HGE_shader_2Dsimple;
 
 #[derive(Clone, Debug)]
 struct UiHitbox_content

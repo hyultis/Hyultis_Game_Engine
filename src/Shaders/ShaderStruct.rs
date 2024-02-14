@@ -1,8 +1,6 @@
-use std::sync::Arc;
 use downcast_rs::{Downcast, impl_downcast};
 use dyn_clone::DynClone;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
-use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 
 pub trait ShaderStruct: DynClone + Send + Sync + Downcast {
 	fn createPipeline() -> anyhow::Result<()>
@@ -24,7 +22,7 @@ pub trait ShaderStructHolder: DynClone + Send + Sync + Downcast
 	fn reset(&mut self);
 	
 	fn update(&mut self);
-	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>, pipelinename: String);
+	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String);
 }
 
 impl_downcast!(ShaderStructHolder);

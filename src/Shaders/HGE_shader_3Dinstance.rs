@@ -1,12 +1,10 @@
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::pipeline::graphics::vertex_input::Vertex;
 use std::convert::TryInto;
-use std::sync::Arc;
 use ahash::HashMap;
 use anyhow::anyhow;
 use Htrace::HTraceError;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
-use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::graphics::input_assembly::PrimitiveTopology;
 use vulkano::pipeline::PipelineBindPoint;
@@ -19,7 +17,7 @@ use crate::Pipeline::ManagerPipeline::ManagerPipeline;
 use crate::Shaders::{names};
 use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder};
-use crate::Shaders::Shs_3DVertex::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
+use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
 use crate::Textures::Manager::ManagerTexture;
 
 #[repr(C)]
@@ -294,7 +292,7 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 			});
 	}
 	
-	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>, pipelinename: String)
+	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
 	{
 		let Some(pipelineLayout) = ManagerPipeline::singleton().layoutGet(&pipelinename) else { return; };
 		if(ManagerShaders::singleton().push_constants(names::instance3D, cmdBuilder, pipelineLayout.clone(), 0)==false)

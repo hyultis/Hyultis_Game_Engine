@@ -87,7 +87,7 @@ impl ManagerBuilder
 		return Ok(());
 	}
 	
-	pub fn builderAddPipeline(builder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>, pipelineName: impl Into<String>)
+	pub fn builderAddPipeline(builder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelineName: impl Into<String>)
 	{
 		let pipelineName = pipelineName.into();
 		match ManagerPipeline::singleton().get(&pipelineName)
@@ -101,7 +101,7 @@ impl ManagerBuilder
 		}
 	}
 	
-	pub fn builderAddPipelineTransparency(builder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>, pipelineName: impl Into<String>) -> bool
+	pub fn builderAddPipelineTransparency(builder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelineName: impl Into<String>) -> bool
 	{
 		let pipelineName = pipelineName.into();
 		match ManagerPipeline::singleton().getTransparency(&pipelineName) {
@@ -113,7 +113,7 @@ impl ManagerBuilder
 		}
 	}
 	
-	pub fn builderEnd(builder: AutoCommandBufferBuilder<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>, Arc<StandardCommandBufferAllocator>>) -> Arc<SecondaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>>
+	pub fn builderEnd(builder: AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>) -> Arc<SecondaryAutoCommandBuffer>
 	{
 		//builder.end_render_pass().unwrap();
 		
