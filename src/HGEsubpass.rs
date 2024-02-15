@@ -50,7 +50,7 @@ impl HGEsubpassName
 	}
 }
 
-pub struct HGEsubpass
+pub(crate) struct HGEsubpass
 {
 	_cacheMemMonoVertex: RwLock<Option<Subbuffer<[HGE_shader_screen]>>>,
 	_startApp: Instant

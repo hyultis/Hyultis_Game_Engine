@@ -2,7 +2,6 @@ use std::any::Any;
 use crate::components::corners::corner2;
 use crate::components::event::{event, event_trait, event_trait_add, event_type};
 use crate::components::interfacePosition::interfacePosition;
-use crate::Interface::Bar::Bar;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::UiPageContent;
 use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};

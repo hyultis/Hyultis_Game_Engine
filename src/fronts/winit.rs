@@ -1,8 +1,9 @@
 use std::sync::OnceLock;
 use Htrace::HTraceError;
-use parking_lot::RwLock;
+use parking_lot::{RawRwLock, RwLock};
+use parking_lot::lock_api::{RwLockReadGuard, RwLockWriteGuard};
 use winit::event::{ElementState, Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
+use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use crate::configs::general::HGEconfig_general;
 use crate::fronts::Inputs::Inputs;
@@ -11,7 +12,7 @@ use crate::HGEMain::HGEMain;
 pub struct HGEwinit
 {
 	_funcPostInit: RwLock<Box<dyn FnMut() + Send + Sync>>,
-	_funcPostEngineEvent: RwLock<Box<dyn FnMut(&Event<()>) + Send + Sync>>,
+	_funcPre_exit: RwLock<Box<dyn FnMut() + Send + Sync>>,
 	_inputsC: RwLock<Inputs>,
 }
 
@@ -26,17 +27,31 @@ impl HGEwinit
 		});
 	}
 	
+	/// change func called after engine initialization
 	pub fn setFunc_PostInit(&self, func: impl FnMut() + Send + Sync + 'static)
 	{
 		*self._funcPostInit.write() = Box::new(func);
 	}
 	
-	pub fn setFunc_PostEngineEvent(&self, func: impl FnMut(&Event<()>) + Send + Sync + 'static)
+	/// change func called before exit
+	pub fn setFunc_PreExit(&self, func: impl FnMut() + Send + Sync + 'static)
 	{
-		*self._funcPostEngineEvent.write() = Box::new(func);
+		*self._funcPre_exit.write() = Box::new(func);
 	}
 	
-	pub fn run(eventloop: EventLoop<()>, generalConf: HGEconfig_general)
+	pub fn Inputs_get(&self) -> RwLockReadGuard<'_, RawRwLock, Inputs>
+	{
+		return self._inputsC.read();
+	}
+	
+	pub fn Inputs_getmut(&self) -> RwLockWriteGuard<'_, RawRwLock, Inputs>
+	{
+		return self._inputsC.write();
+	}
+	
+	/// run winit event, HGE engine, and connect logic of your system
+	/// postEngineEvent is run between engine event and rendering
+	pub fn run(eventloop: EventLoop<()>, generalConf: HGEconfig_general, postEngineEvent: &mut impl FnMut(&Event<()>,&EventLoopWindowTarget<()>))
 	{
 		let mut initialized = false;
 		
@@ -47,7 +62,6 @@ impl HGEwinit
 					if event == Event::Resumed
 					{
 						HTraceError!(HGEMain::singleton().engineInitialize(eventloop,generalConf.clone()));
-						Self::singleton();
 						initialized = true;
 						
 						let func = &mut *Self::singleton()._funcPostInit.write();
@@ -112,15 +126,14 @@ impl HGEwinit
 							event: WindowEvent::Destroyed,
 							.. // window_id
 						} => {
+							let func = &mut *Self::singleton()._funcPre_exit.write();
+							func();
 							eventloop.exit();
 						},
 						_ => ()
 					}
 					
-					{
-						let func = &mut *Self::singleton()._funcPostEngineEvent.write();
-						func(&event);
-					}
+					postEngineEvent(&event,eventloop);
 					
 					match event
 					{
@@ -129,7 +142,6 @@ impl HGEwinit
 							..
 						} => {
 							HGEMain::singleton().runRendering();
-							println!("fps : {}",HGEMain::singleton().getTimer().getFps());
 						},
 						_ => ()
 					}
@@ -157,7 +169,7 @@ impl HGEwinit
 	{
 		Self{
 			_funcPostInit: RwLock::new(Box::new(||{})),
-			_funcPostEngineEvent: RwLock::new(Box::new(|_|{})),
+			_funcPre_exit: RwLock::new(Box::new(||{})),
 			_inputsC: RwLock::new(Inputs::new()),
 		}
 	}
