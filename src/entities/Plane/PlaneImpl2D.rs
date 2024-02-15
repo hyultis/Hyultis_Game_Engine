@@ -1,4 +1,5 @@
 use std::any::Any;
+use crate::components::event::event_type;
 use crate::components::interfacePosition::interfacePosition;
 use crate::entities::Plane::Plane;
 use crate::Interface::UiHitbox::UiHitbox;
@@ -23,6 +24,11 @@ impl Plane<interfacePosition>
 	
 	pub fn cacheRefreshUI(&mut self)
 	{
+		if(!self._events.have(event_type::WINREFRESH))
+		{
+			self._events.add(event_type::WINREFRESH, event_type::emptyRefresh());
+		}
+		
 		let Some(texture) = self._components.computeTexture() else {
 			return
 		};

@@ -66,10 +66,9 @@ impl UiPage
 		content.cache_update();
 		let content: Box<dyn UiPageContent + Sync + Send> = Box::new(content); // need to be explicit
 		let returning = HArcMut::new(content);
-		let oldone = self._content.insert(name, returning.clone());
-		if(oldone.is_some())
+		if let Some(oldone) = self._content.insert(name, returning.clone())
 		{
-			oldone.unwrap().setDrop();
+			oldone.setDrop();
 		}
 		
 		return returning;

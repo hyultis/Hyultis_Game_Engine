@@ -21,6 +21,7 @@ use Hconfig::HConfigManager::HConfigManager;
 use Htrace::Type::Type;
 use json::JsonValue;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use singletonThread::SingletonThread;
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::Fullscreen;
 use crate::Animation::Animation;
@@ -85,10 +86,12 @@ pub struct HGEMain
 	_cameraAnimation: RwLock<Vec<Animation<Camera, [f32; 3]>>>,
 	
 	// loop
-	_fps: RwLock<u32>,
 	_cameraC: HArcMut<Camera>,
 	_mouseMode: RwLock<bool>,
 	_ManagerInterpolate: RwLock<ManagerInterpolate>,
+	
+	// threads
+	_thread_runService: RwLock<SingletonThread>,
 }
 
 static SINGLETON: OnceLock<HGEMain> = OnceLock::new();
@@ -142,36 +145,21 @@ impl HGEMain
 	
 	pub fn runService(&self)
 	{
-		if **self._isSuspended.load()
-		{
-			return;
-		}
-		
-		self._ManagerInterpolate.write().update();
-		ManagerFont::singleton().FontEngine_CacheUpdate();
-		ManagerAnimation::singleton().ticksAll();
-		ManagerTexture::singleton().launchThreads();
-		
-		self._cameraAnimation.write().retain_mut(|anim| {
-			//println!("one cam anim");
-			!anim.ticks()
-		});
+		self._thread_runService.write().thread_launch();
 	}
 	
 	pub fn runRendering(&self)
 	{
-		if **self._isSuspended.load()
+		if(**Self::singleton()._isSuspended.load())
 		{
 			return;
 		}
 		
-		//let _ = TSpawner!(||{
-		if let Some(rendering) = &mut *self._rendering.write()
+		if let Some(rendering) = &mut *Self::singleton()._rendering.write()
 		{
-			let durationFromLast = self._ManagerInterpolate.read().getNowFromLast();
+			let durationFromLast = Self::singleton()._ManagerInterpolate.read().getNowFromLast();
 			rendering.rendering(durationFromLast);
 		}
-		//});
 	}
 	
 	pub fn getCamera(&self) -> HArcMut<Camera>
@@ -322,6 +310,22 @@ impl HGEMain
 	
 	fn new() -> Self
 	{
+		let mut threadService = SingletonThread::newFiltered(||{
+			ManagerFont::singleton().FontEngine_CacheUpdate();
+			ManagerTexture::singleton().launchThreads();
+			
+			Self::singleton()._ManagerInterpolate.write().update();
+			ManagerAnimation::singleton().ticksAll();
+			
+			Self::singleton()._cameraAnimation.write().retain_mut(|anim| {
+				//println!("one cam anim");
+				!anim.ticks()
+			});
+		},||{
+			!**Self::singleton()._isSuspended.load()
+		});
+		threadService.setDuration(Duration::from_nanos(1));
+		
 		return Self
 		{
 			_instance: RwLock::new(None),
@@ -344,11 +348,11 @@ impl HGEMain
 			_timeAppStart: Instant::now(),
 			_lastFrameDuration: RwLock::new(Duration::from_nanos(0)),
 			_cameraAnimation: RwLock::new(vec![]),
-			_fps: RwLock::new(0),
 			_cameraC: HArcMut::new(Camera::new()),
 			_mouseMode: RwLock::new(true),
 			_ManagerInterpolate: RwLock::new(ManagerInterpolate::new()),
 			_cmdBufferTextures: Arc::new(DashMap::new()),
+			_thread_runService: RwLock::new(threadService),
 		};
 	}
 	

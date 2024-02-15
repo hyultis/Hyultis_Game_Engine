@@ -291,11 +291,7 @@ impl Text
 	fn newWithWinRefreshEvent() -> event<Text>
 	{
 		let mut tmp = event::new();
-		tmp.add(event_type::WINREFRESH, |item: &mut Text|
-		{
-			item.commit();
-			true
-		});
+		tmp.add(event_type::WINREFRESH, event_type::emptyRefresh());
 		return tmp;
 	}
 }

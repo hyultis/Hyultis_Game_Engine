@@ -1,7 +1,8 @@
 use std::any::Any;
 use crate::components::corners::corner2;
-use crate::components::event::event_trait;
+use crate::components::event::{event, event_trait, event_trait_add, event_type};
 use crate::components::interfacePosition::interfacePosition;
+use crate::Interface::Bar::Bar;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::UiPageContent;
 use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
@@ -13,6 +14,7 @@ pub struct Line
 	_pos: [interfacePosition; 2],
 	_color: [[f32; 4]; 2],
 	_cache: StructAllCache,
+	_events: event<Line>,
 	_canUpdate: bool
 }
 
@@ -65,17 +67,40 @@ impl Line
 impl Default for Line
 {
 	fn default() -> Self {
+		let mut event= event::new();
+		event.add(event_type::WINREFRESH, event_type::emptyRefresh());
 		return Line
 		{
 			_pos: [interfacePosition::new_percent(0.0, 0.0), interfacePosition::new_percent(0.0, 0.0)],
 			_color: [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
 			_cache: StructAllCache::new(),
+			_events: event,
 			_canUpdate: true,
 		};
 	}
 }
 
-impl event_trait for Line {}
+impl event_trait for Line
+{
+	fn event_trigger(&mut self, eventtype: event_type) -> bool
+	{
+		let update = self._events.clone().trigger(eventtype, self);
+		self.cacheRefresh();
+		return update;
+	}
+	
+	fn event_have(&self, eventtype: event_type) -> bool
+	{
+		self._events.have(eventtype)
+	}
+}
+
+impl event_trait_add<Line> for Line
+{
+	fn event_add(&mut self, eventtype: event_type, func: impl Fn(&mut Line) -> bool + Send + Sync + 'static) {
+		self._events.add(eventtype, func);
+	}
+}
 
 impl UiPageContent for Line
 {

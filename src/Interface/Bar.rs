@@ -68,6 +68,7 @@ impl Bar
 			_events: event::new(),
 			_hitbox: UiHitbox::new(),
 		};
+		tmp._events.add(event_type::WINREFRESH, event_type::emptyRefresh());
 		tmp.setSquare(leftTop,bottomRight);
 		return tmp;
 	}

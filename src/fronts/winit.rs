@@ -1,5 +1,4 @@
-use std::sync::{Arc, OnceLock};
-use arc_swap::ArcSwapOption;
+use std::sync::OnceLock;
 use Htrace::HTraceError;
 use parking_lot::RwLock;
 use winit::event::{ElementState, Event, WindowEvent};
@@ -109,6 +108,12 @@ impl HGEwinit
 						} => {
 							eventloop.exit();
 						},
+						Event::WindowEvent {
+							event: WindowEvent::Destroyed,
+							.. // window_id
+						} => {
+							eventloop.exit();
+						},
 						_ => ()
 					}
 					
@@ -117,16 +122,29 @@ impl HGEwinit
 						func(&event);
 					}
 					
+					match event
+					{
+						Event::WindowEvent {
+							event: WindowEvent::RedrawRequested,
+							..
+						} => {
+							HGEMain::singleton().runRendering();
+							println!("fps : {}",HGEMain::singleton().getTimer().getFps());
+						},
+						_ => ()
+					}
+					
 					if event == Event::AboutToWait
 					{
-						println!("fps : {}",HGEMain::singleton().getTimer().getFps());
+						//HGEMain::singleton().runRendering();
+						//println!("fps : {}",HGEMain::singleton().getTimer().getFps());
+						
 						if (Self::singleton()._inputsC.write().getKeyboardStateAndSteal(KeyCode::Escape) == ElementState::Pressed)
 						{
 							eventloop.exit();
 						}
 						
 						HGEMain::singleton().runService();
-						HGEMain::singleton().runRendering();
 						eventloop.set_control_flow(ControlFlow::Poll);
 					}
 				}
