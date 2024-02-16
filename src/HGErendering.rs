@@ -10,7 +10,6 @@ use vulkano::image::sampler::Filter;
 use vulkano::render_pass::RenderPass;
 use vulkano::swapchain::{Surface, SwapchainPresentInfo};
 use vulkano::sync::GpuFuture;
-use winit::window::Window;
 use crate::BuilderDevice::BuilderDevice;
 use crate::HGEFrame::HGEFrame;
 use crate::HGEMain::{HGEMain, HGEMain_secondarybuffer_type};
@@ -23,7 +22,7 @@ pub struct HGErendering
 	//content storage
 	_swapChainC: HGESwapchain,
 	_Frame: HGEFrame,
-	_builderDevice: BuilderDevice,
+	_builderDevice: Arc<BuilderDevice>,
 	_renderpassC: Arc<RenderPass>,
 	_surface: Arc<Surface>,
 	_stdAllocCommand: StandardCommandBufferAllocator,
@@ -36,7 +35,7 @@ pub struct HGErendering
 
 impl HGErendering
 {
-	pub fn new(builderDevice: BuilderDevice, surface: Arc<Surface>) -> anyhow::Result<Self>
+	pub fn new(builderDevice: Arc<BuilderDevice>, surface: Arc<Surface>) -> anyhow::Result<Self>
 	{
 		let HGEswapchain = HGESwapchain::new(builderDevice.clone(), surface.clone());
 		let frame_format = HGEswapchain.getImageFormat();
@@ -50,7 +49,7 @@ impl HGErendering
 		
 		Ok(Self {
 			_swapChainC: HGEswapchain,
-			_Frame: HGEFrame::new(frame_format),
+			_Frame: HGEFrame::new(frame_format,builderDevice.depthformat),
 			_builderDevice: builderDevice,
 			_renderpassC: render_pass,
 			_surface: surface,
@@ -61,10 +60,10 @@ impl HGErendering
 		})
 	}
 	
-	pub fn recreate(&mut self, builderDevice: BuilderDevice, surface: Arc<Surface>)
+	pub fn recreate(&mut self, builderDevice: Arc<BuilderDevice>, surface: Arc<Surface>)
 	{
 		self._swapChainC = HGESwapchain::new(builderDevice.clone(), surface.clone());
-		self._Frame = HGEFrame::new(self._swapChainC.getImageFormat());
+		self._Frame = HGEFrame::new(self._swapChainC.getImageFormat(),builderDevice.depthformat);
 		self._builderDevice = builderDevice;
 		if let Ok(newrenderpass) = Self::define_renderpass(&self._builderDevice, &self._swapChainC)
 		{
@@ -248,11 +247,6 @@ impl HGErendering
 				HTrace!("Failed to flush future: {:?}", e);
 				self._previousFrameEnd = Some(sync::now(device).boxed_send_sync());
 			}
-		}
-		
-		if let Some(window) = self._surface.object().unwrap().downcast_ref::<Window>()
-		{
-			window.request_redraw();
 		}
 	}
 	

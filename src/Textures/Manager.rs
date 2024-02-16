@@ -8,7 +8,7 @@ use dashmap::try_result::TryResult;
 use Htrace::HTrace;
 use Htrace::HTracer::HTracer;
 use Htrace::Type::Type;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use rayon::iter::IntoParallelRefIterator;
 use vulkano::command_buffer::{CopyBufferToImageInfo, SecondaryAutoCommandBuffer};
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
@@ -49,8 +49,8 @@ pub struct ManagerTexture
 	_atlasSizeId: DashMap<Texture_atlasType,u32>,
 	
 	// thread stuff
-	_threadLoading: RwLock<SingletonThread>,
-	_threadUpdateVulkan: RwLock<SingletonThread>,
+	_threadLoading: Mutex<SingletonThread>,
+	_threadUpdateVulkan: Mutex<SingletonThread>,
 	_haveOneOrderUpdate: RwLock<bool>,
 	_haveOneTextureUpdate: RwLock<bool>,
 	_updatedDescriptor: RwLock<bool>,
@@ -81,7 +81,7 @@ impl ManagerTexture
 	
 	pub fn addSampler(&self, name: impl Into<String>, mut newsampler: SamplerCreateInfo)
 	{
-		let device = HGEMain::singleton().getDevice().device;
+		let device = HGEMain::singleton().getDevice().device.clone();
 		if(!device.enabled_features().sampler_anisotropy)
 		{
 			newsampler.anisotropy = None;
@@ -325,8 +325,8 @@ impl ManagerTexture
 	
 	pub fn launchThreads(&self)
 	{
-		self._threadLoading.write().thread_launch();
-		self._threadUpdateVulkan.write().thread_launch();
+		self._threadLoading.lock().thread_launch();
+		self._threadUpdateVulkan.lock().thread_launch();
 		//return;
 	}
 	
@@ -388,7 +388,7 @@ impl ManagerTexture
 	///////////// PRIVATE ///////////
 	
 	fn new() -> ManagerTexture {
-		let device = HGEMain::singleton().getDevice().device;
+		let device = HGEMain::singleton().getDevice().device.clone();
 		
 		let samplers = DashMap::new();
 		samplers.insert("default".to_string(), Self::defaultSampler());
@@ -440,8 +440,8 @@ impl ManagerTexture
 			_NbTotalTexture: RwLock::new(0),
 			_NbTotalLoadedTexture: RwLock::new(0),
 			_atlasSizeId: DashMap::new(),
-			_threadLoading: RwLock::new(orderThread),
-			_threadUpdateVulkan: RwLock::new(updateThread),
+			_threadLoading: Mutex::new(orderThread),
+			_threadUpdateVulkan: Mutex::new(updateThread),
 			_haveOneOrderUpdate: RwLock::new(false),
 			_haveOneTextureUpdate: RwLock::new(false),
 			_updatedDescriptor: RwLock::new(true),

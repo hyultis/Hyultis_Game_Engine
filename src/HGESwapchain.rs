@@ -25,7 +25,7 @@ pub struct HGESwapchain
 
 impl HGESwapchain
 {
-	pub fn new(builderDevice : BuilderDevice, surface: Arc<Surface>) -> Self
+	pub fn new(builderDevice : Arc<BuilderDevice>, surface: Arc<Surface>) -> Self
 	{
 		let surface_capabilities = builderDevice.device
 			.physical_device()
@@ -57,7 +57,7 @@ impl HGESwapchain
 			SwapchainCreateInfo {
 				min_image_count: surface_capabilities.min_image_count,
 				image_format: format,
-				image_extent: HGEMain::singleton().getWindowInfos().into(),
+				image_extent: [100,100],
 				image_usage: ImageUsage::TRANSFER_DST | ImageUsage::COLOR_ATTACHMENT, // ImageUsage::TRANSFER_SRC | ImageUsage::TRANSFER_DST |
 				present_mode: PresentMode::Fifo, // default
 				pre_transform: SurfaceTransform::Identity,

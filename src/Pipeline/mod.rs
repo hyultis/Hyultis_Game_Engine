@@ -52,7 +52,7 @@ impl EnginePipelines
 		let name = name.into();
 		
 		let dimensions = HGEMain::singleton().getWindowInfos();
-		let device = HGEMain::singleton().getDevice().device;
+		let device = HGEMain::singleton().getDevice().device.clone();
 		let subpass = Subpass::from(renderpass, subpassID).unwrap();
 		
 		let mut specialzitiondata = ahash::HashMap::new();
@@ -144,7 +144,7 @@ impl EnginePipelines
 		let name = name.into();
 		
 		let dimensions = HGEMain::singleton().getWindowInfos();
-		let device = HGEMain::singleton().getDevice().device;
+		let device = HGEMain::singleton().getDevice().device.clone();
 		let subpass = Subpass::from(renderpass, subpassID).unwrap();
 		
 		let mut specialzitiondata = ahash::HashMap::new();
@@ -237,7 +237,7 @@ impl EnginePipelines
 		let name = name.into();
 		
 		let dimensions = HGEMain::singleton().getWindowInfos();
-		let device = HGEMain::singleton().getDevice().device;
+		let device = HGEMain::singleton().getDevice().device.clone();
 		let subpass = Subpass::from(renderpass, HGEsubpassName::FINAL.getSubpassID()).unwrap();
 		
 		let shadercontent = Shaders::Manager::ManagerShaders::singleton().get(name).unwrap();

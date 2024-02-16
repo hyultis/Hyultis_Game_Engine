@@ -5,6 +5,7 @@ use parking_lot::lock_api::{RwLockReadGuard, RwLockWriteGuard};
 use winit::event::{ElementState, Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use winit::keyboard::{KeyCode, PhysicalKey};
+use winit::window::Window;
 use crate::configs::general::HGEconfig_general;
 use crate::fronts::Inputs::Inputs;
 use crate::HGEMain::HGEMain;
@@ -61,7 +62,7 @@ impl HGEwinit
 				{
 					if event == Event::Resumed
 					{
-						HTraceError!(HGEMain::singleton().engineInitialize(eventloop,generalConf.clone()));
+						HTraceError!(HGEMain::initialize(eventloop,generalConf.clone()));
 						initialized = true;
 						
 						let func = &mut *Self::singleton()._funcPostInit.write();
@@ -111,7 +112,7 @@ impl HGEwinit
 								Self::singleton().setWindowHDPI((1080.0 / height as f32).min(1.0));
 							}
 							
-							HGEMain::singleton().window_resize(Some(width), Some(height));
+							HGEMain::singleton().window_resize(Some([width,height]));
 						},
 						Event::Suspended => {
 							HGEMain::singleton().engineSuspended();
@@ -142,15 +143,20 @@ impl HGEwinit
 							..
 						} => {
 							HGEMain::singleton().runRendering();
+							
+							if let Some(surfaceBinding) = &*HGEMain::singleton().getSurface()
+							{
+								if let Some(window) = surfaceBinding.object().unwrap().downcast_ref::<Window>()
+								{
+									window.request_redraw();
+								}
+							}
 						},
 						_ => ()
 					}
 					
 					if event == Event::AboutToWait
 					{
-						//HGEMain::singleton().runRendering();
-						//println!("fps : {}",HGEMain::singleton().getTimer().getFps());
-						
 						if (Self::singleton()._inputsC.write().getKeyboardStateAndSteal(KeyCode::Escape) == ElementState::Pressed)
 						{
 							eventloop.exit();
@@ -161,6 +167,17 @@ impl HGEwinit
 					}
 				}
 			});
+	}
+	
+	pub fn getWindow<F>(&self, func: F)
+		where F: FnOnce(&Window)
+	{
+		let surfaceBinding = HGEMain::singleton().getSurface();
+		if let Some(surface) = &*surfaceBinding
+		{
+			let tmp = surface.object().unwrap().downcast_ref::<Window>().unwrap();
+			func(tmp);
+		}
 	}
 	
 	//////////////////// PRIVATE /////////////////

@@ -82,6 +82,8 @@ pub struct window_infos
 	pub ratio_w2h: f32,
 	pub ratio_h2w: f32,
 	pub isWide: bool,
+	
+	pub HDPI: f32,
 	pub orientation: window_orientation,
 }
 
@@ -128,8 +130,9 @@ impl Default for window_infos
 			raw_heightF: 1.0,
 			ratio_w2h: 1.0,
 			ratio_h2w: 1.0,
-			orientation: Default::default(),
 			isWide: false,
+			HDPI: 1.0,
+			orientation: Default::default(),
 		}
 	}
 }

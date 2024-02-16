@@ -2,7 +2,7 @@ use std::any::Any;
 use std::sync::{Arc, OnceLock};
 use dashmap::DashMap;
 use Htrace::HTracer::HTracer;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use singletonThread::SingletonThread;
 
 pub trait AnimationHolder: Send + Sync
@@ -18,8 +18,8 @@ pub struct ManagerAnimation
 {
 	_maxid: RwLock<usize>,
     _animations: Arc<DashMap<usize,Box<dyn AnimationHolder>>>,
-	_threadLoading: RwLock<SingletonThread>,
-	_threadDrop: RwLock<SingletonThread>
+	_threadLoading: Mutex<SingletonThread>,
+	_threadDrop: Mutex<SingletonThread>
 }
 
 static SINGLETON: OnceLock<ManagerAnimation> = OnceLock::new();
@@ -47,8 +47,8 @@ impl ManagerAnimation
         return ManagerAnimation {
 	        _maxid: RwLock::new(0),
 	        _animations: Arc::new(DashMap::default()),
-	        _threadLoading: RwLock::new(singThread),
-	        _threadDrop: RwLock::new(singThreadDrop)
+	        _threadLoading: Mutex::new(singThread),
+	        _threadDrop: Mutex::new(singThreadDrop)
         };
     }
 
@@ -88,8 +88,8 @@ impl ManagerAnimation
 
     pub fn ticksAll(&self)
     {
-	    self._threadLoading.write().thread_launch();
-	    self._threadDrop.write().thread_launch();
+	    self._threadLoading.lock().thread_launch();
+	    self._threadDrop.lock().thread_launch();
     }
 	
 	fn internal_ticks(&self)

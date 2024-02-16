@@ -3,7 +3,7 @@ extern crate vulkano;
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 use anyhow::anyhow;
-use arc_swap::{ArcSwap, ArcSwapOption};
+use arc_swap::{ArcSwap, ArcSwapOption, Guard};
 use vulkano::{command_buffer::{
 	AutoCommandBufferBuilder, CommandBufferUsage,
 }, Version, VulkanLibrary};
@@ -20,7 +20,7 @@ use HArcMut::HArcMut;
 use Hconfig::HConfigManager::HConfigManager;
 use Htrace::Type::Type;
 use json::JsonValue;
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use singletonThread::SingletonThread;
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::Fullscreen;
@@ -60,27 +60,23 @@ pub enum HGEMain_secondarybuffer_type
 pub struct HGEMain
 {
 	// instance stuff
-	_instance: RwLock<Option<Arc<Instance>>>,
-	_surface: RwLock<Option<Arc<Surface>>>,
+	_instance: ArcSwap<Instance>,
+	_surface: ArcSwapOption<Surface>,
 	_isSuspended: ArcSwap<bool>,
-	_builderDevice: RwLock<Option<BuilderDevice>>,
-	_rendering: RwLock<Option<HGErendering>>,
+	_builderDevice: ArcSwap<BuilderDevice>,
+	_rendering: Arc<RwLock<HGErendering>>,
 	
 	
 	// app data
-	_appName: RwLock<Option<String>>,
-	_appVersion: RwLock<Version>,
+	_appName: ArcSwap<String>,
+	_appVersion: ArcSwap<Version>,
 	
 	// tmp
-	_stdAllocSet: ArcSwapOption<StandardDescriptorSetAllocator>,
+	_stdAllocSet: ArcSwap<StandardDescriptorSetAllocator>,
 	_cmdBufferTextures: Arc<DashMap<HGEMain_secondarybuffer_type, (Vec<Arc<SecondaryAutoCommandBuffer>>, Vec<Arc<dyn Fn() + Send + Sync>>)>>,
 	
 	//cache data
 	_windowInfos: RwLock<window_infos>,
-	_windowDimentionF32: RwLock<[f32; 4]>,
-	_windowHDPI: RwLock<f32>,
-	_windowDimentionF32Raw: RwLock<[f32; 2]>,
-	_windowOrientation: RwLock<window_orientation>,
 	_timeAppStart: Instant,
 	_lastFrameDuration: RwLock<Duration>,
 	_cameraAnimation: RwLock<Vec<Animation<Camera, [f32; 3]>>>,
@@ -91,7 +87,7 @@ pub struct HGEMain
 	_ManagerInterpolate: RwLock<ManagerInterpolate>,
 	
 	// threads
-	_thread_runService: RwLock<SingletonThread>,
+	_thread_runService: Mutex<SingletonThread>,
 }
 
 static SINGLETON: OnceLock<HGEMain> = OnceLock::new();
@@ -100,13 +96,16 @@ impl HGEMain
 {
 	pub fn singleton() -> &'static Self
 	{
-		return SINGLETON.get_or_init(|| {
-			Self::new()
-		});
+		return SINGLETON.get().unwrap_or_else(|| { panic!("HGE have not been initialized") });
 	}
 	
-	pub fn engineInitialize(&self, eventloop: &EventLoopWindowTarget<()>, config: HGEconfig_general) -> anyhow::Result<()>
+	pub fn initialize(eventloop: &EventLoopWindowTarget<()>, config: HGEconfig_general) -> anyhow::Result<()>
 	{
+		if (SINGLETON.get().is_some())
+		{
+			return Err(anyhow!("HGE already initialized"));
+		}
+		
 		if (config.defaultShaderLoader.is_none())
 		{
 			HTrace!((Type::ERROR) "general configuration for loading shader is empty in \"defaultShaderLoader\"");
@@ -114,38 +113,41 @@ impl HGEMain
 		}
 		HGEconfig::defineGeneral(config);
 		
-		HTrace!("Engine init ----");
-		self.BuildInstance(eventloop)?;
+		HTrace!("Engine initialization ----");
+		let instance = Self::Init_Instance(eventloop)?;
 		
-		HTrace!("Engine creation : surface build");
-		self.engineSurfaceReload(eventloop)?;
-		HTrace!("Engine creation : surface stored");
+		HTrace!("Engine initialization : surface build");
+		let surface = Self::Init_SurfaceReload(eventloop,instance.clone())?;
 		
-		HTrace!("Engine creation : device build");
-		let surface = self._surface.read().clone().unwrap();
-		let builderDevice = BuilderDevice::new(self._instance.read().clone().unwrap(), surface.clone());
-		*self._builderDevice.write() = Some(builderDevice.clone());
-		self.window_resize(None, None);
-		HTrace!("Engine creation : device stored");
+		HTrace!("Engine initialization : device build");
+		let builderDevice = Arc::new(BuilderDevice::new(instance.clone(), surface.clone()));
 		
-		HTrace!("Engine creation : Memory allocator build");
+		HTrace!("Engine initialization : Memory allocator build");
 		ManagerMemoryAllocator::singleton().update(builderDevice.device.clone());
-		self._stdAllocSet.swap(Some(Arc::new(StandardDescriptorSetAllocator::new(builderDevice.device.clone(), Default::default()))));
-		HTrace!("Engine creation : Memory allocator stored");
+		let stdAllocSet = Arc::new(StandardDescriptorSetAllocator::new(builderDevice.device.clone(), Default::default()));
 		
-		HTrace!("Engine creation : rendering build");
-		*self._rendering.write() = Some(HGErendering::new(builderDevice, surface)?);
-		HTrace!("Engine creation : rendering stored");
-		HTrace!("Engine creation end ----");
+		HTrace!("Engine initialization : rendering build");
+		let rendering = HGErendering::new(builderDevice.clone(), surface.clone())?;
 		
-		self.engineLoad()?;
-		self._isSuspended.swap(Arc::new(false));
+		HTrace!("Engine initialization : HGE creation");
+		let selfnew = Self::new(instance,builderDevice,surface,stdAllocSet,rendering);
+		if SINGLETON.set(selfnew).is_err()
+		{
+			return Err(anyhow!("HGE instance set by another thread"));
+		}
+		
+		let selfnew = SINGLETON.get().unwrap();
+		selfnew.window_InfosUpdate(None);
+		selfnew.engineLoad()?;
+		selfnew._isSuspended.swap(Arc::new(false));
+		
+		HTrace!("Engine initialization end ----");
 		Ok(())
 	}
 	
 	pub fn runService(&self)
 	{
-		self._thread_runService.write().thread_launch();
+		Self::singleton()._thread_runService.lock().thread_launch();
 	}
 	
 	pub fn runRendering(&self)
@@ -155,11 +157,9 @@ impl HGEMain
 			return;
 		}
 		
-		if let Some(rendering) = &mut *Self::singleton()._rendering.write()
-		{
-			let durationFromLast = Self::singleton()._ManagerInterpolate.read().getNowFromLast();
-			rendering.rendering(durationFromLast);
-		}
+		let durationFromLast = Self::singleton()._ManagerInterpolate.read().getNowFromLast();
+		self._rendering.write().rendering(durationFromLast);
+		
 	}
 	
 	pub fn getCamera(&self) -> HArcMut<Camera>
@@ -172,12 +172,9 @@ impl HGEMain
 		self._cameraAnimation.write().push(anim);
 	}
 	
-	pub fn getWindow<F>(&self, func: F)
-		where F: FnOnce(&Window)
+	pub fn getSurface(&self) -> Guard<Option<Arc<Surface>>>
 	{
-		let surfaceBinding = self._surface.read().clone().unwrap();
-		let tmp = surfaceBinding.object().unwrap().downcast_ref::<Window>().unwrap();
-		func(tmp);
+		return self._surface.load();
 	}
 	
 	pub fn getTimer(&self) -> RwLockReadGuard<'_, ManagerInterpolate>
@@ -210,13 +207,13 @@ impl HGEMain
 	{
 		#[cfg(feature = "dynamicresolution")]
 		{
-			*self._windowHDPI.write() = ratio.max(0.0);
+			self._windowInfos.write().HDPI = ratio.max(0.0);
 		}
 	}
 	
 	pub fn getWindowHDPI(&self) -> f32
 	{
-		return *self._windowHDPI.write();
+		return self._windowInfos.read().HDPI;
 	}
 	
 	pub fn getWindowCorrectedMousePos(&self, mousex: &mut f64, mousey: &mut f64)
@@ -225,7 +222,7 @@ impl HGEMain
 		let tmpx = *mousex * hdpi;
 		let tmpy = *mousey * hdpi;
 		
-		match *self._windowOrientation.read() {
+		match self._windowInfos.read().orientation {
 			window_orientation::NORMAL | window_orientation::ROT_180 => {
 				*mousex = tmpx;
 				*mousey = tmpy;
@@ -239,19 +236,18 @@ impl HGEMain
 	
 	pub fn getAllocatorSet(&self) -> Arc<StandardDescriptorSetAllocator>
 	{
-		return self._stdAllocSet.load_full().unwrap();
+		return self._stdAllocSet.load().clone();
 	}
 	
-	pub fn getDevice(&self) -> BuilderDevice
+	pub fn getDevice(&self) -> Guard<Arc<BuilderDevice>>
 	{
-		return self._builderDevice.read().clone().unwrap();
+		return self._builderDevice.load();
 	}
 	
 	pub fn SecondaryCmdBuffer_generate(&self) -> AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>
 	{
-		let cmd = &*self._rendering.read();
 		AutoCommandBufferBuilder::secondary(
-			cmd.as_ref().unwrap().getAllocCmd(),
+			self._rendering.read().getAllocCmd(),
 			Self::singleton().getDevice().getQueueGraphic().queue_family_index(),
 			CommandBufferUsage::OneTimeSubmit,
 			CommandBufferInheritanceInfo {
@@ -282,12 +278,10 @@ impl HGEMain
 	pub fn engineResumed(&self, eventloop: &EventLoopWindowTarget<()>) -> anyhow::Result<()>
 	{
 		HTrace!("Engine context creation ----");
-		self.engineSurfaceReload(eventloop)?;
+		let newsurface = Self::Init_SurfaceReload(eventloop,self._instance.load().clone())?;
+		self._surface.swap(Some(newsurface.clone()));
 		
-		if let Some(rendering) = &mut *self._rendering.write()
-		{
-			rendering.recreate(self._builderDevice.read().clone().unwrap(),self._surface.read().clone().unwrap());
-		}
+		self._rendering.write().recreate(self._builderDevice.load().clone(),newsurface);
 		
 		ManagerInterface::singleton().WindowRefreshed();
 		self._isSuspended.swap(Arc::new(false));
@@ -297,7 +291,7 @@ impl HGEMain
 	pub fn engineSuspended(&self)
 	{
 		HTrace!("Engine context deleted ----");
-		*self._surface.write() = None;
+		self._surface.swap(None);
 		self._isSuspended.swap(Arc::new(true));
 	}
 	
@@ -306,21 +300,33 @@ impl HGEMain
 		*self._isSuspended.load_full()
 	}
 	
+	pub fn window_resize(&self, size: Option<[u32;2]>)
+	{
+		self.window_InfosUpdate(size);
+		
+		self._rendering.write().forceSwapchainRecreate();
+	}
+	
 	///////////// PRIVATE
 	
-	fn new() -> Self
+	fn new(instance: Arc<Instance>, builder_device: Arc<BuilderDevice>, surface: Arc<Surface>, stdAllocSet: Arc<StandardDescriptorSetAllocator>, rendering: HGErendering) -> Self
 	{
+		let config = HGEconfig::singleton().general_get();
+		
 		let mut threadService = SingletonThread::newFiltered(||{
-			ManagerFont::singleton().FontEngine_CacheUpdate();
-			ManagerTexture::singleton().launchThreads();
-			
-			Self::singleton()._ManagerInterpolate.write().update();
-			ManagerAnimation::singleton().ticksAll();
+			if let Some(mut interpolateur) = Self::singleton()._ManagerInterpolate.try_write()
+			{
+				interpolateur.update();
+			}
 			
 			Self::singleton()._cameraAnimation.write().retain_mut(|anim| {
 				//println!("one cam anim");
 				!anim.ticks()
 			});
+			
+			ManagerFont::singleton().FontEngine_CacheUpdate();
+			ManagerTexture::singleton().launchThreads();
+			ManagerAnimation::singleton().ticksAll();
 		},||{
 			!**Self::singleton()._isSuspended.load()
 		});
@@ -328,23 +334,15 @@ impl HGEMain
 		
 		return Self
 		{
-			_instance: RwLock::new(None),
-			_surface: RwLock::new(None),
+			_instance: ArcSwap::new(instance),
+			_surface: ArcSwapOption::new(Some(surface)),
 			_isSuspended: ArcSwap::new(Arc::new(true)),
-			_builderDevice: RwLock::new(None),
-			_rendering: RwLock::new(None),
-			_appName: RwLock::new(None),
-			_appVersion: RwLock::new(Version {
-				major: 0,
-				minor: 0,
-				patch: 0,
-			}),
-			_stdAllocSet: ArcSwapOption::new(None),
+			_builderDevice: ArcSwap::new(builder_device),
+			_rendering: Arc::new(RwLock::new(rendering)),
+			_appName: ArcSwap::new(Arc::new(config.windowTitle.clone())),
+			_appVersion: ArcSwap::new(Arc::new(config.appVersion)),
+			_stdAllocSet: ArcSwap::new(stdAllocSet),
 			_windowInfos: RwLock::new(window_infos::default()),
-			_windowDimentionF32: RwLock::new([1.0, 1.0, 1.0, 1.0]),
-			_windowHDPI: RwLock::new(1.0),
-			_windowDimentionF32Raw: RwLock::new([1.0, 1.0]),
-			_windowOrientation: RwLock::new(Default::default()),
 			_timeAppStart: Instant::now(),
 			_lastFrameDuration: RwLock::new(Duration::from_nanos(0)),
 			_cameraAnimation: RwLock::new(vec![]),
@@ -352,62 +350,33 @@ impl HGEMain
 			_mouseMode: RwLock::new(true),
 			_ManagerInterpolate: RwLock::new(ManagerInterpolate::new()),
 			_cmdBufferTextures: Arc::new(DashMap::new()),
-			_thread_runService: RwLock::new(threadService),
+			_thread_runService: Mutex::new(threadService),
 		};
 	}
 	
-	fn BuildInstance(&self, event_loop: &EventLoopWindowTarget<()>) -> anyhow::Result<()>
-	{
-		let library = VulkanLibrary::new().unwrap();
-		let required_extensions = Surface::required_extensions(event_loop);
-		let debuglayer = Vec::new();
-		
-		/*{
-			debuglayer.push("VK_LAYER_KHRONOS_validation".to_string());
-		}*/
-		
-		// Now creating the instance.
-		let instance = Instance::new(
-			library,
-			InstanceCreateInfo {
-				application_name: self._appName.read().clone(),
-				application_version: *self._appVersion.read(),
-				engine_name: Some(HGE_STRING.to_string()),
-				engine_version: HGE_VERSION,
-				enabled_layers: debuglayer,
-				enabled_extensions: required_extensions,
-				// Enable enumerating devices that use non-conformant vulkan implementations. (ex. MoltenVK)
-				flags: InstanceCreateFlags::ENUMERATE_PORTABILITY,
-				..Default::default()
-			},
-		)?;
-		
-		
-		*self._instance.write() = Some(instance);
-		Ok(())
-	}
-	
-	
-	pub fn window_resize(&self, parentwidth: Option<u32>, parentheight: Option<u32>)
+	fn window_InfosUpdate(&self, size: Option<[u32;2]>)
 	{
 		let Some(surfaceCap) = self.getSurfaceCapability() else {
 			return;
 		};
 		
-		HTrace!("viewport parent : [{:?},{:?}]", parentwidth, parentheight);
+		HTrace!("viewport pre size information : {:?}", size);
 		let rawwidth;
 		let rawheight;
-		if (parentwidth.is_none() || parentheight.is_none())
+		if let Some(winsize) = size
 		{
-			let extends = surfaceCap.current_extent.unwrap_or([1, 1]);
+			rawwidth = winsize[0];
+			rawheight = winsize[1];
+		}
+		else
+		{
+			let extends = surfaceCap.current_extent.unwrap_or([100, 100]);
 			rawwidth = extends[0];
 			rawheight = extends[1];
-		} else {
-			rawwidth = parentwidth.unwrap_or(1);
-			rawheight = parentheight.unwrap_or(1);
 		}
 		
-		let hdpi = *self._windowHDPI.read();
+		let mut bindingWindowInfos = self._windowInfos.write();
+		let hdpi = bindingWindowInfos.HDPI;
 		
 		HTrace!("viewport dim conv : [{},{}]", rawwidth, rawheight);
 		HTrace!("viewport dim hdpi : {}", hdpi);
@@ -416,7 +385,7 @@ impl HGEMain
 		let widthF = (rawwidth as f32 * hdpi) as f32;
 		let heightF = (rawheight as f32 * hdpi) as f32;
 		
-		*self._windowInfos.write() = window_infos {
+		*bindingWindowInfos = window_infos {
 			originx: 0.0,
 			originy: 0.0,
 			width: widthF as u32,
@@ -431,17 +400,12 @@ impl HGEMain
 			ratio_h2w: heightF / widthF,
 			orientation: window_orientation::from(surfaceCap.current_transform),
 			isWide: rawwidth > rawheight,
+			HDPI: hdpi,
 		};
-		
-		if let Some(rendering) = &mut *self._rendering.write()
-		{
-			rendering.forceSwapchainRecreate();
-		}
 	}
 	
-	fn engineSurfaceReload(&self, eventloop: &EventLoopWindowTarget<()>) -> anyhow::Result<()>
+	fn Init_SurfaceReload(eventloop: &EventLoopWindowTarget<()>, instance: Arc<Instance>) -> anyhow::Result<Arc<Surface>>
 	{
-		let instance = self._instance.read().clone().unwrap();
 		let configBind = HGEconfig::singleton().general_get();
 		
 		let mut defaultwindowtype = 2;// 1 or 2 = fullscreen
@@ -495,21 +459,13 @@ impl HGEMain
 		
 		
 		let surface = Surface::from_window(instance, Arc::new(window)).map_err(|e| { anyhow!(e) })?;
-		*self._surface.write() = Some(surface.clone());
-		self.window_resize(None, None);
-		
 		let _ = config.save();
-		Ok(())
+		Ok(surface)
 	}
 	
 	fn engineLoad(&self) -> anyhow::Result<()>
 	{
 		HTrace!("Engine load internal ----");
-		if (self._instance.read().is_none())
-		{
-			return Err(anyhow!("engineInitialize function must be called first"));
-		}
-		
 		self._cameraC.get_mut().setPositionXYZ(1.0, 1.0, 100.0);
 		
 		/*let vs = {
@@ -530,10 +486,7 @@ impl HGEMain
 		HGE_shader_2Dsimple::createPipeline()?;
 		HGE_shader_screen::createPipeline()?;
 		
-		if let Some(rendering) = &mut *self._rendering.write()
-		{
-			rendering.window_size_dependent_setup();
-		}
+		self._rendering.write().window_size_dependent_setup();
 		ManagerTexture::singleton().preload();
 		
 		let lang = "world";
@@ -544,21 +497,51 @@ impl HGEMain
 		Ok(())
 	}
 	
+	fn Init_Instance(event_loop: &EventLoopWindowTarget<()>) -> anyhow::Result<Arc<Instance>>
+	{
+		let library = VulkanLibrary::new().unwrap();
+		let required_extensions = Surface::required_extensions(event_loop);
+		let debuglayer = Vec::new();
+		let config = HGEconfig::singleton().general_get();
+		
+		/*{
+			debuglayer.push("VK_LAYER_KHRONOS_validation".to_string());
+		}*/
+		
+		// Now creating the instance.
+		let instance = Instance::new(
+			library,
+			InstanceCreateInfo {
+				application_name: Some(config.windowTitle.clone()),
+				application_version: config.appVersion,
+				engine_name: Some(HGE_STRING.to_string()),
+				engine_version: HGE_VERSION,
+				enabled_layers: debuglayer,
+				enabled_extensions: required_extensions,
+				// Enable enumerating devices that use non-conformant vulkan implementations. (ex. MoltenVK)
+				flags: InstanceCreateFlags::ENUMERATE_PORTABILITY,
+				..Default::default()
+			},
+		)?;
+		
+		Ok(instance)
+	}
+	
 	
 	fn getSurfaceCapability(&self) -> Option<SurfaceCapabilities>
 	{
-		if let Some(builderDevice) = &*self._builderDevice.read()
+		let Some(surface) = &*self._surface.load() else {
+			return None;
+		};
+		
+		let builderDevice = self._builderDevice.load();
+		if let Ok(result) = builderDevice.device
+			.physical_device()
+			.surface_capabilities(surface, Default::default())
 		{
-			if let Some(surface) = &*self._surface.read()
-			{
-				if let Ok(result) = builderDevice.device
-					.physical_device()
-					.surface_capabilities(surface, Default::default())
-				{
-					return Some(result);
-				}
-			}
+			return Some(result);
 		}
+		
 		return None;
 	}
 }

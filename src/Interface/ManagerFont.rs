@@ -9,7 +9,7 @@ use glyph_brush_layout::FontId;
 use Htrace::HTrace;
 use Htrace::HTracer::HTracer;
 use image::{GrayImage, Rgba, RgbaImage};
-use parking_lot::{RwLock, RwLockReadGuard};
+use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use vulkano::image::sampler::{Filter, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode};
 use crate::Interface::Text::{Extra, TextCacheUpdater};
 use crate::Shaders::HGE_shader_2Dsimple::HGE_shader_2Dsimple;
@@ -49,7 +49,7 @@ pub struct ManagerFont
 	_storeFontId: Arc<DashMap<String, FontId>>,
 	_fontEngine: RwLock<Option<GlyphBrush<ManagerFont_verticestmp, Extra>>>,
 	_fontEngineTextureSize: ArcSwap<[u32; 2]>,
-	_threadLoading: RwLock<SingletonThread>,
+	_threadLoading: Mutex<SingletonThread>,
 	_updateNeed: RwLock<bool>
 }
 
@@ -94,7 +94,7 @@ impl ManagerFont
 			_storeFontId: Default::default(),
 			_fontEngine: Default::default(),
 			_fontEngineTextureSize: ArcSwap::new(Arc::new([DEFAULTTEXTURESIZE, DEFAULTTEXTURESIZE])),
-			_threadLoading: RwLock::new(thread),
+			_threadLoading: Mutex::new(thread),
 			_updateNeed: RwLock::new(false),
 		};
 	}
@@ -162,7 +162,7 @@ impl ManagerFont
 	
 	pub fn FontEngine_CacheUpdate(&self)
 	{
-		self._threadLoading.write().thread_launch();
+		self._threadLoading.lock().thread_launch();
 	}
 	
 	pub fn getUniqId(&self) -> u128

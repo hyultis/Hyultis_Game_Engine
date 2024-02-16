@@ -23,16 +23,16 @@ pub struct HGEFrame
 
 impl HGEFrame
 {
-	pub fn new(format: Format) -> HGEFrame {
+	pub fn new(format: Format, depthformat: Format) -> HGEFrame {
 		
-		let newsize = [1,1];
-		let imgsize = [1,1,1];
+		let newsize = [100,100];
+		let imgsize = [100,100,1];
 		
 		let tmp1 = HGEFrame::generateNewDefaultImg(imgsize,format, ImageUsage::COLOR_ATTACHMENT | ImageUsage::INPUT_ATTACHMENT);
 		let tmp2 = HGEFrame::generateNewDefaultImg(imgsize,format, ImageUsage::COLOR_ATTACHMENT | ImageUsage::INPUT_ATTACHMENT);
 		let tmp3 = HGEFrame::generateNewDefaultImg(imgsize,format, ImageUsage::COLOR_ATTACHMENT | ImageUsage::TRANSFER_SRC);
-		let depth1 = HGEFrame::generateNewDefaultImgDepth(imgsize);
-		let depth2 = HGEFrame::generateNewDefaultImgDepth(imgsize);
+		let depth1 = HGEFrame::generateNewDefaultImgDepth(imgsize,depthformat);
+		let depth2 = HGEFrame::generateNewDefaultImgDepth(imgsize,depthformat);
 		
 		return HGEFrame {
 			_img_depthUI: depth1,
@@ -101,6 +101,7 @@ impl HGEFrame
 	fn resize(&mut self)
 	{
 		let newsize: [u32;2] = HGEMain::singleton().getWindowInfos().into();
+		let depthformat = HGEMain::singleton().getDevice().depthformat;
 		
 		if(newsize == self._img_size)
 		{
@@ -111,8 +112,8 @@ impl HGEFrame
 		self._img_render_UI = HGEFrame::generateNewDefaultImg(imgsize, self._ouputFormat, ImageUsage::COLOR_ATTACHMENT | ImageUsage::INPUT_ATTACHMENT);
 		self._img_render_WorldSolid = HGEFrame::generateNewDefaultImg(imgsize, self._ouputFormat, ImageUsage::COLOR_ATTACHMENT | ImageUsage::INPUT_ATTACHMENT);
 		self._img_render_Full = HGEFrame::generateNewDefaultImg(imgsize, self._ouputFormat, ImageUsage::COLOR_ATTACHMENT | ImageUsage::TRANSFER_SRC);
-		self._img_depthUI = HGEFrame::generateNewDefaultImgDepth(imgsize);
-		self._img_depthSolid = HGEFrame::generateNewDefaultImgDepth(imgsize);
+		self._img_depthUI = HGEFrame::generateNewDefaultImgDepth(imgsize,depthformat);
+		self._img_depthSolid = HGEFrame::generateNewDefaultImgDepth(imgsize,depthformat);
 		
 		self._img_size = newsize;
 	}
@@ -148,9 +149,8 @@ impl HGEFrame
 	
 	////// PRIVATE //////////////
 	
-	fn generateNewDefaultImgDepth(newsize: [u32;3]) -> Arc<ImageView>
+	fn generateNewDefaultImgDepth(newsize: [u32;3], depthformat: Format) -> Arc<ImageView>
 	{
-		let depthformat = HGEMain::singleton().getDevice().depthformat;
 		let mut resultimg = Image::new(
 			ManagerMemoryAllocator::singleton().get(),
 			ImageCreateInfo{
