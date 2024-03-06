@@ -1,9 +1,9 @@
-use std::any::Any;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use glyph_brush::{OwnedSection, OwnedText};
 use glyph_brush_layout::{BuiltInLineBreaker, Layout};
 use parking_lot::RwLock;
+use uuid::Uuid;
 use crate::components::{Components, HGEC_offset, HGEC_origin};
 use crate::HGEMain::HGEMain;
 use crate::components::interfacePosition::interfacePosition;
@@ -12,10 +12,11 @@ use crate::components::event::{event, event_trait, event_trait_add, event_type};
 use crate::components::offset::offset;
 use crate::components::rotations::rotation;
 use crate::components::scale::scale;
-use crate::Interface::UiHitbox::UiHitbox;
+use crate::Interface::UiHitbox::{UiHitbox, UiHitbox_raw};
 use crate::Interface::UiPage::{UiPageContent, UiPageContent_type};
-use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
-use crate::Shaders::StructAllCache::StructAllCache;
+use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple_def, HGE_shader_2Dsimple_holder};
+use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
+use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImpl;
 
 #[derive(Clone)]
 pub struct Extra
@@ -65,7 +66,7 @@ impl Default for Extra
 #[derive(Clone)]
 pub enum TextSize
 {
-	// regular size, depending of size of screen / is mobile
+	// regular size, depending on size of screen / is mobile
 	NORMAL,
 	// smaller size than "NORMAL"
 	SMALL,
@@ -114,7 +115,7 @@ impl TextSize
 #[derive(Clone)]
 pub struct TextCacheUpdater
 {
-	pub(crate) vertex: Vec<HGE_shader_2Dsimple>,
+	pub(crate) vertex: Vec<HGE_shader_2Dsimple_def>,
 	pub(crate) indices: Vec<u32>,
 	pub(crate) isUpdated: bool
 }
@@ -127,11 +128,11 @@ pub struct Text
 	_textSize: Option<TextSize>,
 	_managerfont_textId: u128,
 	_cacheShared: Arc<RwLock<TextCacheUpdater>>,
-	_cacheLocal: StructAllCache,
 	_cacheLocalUpdate: bool,
 	_isVisible: bool,
 	_events: event<Text>,
 	_hitbox: UiHitbox,
+	_uuidStorage: Option<Uuid>
 }
 
 impl Text
@@ -146,11 +147,11 @@ impl Text
 			_textSize: None,
 			_managerfont_textId: ManagerFont::singleton().getUniqId(),
 			_cacheShared: Arc::new(RwLock::new(TextCacheUpdater{ vertex: vec![], indices: vec![], isUpdated: false })),
-			_cacheLocal: StructAllCache::new(),
 			_cacheLocalUpdate: false,
 			_isVisible: false,
 			_events: Self::newWithWinRefreshEvent(),
-			_hitbox: UiHitbox::new()
+			_hitbox: UiHitbox::new(),
+			_uuidStorage: None,
 		}
 	}
 	
@@ -277,11 +278,11 @@ impl Text
 			_textSize: self._textSize.clone(),
 			_managerfont_textId: ManagerFont::singleton().getUniqId(),
 			_cacheShared: Arc::new(RwLock::new(TextCacheUpdater{ vertex: vec![], indices: vec![], isUpdated: false })),
-			_cacheLocal: StructAllCache::new(),
 			_cacheLocalUpdate: false,
 			_isVisible: self._isVisible,
 			_events: Self::newWithWinRefreshEvent(),
 			_hitbox: UiHitbox::new(),
+			_uuidStorage: None,
 		};
 		tmpfinal.commit();
 		
@@ -333,14 +334,66 @@ impl Clone for Text
 			_textSize: self._textSize.clone(),
 			_managerfont_textId: self._managerfont_textId,
 			_cacheShared: self._cacheShared.clone(),
-			_cacheLocal: self._cacheLocal.clone(),
 			_cacheLocalUpdate: false,
 			_isVisible: self._isVisible,
 			_events: self._events.clone(),
-			_hitbox: self._hitbox.clone()
+			_hitbox: self._hitbox.clone(),
+			_uuidStorage: self._uuidStorage.clone(),
 		};
 		
 		return tmpfinal;
+	}
+}
+
+impl ShaderDrawerImpl for Text {
+	fn cache_mustUpdate(&self) -> bool {
+		self._cacheLocalUpdate || self._cacheShared.read().isUpdated
+	}
+	
+	fn cache_submit(&mut self) {
+		if(!self._isVisible)
+		{
+			if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+				holder.remove(self._uuidStorage);
+			}))
+			{
+				self._cacheShared.write().isUpdated = false;
+				self._cacheLocalUpdate = false;
+			}
+			return;
+		}
+		
+		let mut bindingvertex = self._cacheShared.write();
+		let mut tmp = bindingvertex.clone();
+		let mut hitboxvec = Vec::new();
+		
+		for vertex in tmp.vertex.iter_mut() {
+			let mut vertexCorrected = interfacePosition::new_pixel(vertex.position[0] as i32,vertex.position[1] as i32);
+			self._components.computeVertex(&mut vertexCorrected);
+			vertex.position = vertexCorrected.convertToVertex();
+			vertex.ispixel = vertexCorrected.getTypeInt();
+			vertex.color[0] = vertex.color[0]*self._components.texture().color().r;
+			vertex.color[1] = vertex.color[1]*self._components.texture().color().g;
+			vertex.color[2] = vertex.color[2]*self._components.texture().color().b;
+			vertex.color[3] = vertex.color[3]*self._components.texture().color().a;
+			
+			hitboxvec.push(UiHitbox_raw {
+				position: vertex.position,
+				ispixel: vertex.ispixel==1,
+			});
+			
+		};
+		
+		self._hitbox = UiHitbox::newFrom2D(&hitboxvec);
+		//tmp.vertex,tmp.indices
+		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+			holder.remove(self._uuidStorage);
+		}))
+		{
+			bindingvertex.isUpdated = false;
+			self._cacheLocalUpdate = false;
+		}
+		
 	}
 }
 
@@ -353,51 +406,5 @@ impl UiPageContent for Text
 
 	fn getHitbox(&self) -> UiHitbox {
 		self._hitbox.clone()
-	}
-	
-	fn cache_isUpdated(&self) -> bool {
-		self._cacheLocalUpdate || self._cacheShared.read().isUpdated
-	}
-	
-	fn cache_update(&mut self)
-	{
-		if(!self._isVisible)
-		{
-			self._cacheShared.write().isUpdated = false;
-			self._cacheLocalUpdate = false;
-			self._cacheLocal = StructAllCache::new();
-			return;
-		}
-		
-		let mut bindingvertex = self._cacheShared.write();
-		let mut tmp = bindingvertex.clone();
-		
-		for vertex in tmp.vertex.iter_mut() {
-			let mut vertexCorrected = interfacePosition::new_pixel(vertex.position[0] as i32,vertex.position[1] as i32);
-			self._components.computeVertex(&mut vertexCorrected);
-			vertex.position = vertexCorrected.convertToVertex();
-			vertex.ispixel = vertexCorrected.getTypeInt();
-			vertex.color[0] = vertex.color[0]*self._components.texture().color().r;
-			vertex.color[1] = vertex.color[1]*self._components.texture().color().g;
-			vertex.color[2] = vertex.color[2]*self._components.texture().color().b;
-			vertex.color[3] = vertex.color[3]*self._components.texture().color().a;
-			
-		};
-		
-		self._hitbox = UiHitbox::newFrom2D(&tmp.vertex);
-		self._cacheLocal = StructAllCache::newFrom::<HGE_shader_2Dsimple_holder>(HGE_shader_2Dsimple_holder::new(tmp.vertex,tmp.indices).into());
-		
-		bindingvertex.isUpdated = false;
-		self._cacheLocalUpdate = false;
-		
-	}
-	
-	fn getCache(&self) -> &StructAllCache
-	{
-		&self._cacheLocal
-	}
-	
-	fn as_any_mut(&mut self) -> &mut dyn Any {
-		self
 	}
 }

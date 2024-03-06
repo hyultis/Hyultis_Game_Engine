@@ -3,6 +3,7 @@ use std::ops::Index;
 use std::path::Path;
 use Htrace::HTrace;
 use tobj::{load_obj_buf, LoadError, LoadOptions};
+use uuid::Uuid;
 use crate::assetStreamReader::assetManager;
 use crate::components::{Components, HGEC_origin};
 use crate::components::event::event_trait;
@@ -11,8 +12,9 @@ use crate::components::rotations::rotation;
 use crate::components::scale::scale;
 use crate::components::worldPosition::worldPosition;
 use crate::Models3D::chunk_content::chunk_content;
-use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
-use crate::Shaders::StructAllCache::StructAllCache;
+use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple_def, HGE_shader_3Dsimple_holder};
+use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
+use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn, ShaderDrawerImplStruct};
 
 #[derive(Clone)]
 pub struct loadOBJ
@@ -20,7 +22,7 @@ pub struct loadOBJ
 	_components: Components,
 	_model: Option<tobj::Model>,
 	_canUpdate: bool,
-	_cache: StructAllCache
+	_uuidStorage: Option<Uuid>
 }
 
 impl loadOBJ
@@ -70,7 +72,7 @@ impl loadOBJ
 			_components: Default::default(),
 			_model: model,
 			_canUpdate: true,
-			_cache: StructAllCache::new()
+			_uuidStorage: None,
 		};
 	}
 	
@@ -83,21 +85,42 @@ impl loadOBJ
 		self._canUpdate = true;
 		&mut self._components
 	}
+}
+
+impl event_trait for loadOBJ {}
+
+
+impl chunk_content for loadOBJ {}
+
+impl ShaderDrawerImpl for loadOBJ {
+	fn cache_mustUpdate(&self) -> bool {
+		self._canUpdate
+	}
 	
-	fn convert_ObjToData(&mut self)
-	{
+	fn cache_submit(&mut self) {
+		let Some(structure) = self.cache_get() else {return};
+		
+		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
+			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		}))
+		{
+			self._canUpdate = false;
+		}
+	}
+}
+
+impl ShaderDrawerImplReturn<HGE_shader_3Dsimple_def> for loadOBJ
+{
+	fn cache_get(&mut self) -> Option<ShaderDrawerImplStruct<HGE_shader_3Dsimple_def>> {
+		
 		if (self._model.is_none())
 		{
-			return;
+			return None;
 		}
 		
 		let mut new_vextex = Vec::new();
 		let mut new_indice = Vec::new();
 		let mut unique_vertices = HashMap::new();
-		let textureId = match self._components.computeTexture() {
-			None => 0,
-			Some(texture) => texture.id
-		};
 		
 		let thismesh = self._model.clone().unwrap().mesh;
 		for index in 0..thismesh.indices.len()
@@ -109,15 +132,15 @@ impl loadOBJ
 			let mut vertex = worldPosition::new(thismesh.positions[posindex],thismesh.positions[posindex+1],thismesh.positions[posindex+2]);
 			self._components.computeVertex(&mut vertex);
 			
-			let newvertex = HGE_shader_3Dsimple {
+			let newvertex = HGE_shader_3Dsimple_def {
 				position: vertex.get(),
 				normal: [thismesh.normals[posindex],
 					thismesh.normals[posindex + 1],
 					thismesh.normals[posindex + 2]],
-				nbtexture: textureId,
-				texcoord: [thismesh.texcoords[texindex], 1.0 - thismesh.texcoords[texindex + 1]],
+				texture: self._components.texture().getName().clone(),
 				color: self._components.texture().color().getArray(),
-				color_blend_type: self._components.texture().colorBlend().toU32()
+				color_blend_type: self._components.texture().colorBlend().toU32(),
+				uvcoord: [thismesh.texcoords[texindex], 1.0 - thismesh.texcoords[texindex + 1]],
 			};
 			
 			if let Some(index) = unique_vertices.get(&newvertex)
@@ -126,30 +149,15 @@ impl loadOBJ
 			} else {
 				let newindex = new_vextex.len() as u32;
 				new_indice.push(newindex);
-				unique_vertices.insert(newvertex, newindex);
+				unique_vertices.insert(newvertex.clone(), newindex);
 				new_vextex.push(newvertex);
 			}
 		}
 		
-		self._cache = StructAllCache::newFrom::<HGE_shader_3Dsimple_holder>(HGE_shader_3Dsimple_holder::new(new_vextex,new_indice).into());
-		self._canUpdate = false;
-	}
-}
-
-impl event_trait for loadOBJ {}
-
-impl chunk_content for loadOBJ
-{
-	fn cache_isUpdated(&self) -> bool {
-		self._canUpdate
-	}
-	
-	fn cache_update(&mut self) {
-		
-		self.convert_ObjToData();
-	}
-	
-	fn cache_get(&self) -> &StructAllCache {
-		&self._cache
+		Some(
+			ShaderDrawerImplStruct{
+				vertex: new_vextex,
+				indices: new_indice,
+			})
 	}
 }

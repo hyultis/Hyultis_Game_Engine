@@ -1,10 +1,11 @@
+use crate::components::color::color;
 use crate::components::HGEC_origin;
 use crate::components::worldPosition::worldPosition;
 use crate::entities::Plane::Plane;
-use crate::Models3D::chunk_content::chunk_content;
 use crate::Models3D::ModelUtils;
-use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
-use crate::Shaders::StructAllCache::StructAllCache;
+use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple_def, HGE_shader_3Dsimple_holder};
+use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
+use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn, ShaderDrawerImplStruct};
 
 impl Plane<worldPosition>
 {
@@ -68,12 +69,41 @@ impl Plane<worldPosition>
 		self._pos[3] = bottomRight;
 		self._canUpdate = true;
 	}
+}
+
+impl ShaderDrawerImpl for Plane<worldPosition> {
+	fn cache_mustUpdate(&self) -> bool {
+		self._canUpdate
+	}
 	
-	pub fn cacheRefreshWorld(&mut self)
+	fn cache_submit(&mut self) {
+		let Some(structure) = self.cache_get() else {return};
+		
+		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
+			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		}))
+		{
+			self._canUpdate = false;
+		}
+	}
+}
+
+impl ShaderDrawerImplReturn<HGE_shader_3Dsimple_def> for Plane<worldPosition>
+{
+	fn cache_get(&mut self) -> Option<ShaderDrawerImplStruct<HGE_shader_3Dsimple_def>>
 	{
-		let Some(texture) = self._components.computeTexture() else {
-			return
-		};
+		let texturename = self._components.texture().getName().clone();
+		let color_blend_type = self._components.texture().colorBlend().toU32();
+		let mut texturecolor = color::default();
+		if let Some(texture) = self._components.computeTexture()
+		{
+			texturecolor = texture.color;
+		}
+		let mut textureuvcoord = [[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0]];
+		if let Some(texture) = self._components.computeTexture()
+		{
+			textureuvcoord = texture.uvcoord.toArray4();
+		}
 		
 		let mut vecstruct = Vec::new();
 		for i in 0..4
@@ -81,36 +111,23 @@ impl Plane<worldPosition>
 			let mut vertex = self._pos[i];
 			self._components.computeVertex(&mut vertex);
 			
-			vecstruct.push(HGE_shader_3Dsimple {
+			vecstruct.push(HGE_shader_3Dsimple_def {
 				position: vertex.get(),
 				normal: [0.0, 0.0, 0.0],
-				nbtexture: texture.id,
-				texcoord: self._uvcoord.map(|x|{x[i]}).unwrap_or(texture.uvcoord.toArray4()[i]),
-				color: self._color.map(|x|{x[i].blend(texture.color)}).unwrap_or(texture.color).toArray(),
-				color_blend_type: 0,
+				texture: texturename.clone(),
+				color_blend_type,
+				uvcoord: self._uvcoord.map(|x|{x[i]}).unwrap_or(textureuvcoord[i]),
+				color: self._color.map(|x|{x[i].blend(texturecolor)}).unwrap_or(texturecolor).toArray(),
 			});
 		}
 		
 		let indice = [0, 1, 2, 1, 3, 2].to_vec();
-		ModelUtils::generateNormal(&mut vecstruct, indice.clone());
+		ModelUtils::generateNormal(&mut vecstruct, &indice);
 		
-		self._cache = StructAllCache::newFrom::<HGE_shader_3Dsimple_holder>(HGE_shader_3Dsimple_holder::new(vecstruct,indice).into());
-		//self._hitbox = UiHitbox::newFromCache(&self._cache);
-		self._canUpdate = false;
-	}
-}
-
-impl chunk_content for Plane<worldPosition>
-{
-	fn cache_isUpdated(&self) -> bool {
-		self._canUpdate
-	}
-	
-	fn cache_update(&mut self) {
-		self.cacheRefreshWorld();
-	}
-	
-	fn cache_get(&self) -> &StructAllCache {
-		&self._cache
+		return Some(
+			ShaderDrawerImplStruct{
+				vertex: vecstruct,
+				indices: indice,
+			});
 	}
 }

@@ -1,11 +1,17 @@
-use std::any::Any;
 use std::sync::{Arc};
 use parking_lot::RwLock;
+use uuid::Uuid;
 use crate::components::event::{event_trait, event_type};
 use crate::components::hideable::hideable;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::{UiPageContent, UiPageContent_type};
-use crate::Shaders::StructAllCache::StructAllCache;
+use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple_def, HGE_shader_2Dsimple_holder};
+use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
+use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn, ShaderDrawerImplStruct};
+
+
+pub trait UiButton_content: UiPageContent + ShaderDrawerImplReturn<HGE_shader_2Dsimple_def>{}
+dyn_clone::clone_trait_object!(UiButton_content);
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum UiButtonState
@@ -19,12 +25,12 @@ pub enum UiButtonState
 pub struct UiButton
 {
 	_hitbox: UiHitbox,
-	_content: Vec<Box<dyn UiPageContent + Send + Sync>>,
+	_content: Vec<Box<dyn UiButton_content + Send + Sync>>,
 	_pressedFn: Arc<RwLock<Option<Box<dyn FnMut(&mut UiButton) + Send + Sync>>>>,
 	_state: UiButtonState,
 	_hide: bool,
 	_cacheUpdated: bool,
-	_cache: StructAllCache
+	_uuidStorage: Option<Uuid>
 }
 
 impl UiButton
@@ -39,12 +45,12 @@ impl UiButton
 			_state: UiButtonState::IDLE,
 			_hide: false,
 			_cacheUpdated: true,
-			_cache: StructAllCache::new(),
+			_uuidStorage: None
 		}
 	}
 	
 	// add a ui content to drawing
-	pub fn add(&mut self, content: impl UiPageContent + Send + Sync +'static)
+	pub fn add(&mut self, content: impl UiButton_content + Send + Sync +'static)
 	{
 		self._content.push(Box::new(content));
 	}
@@ -64,7 +70,7 @@ impl UiButton
 		return Box::new(self);
 	}
 	
-	pub fn content_mut(&mut self) -> &mut Vec<Box<dyn UiPageContent + Send + Sync>>
+	pub fn content_mut(&mut self) -> &mut Vec<Box<dyn UiButton_content + Send + Sync>>
 	{
 		&mut self._content
 	}
@@ -96,10 +102,9 @@ impl UiButton
 	fn checkContentUpdate(&self) -> bool
 	{
 		self._content.iter().any(|x|{
-			x.cache_isUpdated()
+			x.cache_mustUpdate()
 		})
 	}
-	
 }
 
 impl event_trait for UiButton {
@@ -151,7 +156,7 @@ impl event_trait for UiButton {
 				let mut update = false;
 				for x in self._content.iter_mut()
 				{
-					x.cache_update();
+					x.cache_submit();
 					if(x.event_trigger(eventtype.clone()))
 					{
 						update = true;
@@ -187,39 +192,33 @@ impl hideable for UiButton
 	}
 }
 
-impl UiPageContent for UiButton
-{
-	fn getType(&self) -> UiPageContent_type
+impl ShaderDrawerImpl for UiButton {
+	fn cache_mustUpdate(&self) -> bool
 	{
-		return UiPageContent_type::INTERACTIVE;
-	}
-	
-	fn getHitbox(&self) -> UiHitbox {
-		self._hitbox.clone()
-	}
-	
-	fn cache_isUpdated(&self) -> bool {
 		self._cacheUpdated || self.checkContentUpdate()
 	}
 	
-	fn cache_update(&mut self) {
+	fn cache_submit(&mut self)
+	{
 		if(self._hide)
 		{
-			self._cache = StructAllCache::new();
-			self._cacheUpdated = false;
+			if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+				holder.remove(self._uuidStorage);
+			})){
+				self._cacheUpdated = false;
+			}
 			return;
 		}
 		
-		let mut newcache = StructAllCache::new();
+		let mut structure = ShaderDrawerImplStruct::default();
 		let mut newHitbox = UiHitbox::new();
 		for x in self._content.iter_mut()
 		{
-			if(x.cache_isUpdated() || x.getHitbox().isEmpty())
+			if let Some(mut content) = x.cache_get()
 			{
-				x.cache_update();
+				structure.combine(&mut content);
+				newHitbox.updateFromHitbox(x.getHitbox());
 			}
-			newcache.append(x.getCache());
-			newHitbox.updateFromHitbox(x.getHitbox());
 		}
 		
 		if(self._state==UiButtonState::IDLE || self._hitbox.isEmpty())
@@ -231,17 +230,23 @@ impl UiPageContent for UiButton
 			self._hitbox = newHitbox;
 		}
 		
-		self._cache = newcache;
-		self._cacheUpdated = false;
+		
+		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		})){
+			self._cacheUpdated = false;
+		}
+	}
+}
+
+impl UiPageContent for UiButton
+{
+	fn getType(&self) -> UiPageContent_type
+	{
+		return UiPageContent_type::INTERACTIVE;
 	}
 	
-	fn getCache(&self) -> &StructAllCache
-	{
-		&self._cache
+	fn getHitbox(&self) -> UiHitbox {
+		self._hitbox.clone()
 	}
-
-	fn as_any_mut(&mut self) -> &mut dyn Any {
-		self
-	}
-
 }

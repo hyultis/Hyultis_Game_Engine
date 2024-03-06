@@ -5,8 +5,10 @@ pub mod HGE_shader_screen;
 pub mod HGE_shader_2Dsimple;
 pub mod HGE_shader_3Dsimple;
 pub mod ShaderStruct;
-pub mod StructAllCache;
 pub mod HGE_shader_3Dinstance;
+pub mod ShaderDrawer;
+pub mod intoVertexed;
+pub mod ShaderDrawerImpl;
 
 pub enum names
 {

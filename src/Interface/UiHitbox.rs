@@ -1,5 +1,10 @@
 use crate::HGEMain::HGEMain;
-use crate::Shaders::HGE_shader_2Dsimple::HGE_shader_2Dsimple;
+
+pub struct UiHitbox_raw
+{
+	pub position: [f32;3],
+	pub ispixel: bool
+}
 
 #[derive(Clone, Debug)]
 struct UiHitbox_content
@@ -114,14 +119,14 @@ impl UiHitbox
 		}
 	}
 	
-	pub fn newFrom2D(cache: &Vec<HGE_shader_2Dsimple>) -> Self
+	pub fn newFrom2D(cache: &Vec<UiHitbox_raw>) -> Self
 	{
 		let mut hitbox = UiHitbox::new();
 		let winDim = HGEMain::singleton().getWindowInfos();
 		for x in cache {
 			let mut posx = x.position[0];
 			let mut posy = x.position[1];
-			if(x.ispixel==0)
+			if(!x.ispixel)
 			{
 				posx = (((x.position[0]+1.0)/2.0) * winDim.widthF).round();
 				posy = (((x.position[1]+1.0)/2.0) * winDim.heightF).round();

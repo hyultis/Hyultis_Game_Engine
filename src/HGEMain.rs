@@ -1,5 +1,6 @@
 extern crate vulkano;
 
+use std::any::Any;
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 use anyhow::anyhow;
@@ -10,20 +11,14 @@ use vulkano::{command_buffer::{
 use vulkano::command_buffer::{CommandBufferInheritanceInfo, SecondaryAutoCommandBuffer};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::swapchain::{Surface, SurfaceCapabilities, SurfaceTransform};
-use winit::{
-	window::{Window, WindowBuilder},
-};
 use dashmap::DashMap;
 use Htrace::{HTrace, HTraceError, TSpawner};
-use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo};
+use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions};
 use HArcMut::HArcMut;
-use Hconfig::HConfigManager::HConfigManager;
 use Htrace::Type::Type;
-use json::JsonValue;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use singletonThread::SingletonThread;
-use winit::event_loop::EventLoopWindowTarget;
-use winit::window::Fullscreen;
 use crate::Animation::Animation;
 use crate::BuilderDevice::BuilderDevice;
 use crate::Camera::Camera;
@@ -32,15 +27,18 @@ use crate::configs::general::HGEconfig_general;
 use crate::configs::HGEconfig::HGEconfig;
 use crate::Interface::ManagerInterface::ManagerInterface;
 use crate::HGErendering::HGErendering;
+use crate::HGEsubpass::HGEsubpassName;
 use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Interface::ManagerFont::ManagerFont;
 use crate::InterpolateTimer::ManagerInterpolate;
 use crate::ManagerAnimation::{AnimationHolder, ManagerAnimation};
+use crate::Models3D::ManagerModels::ManagerModels;
 use crate::Shaders::ShaderStruct::ShaderStruct;
-use crate::Shaders::HGE_shader_2Dsimple::HGE_shader_2Dsimple;
-use crate::Shaders::HGE_shader_3Dinstance::HGE_shader_3Dinstance;
-use crate::Shaders::HGE_shader_3Dsimple::HGE_shader_3Dsimple;
+use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
+use crate::Shaders::HGE_shader_3Dinstance::{HGE_shader_3Dinstance, HGE_shader_3Dinstance_holder};
+use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
 use crate::Shaders::HGE_shader_screen::HGE_shader_screen;
+use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
 use crate::Textures::Manager::ManagerTexture;
 
 const HGE_STRING: &str = "HGE";
@@ -91,6 +89,9 @@ pub struct HGEMain
 }
 
 static SINGLETON: OnceLock<HGEMain> = OnceLock::new();
+pub struct preinit{
+	_init: bool
+}
 
 impl HGEMain
 {
@@ -99,7 +100,7 @@ impl HGEMain
 		return SINGLETON.get().unwrap_or_else(|| { panic!("HGE have not been initialized") });
 	}
 	
-	pub fn initialize(eventloop: &EventLoopWindowTarget<()>, config: HGEconfig_general) -> anyhow::Result<()>
+	pub fn preinitialize(config: HGEconfig_general) -> anyhow::Result<preinit>
 	{
 		if (SINGLETON.get().is_some())
 		{
@@ -113,11 +114,21 @@ impl HGEMain
 		}
 		HGEconfig::defineGeneral(config);
 		
+		Ok(preinit{ _init: true })
+	}
+	
+	pub fn initialize(required_extensions: InstanceExtensions,rawWindow: impl HasRawWindowHandle + HasRawDisplayHandle + Any + Send + Sync, preinit: anyhow::Result<preinit>) -> anyhow::Result<()>
+	{
+		match preinit {
+			Ok(_) => {}
+			Err(err) => {return Err(anyhow!("{}",err));}
+		};
+		
 		HTrace!("Engine initialization ----");
-		let instance = Self::Init_Instance(eventloop)?;
+		let instance = Self::Init_Instance(required_extensions)?;
 		
 		HTrace!("Engine initialization : surface build");
-		let surface = Self::Init_SurfaceReload(eventloop,instance.clone())?;
+		let surface = Self::Init_SurfaceReload(rawWindow,instance.clone())?;
 		
 		HTrace!("Engine initialization : device build");
 		let builderDevice = Arc::new(BuilderDevice::new(instance.clone(), surface.clone()));
@@ -275,10 +286,10 @@ impl HGEMain
 		return Self::singleton()._cmdBufferTextures.clone().remove(&typed).map(|(_,x)|x);
 	}
 	
-	pub fn engineResumed(&self, eventloop: &EventLoopWindowTarget<()>) -> anyhow::Result<()>
+	pub fn engineResumed(&self, rawWindow: impl HasRawWindowHandle + HasRawDisplayHandle + Any + Send + Sync) -> anyhow::Result<()>
 	{
 		HTrace!("Engine context creation ----");
-		let newsurface = Self::Init_SurfaceReload(eventloop,self._instance.load().clone())?;
+		let newsurface = Self::Init_SurfaceReload(rawWindow,self._instance.load().clone())?;
 		self._surface.swap(Some(newsurface.clone()));
 		
 		self._rendering.write().recreate(self._builderDevice.load().clone(),newsurface);
@@ -324,9 +335,13 @@ impl HGEMain
 				!anim.ticks()
 			});
 			
+			ManagerInterface::singleton().tickUpdate();
+			ManagerModels::singleton().tickUpdate();
 			ManagerFont::singleton().FontEngine_CacheUpdate();
 			ManagerTexture::singleton().launchThreads();
 			ManagerAnimation::singleton().ticksAll();
+			
+			ShaderDrawer_Manager::singleton().allholder_Update();
 		},||{
 			!**Self::singleton()._isSuspended.load()
 		});
@@ -404,62 +419,9 @@ impl HGEMain
 		};
 	}
 	
-	fn Init_SurfaceReload(eventloop: &EventLoopWindowTarget<()>, instance: Arc<Instance>) -> anyhow::Result<Arc<Surface>>
+	fn Init_SurfaceReload(rawWindow: impl HasRawWindowHandle + HasRawDisplayHandle + Any + Send + Sync, instance: Arc<Instance>) -> anyhow::Result<Arc<Surface>>
 	{
-		let configBind = HGEconfig::singleton().general_get();
-		
-		let mut defaultwindowtype = 2;// 1 or 2 = fullscreen
-		if (!HGEconfig::singleton().general_get().startFullscreen)
-		{
-			defaultwindowtype = 0;
-		}
-		
-		let mut config = HConfigManager::singleton().get("config");
-		let mut windowtype = config.getOrSetDefault("window/type", JsonValue::from(defaultwindowtype)).as_u32().unwrap_or(2);
-		let mut fullscreenmode = None;
-		if (windowtype == 1 && eventloop.primary_monitor().is_none())
-		{
-			windowtype = 2;
-		}
-		if (configBind.isSteamdeck || configBind.isAndroid) // config ignored for steam deck and android
-		{
-			windowtype = 1;
-			config.set("window/type", JsonValue::from(windowtype));
-		}
-		
-		if (windowtype == 1)
-		{
-			let mut video_mode = eventloop.primary_monitor().unwrap().video_modes().collect::<Vec<_>>();
-			HTrace!("video modes : {:?}",video_mode);
-			video_mode.sort_by(|a, b| {
-				use std::cmp::Ordering::*;
-				match b.size().width.cmp(&a.size().width) {
-					Equal => match b.size().height.cmp(&a.size().height) {
-						Equal => b
-							.refresh_rate_millihertz()
-							.cmp(&a.refresh_rate_millihertz()),
-						default => default,
-					},
-					default => default,
-				}
-			});
-			fullscreenmode = Some(Fullscreen::Exclusive(video_mode.first().unwrap().clone()));
-		}
-		if (windowtype == 2)
-		{
-			fullscreenmode = Some(Fullscreen::Borderless(None));
-		}
-		
-		let window = WindowBuilder::new()
-			//.with_min_inner_size(LogicalSize{ width: 640, height: 480 })
-			//.with_name("Truc much", "yolo")
-			.with_title(&configBind.windowTitle)
-			.with_fullscreen(fullscreenmode)
-			.build(eventloop)?;
-		
-		
-		let surface = Surface::from_window(instance, Arc::new(window)).map_err(|e| { anyhow!(e) })?;
-		let _ = config.save();
+		let surface = Surface::from_window(instance, Arc::new(rawWindow)).map_err(|e| { anyhow!(e) })?;
 		Ok(surface)
 	}
 	
@@ -481,6 +443,11 @@ impl HGEMain
 		
 		let loadingdExternalShader = HGEconfig::singleton().general_get().defaultShaderLoader.clone().unwrap();
 		loadingdExternalShader();
+		
+		ShaderDrawer_Manager::singleton().register::<HGE_shader_2Dsimple_holder>(HGEsubpassName::UI);
+		ShaderDrawer_Manager::singleton().register::<HGE_shader_3Dsimple_holder>(HGEsubpassName::WORLDSOLID);
+		ShaderDrawer_Manager::singleton().register::<HGE_shader_3Dinstance_holder>(HGEsubpassName::WORLDSOLID);
+		
 		HGE_shader_3Dinstance::createPipeline()?;
 		HGE_shader_3Dsimple::createPipeline()?;
 		HGE_shader_2Dsimple::createPipeline()?;
@@ -497,10 +464,9 @@ impl HGEMain
 		Ok(())
 	}
 	
-	fn Init_Instance(event_loop: &EventLoopWindowTarget<()>) -> anyhow::Result<Arc<Instance>>
+	fn Init_Instance(required_extensions: InstanceExtensions) -> anyhow::Result<Arc<Instance>>
 	{
 		let library = VulkanLibrary::new().unwrap();
-		let required_extensions = Surface::required_extensions(event_loop);
 		let debuglayer = Vec::new();
 		let config = HGEconfig::singleton().general_get();
 		

@@ -40,12 +40,13 @@ Htrace = { path = "../Htrace" }
 base64 = "0.21.6"
 json = "0.12.4"
 rsa = { version = "0.9.6", features = ["sha2"]}
-uuid = { version = "1.6.1" , features = [ "v4", "fast-rng", "macro-diagnostics"]}
+uuid = { version = "1.6.1" , features = [ "v4","v7", "fast-rng"]}
 
 #graphic
 #sdl2 = "0.35.2"
 vulkano = "0.34.1"
 vulkano-shaders = "0.34.0"
+raw-window-handle = "0.5.2"
 image = "0.24.7"
 palette = "0.7.3"
 ab_glyph = "0.2.23"

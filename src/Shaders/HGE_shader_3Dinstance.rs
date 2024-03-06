@@ -1,6 +1,7 @@
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::pipeline::graphics::vertex_input::Vertex;
 use std::convert::TryInto;
+use std::sync::Arc;
 use ahash::HashMap;
 use anyhow::anyhow;
 use Htrace::HTraceError;
@@ -11,14 +12,26 @@ use vulkano::pipeline::PipelineBindPoint;
 use crate::HGEsubpass::HGEsubpassName;
 use crate::ManagerBuilder::ManagerBuilder;
 use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
-use crate::Models3D::chunk_content::chunk_content;
 use crate::Pipeline::EnginePipelines;
 use crate::Pipeline::ManagerPipeline::ManagerPipeline;
-use crate::Shaders::{names};
+use crate::Shaders::names;
 use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder};
-use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
+use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple_def};
+use crate::Shaders::intoVertexed::IntoVertexted;
+use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
 use crate::Textures::Manager::ManagerTexture;
+
+impl IntoVertexted<HGE_shader_3Dinstance> for HGE_shader_3Dsimple_def
+{
+	fn IntoVertexted(&self, _: bool) -> Option<HGE_shader_3Dinstance> {
+		return Some(HGE_shader_3Dinstance {
+			position: self.position,
+			color: self.color,
+			texcoord: self.uvcoord,
+		});
+	}
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Vertex, BufferContents)]
@@ -52,7 +65,7 @@ impl ShaderStruct for HGE_shader_3Dinstance
 			return Err(anyhow!("missing shader \"{}\"",names::instance3D));
 		}
 		
-		ManagerPipeline::singleton().addFunc(HGE_shader_3Dinstance_holder::pipelineName(), |renderpass,transparency| {
+		ManagerPipeline::singleton().addFunc(HGE_shader_3Dinstance_holder::pipelineName(), |renderpass, transparency| {
 			EnginePipelines::singleton().pipelineCreation(names::instance3D,
 				transparency,
 				renderpass.clone(),
@@ -98,83 +111,103 @@ impl Default for HGE_shader_3Dinstance_data {
 #[derive(Clone)]
 struct HGE_shader_3Dinstance_subholder
 {
-	_datas: Vec<HGE_shader_3Dinstance>,
-	_indices: Vec<u32>,
+	_model: ShaderDrawerImplStruct<Arc<dyn IntoVertexted<HGE_shader_3Dinstance> + Send + Sync>>,
+	_haveUpdate: bool,
 	_instance: HashMap<String, HGE_shader_3Dinstance_data>,
 	_cacheDatasMem: Option<Subbuffer<[HGE_shader_3Dinstance]>>,
 	_cacheIndicesMem: Option<Subbuffer<[u32]>>,
-	_cacheInstanceMem: Option<Subbuffer<[HGE_shader_3Dinstance_data]>>
+	_cacheInstanceMem: Option<Subbuffer<[HGE_shader_3Dinstance_data]>>,
+	_cacheIndicesLen: u32,
+}
+
+impl HGE_shader_3Dinstance_subholder
+{
+	pub fn compileData(&self) -> (Vec<HGE_shader_3Dinstance>, Vec<u32>, bool)
+	{
+		let mut vertex = Vec::new();
+		let mut indices = Vec::new();
+		let mut atleastone = false;
+		
+		let mut stop = false;
+		let mut tmpvertex = Vec::new();
+		for x in &self._model.vertex {
+			let Some(unwraped) = x.IntoVertexted(false) else {
+				stop = true;
+				break;
+			};
+			tmpvertex.push(unwraped);
+		}
+		
+		if (!stop)
+		{
+			vertex.append(&mut tmpvertex);
+			for x in &self._model.indices {
+				indices.push(*x);
+			}
+			atleastone = true;
+		}
+		
+		return (vertex, indices, atleastone);
+	}
 }
 
 #[derive(Clone)]
 pub struct HGE_shader_3Dinstance_holder
 {
-	_activeModel: String,
+	_haveUpdate: bool,
 	_datas: HashMap<String, HGE_shader_3Dinstance_subholder>,
 }
 
 impl HGE_shader_3Dinstance_holder
 {
-	pub fn new(name: impl Into<String>) -> Self
+	pub fn new() -> Self
 	{
-		let name = name.into();
-		let mut tmp = Self
+		return Self
 		{
-			_activeModel: name.clone(),
+			_haveUpdate: false,
 			_datas: Default::default(),
 		};
-		
-		tmp._datas.insert(name, HGE_shader_3Dinstance_subholder {
-			_datas: vec![],
-			_indices: vec![],
-			_instance: Default::default(),
-			_cacheDatasMem: None,
-			_cacheIndicesMem: None,
-			_cacheInstanceMem: None,
-		});
-		
-		return tmp;
 	}
 	
-	pub fn getName(&self) -> String
+	pub fn addInstance(&mut self, modelname: impl Into<String>, instance: HGE_shader_3Dinstance_data)
 	{
-		return self._activeModel.clone();
-	}
-	
-	pub fn addInstance(&mut self, name: String, instance: HGE_shader_3Dinstance_data)
-	{
-		if let Some(this) = self._datas.get_mut(&self._activeModel)
+		let modelname = modelname.into();
+		if let Some(this) = self._datas.get_mut(&modelname)
 		{
-			this._instance.insert(name, instance);
+			this._instance.insert(modelname, instance);
+			self._haveUpdate = true;
 		}
 	}
 	
-	pub fn importModel(&mut self, mut model: impl chunk_content)
+	pub fn importModel(&mut self, modelname: impl Into<String>, mut model: ShaderDrawerImplStruct<impl IntoVertexted<HGE_shader_3Dinstance> + Send + Sync + 'static>)
 	{
-		model.cache_update();
-		
-		if let Some(thispart) = model.cache_get().extractPipeline::<HGE_shader_3Dsimple_holder>()
+		let modelname = modelname.into();
+		if (!self._datas.contains_key(&modelname))
 		{
-			self.append(thispart.getDatas(), thispart.getIndices());
-		}
-	}
-	
-	fn append(&mut self, vertex: &Vec<HGE_shader_3Dsimple>, indices: &Vec<u32>)
-	{
-		if let Some(this) = self._datas.get_mut(&self._activeModel)
-		{
-			let oldmaxindice = this._datas.len() as u32;
-			vertex.iter().for_each(|x| {
-				this._datas.push(HGE_shader_3Dinstance {
-					position: x.position,
-					texcoord: x.texcoord,
-					color: x.color,
-				});
+			self._datas.insert(modelname.clone(), HGE_shader_3Dinstance_subholder {
+				_model: Default::default(),
+				_haveUpdate: false,
+				_instance: Default::default(),
+				_cacheDatasMem: None,
+				_cacheIndicesMem: None,
+				_cacheInstanceMem: None,
+				_cacheIndicesLen: 0,
 			});
+		}
+		
+		if let Some(this) = self._datas.get_mut(&modelname)
+		{
+			let mut newvertex = Vec::new();
 			
-			indices.iter().for_each(|x| {
-				this._indices.push(*x + oldmaxindice);
-			});
+			for x in model.vertex.drain(0..) {
+				let tmp: Arc<dyn IntoVertexted<HGE_shader_3Dinstance> + Send + Sync> = Arc::new(x);
+				newvertex.push(tmp);
+			}
+			
+			this._model = ShaderDrawerImplStruct {
+				vertex: newvertex,
+				indices: model.indices.clone(),
+			};
 		}
 	}
 }
@@ -188,38 +221,15 @@ impl Into<Box<dyn ShaderStructHolder>> for HGE_shader_3Dinstance_holder
 
 impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 {
+	fn init() -> Self {
+		Self {
+			_haveUpdate: false,
+			_datas: Default::default(),
+		}
+	}
+	
 	fn pipelineName() -> String {
 		names::instance3D.to_string()
-	}
-	
-	fn appendHolder(&mut self, unkownholder: &Box<dyn ShaderStructHolder>)
-	{
-		if let Some(getbackholder) = unkownholder.downcast_ref::<HGE_shader_3Dinstance_holder>()
-		{
-			getbackholder._datas.iter().for_each(|(name, data)| {
-				if (self._datas.contains_key(name))
-				{
-					if let Some(thisname) = self._datas.get_mut(name)
-					{
-						data._instance.iter().for_each(|(key, instance)| {
-							thisname._instance.insert(key.clone(), instance.clone());
-						});
-					}
-				} else {
-					self._datas.insert(name.clone(), data.clone());
-				}
-			});
-		}
-	}
-	
-	fn replaceHolder(&mut self, unkownholder: &Box<dyn ShaderStructHolder>)
-	{
-		if let Some(getbackholder) = unkownholder.downcast_ref::<HGE_shader_3Dinstance_holder>()
-		{
-			getbackholder._datas.iter().for_each(|(name, data)| {
-				self._datas.insert(name.clone(), data.clone());
-			});
-		}
 	}
 	
 	fn reset(&mut self) {
@@ -228,12 +238,19 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 	
 	fn update(&mut self)
 	{
+		if (!self._haveUpdate)
+		{
+			return;
+		}
+		
+		let mut haveatleastone = false;
+		
 		self._datas.iter_mut().filter(|(_, selfdata)| {
-			selfdata._datas.len() != 0 && selfdata._indices.len() != 0
+			selfdata._model.vertex.len() != 0 && selfdata._model.indices.len() != 0
 		}).for_each(|(_, selfdata)|
 			{
-				let lendatas = selfdata._datas.len();
-				if (lendatas > 0)
+				let (vertex, indices, atleastone) = selfdata.compileData();
+				if(atleastone)
 				{
 					let buffer = Buffer::from_iter(
 						ManagerMemoryAllocator::singleton().get(),
@@ -246,14 +263,11 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 								| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
 							..Default::default()
 						},
-						selfdata._datas.clone(),
+						vertex,
 					).unwrap();
 					selfdata._cacheDatasMem = Some(buffer);
-				}
-				
-				let lenindices = selfdata._indices.len();
-				if (lenindices > 0)
-				{
+					
+					selfdata._cacheIndicesLen = indices.len() as u32;
 					let buffer = Buffer::from_iter(
 						ManagerMemoryAllocator::singleton().get(),
 						BufferCreateInfo {
@@ -265,37 +279,43 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 								| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
 							..Default::default()
 						},
-						selfdata._indices.clone(),
+						indices,
 					).unwrap();
 					selfdata._cacheIndicesMem = Some(buffer);
-				}
-				
-				let leninstance = selfdata._instance.len();
-				if (leninstance > 0)
-				{
-					let buffer = Buffer::from_iter(
-						ManagerMemoryAllocator::singleton().get(),
-						BufferCreateInfo {
-							usage: BufferUsage::VERTEX_BUFFER,
-							..Default::default()
-						},
-						AllocationCreateInfo {
-							memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-								| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-							..Default::default()
-						},
-						selfdata._instance.clone().into_values().collect::<Vec<HGE_shader_3Dinstance_data>>(),
-					).unwrap();
 					
-					selfdata._cacheInstanceMem = Some(buffer);
+					let leninstance = selfdata._instance.len();
+					if (leninstance > 0)
+					{
+						let buffer = Buffer::from_iter(
+							ManagerMemoryAllocator::singleton().get(),
+							BufferCreateInfo {
+								usage: BufferUsage::VERTEX_BUFFER,
+								..Default::default()
+							},
+							AllocationCreateInfo {
+								memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+									| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+								..Default::default()
+							},
+							selfdata._instance.clone().into_values().collect::<Vec<HGE_shader_3Dinstance_data>>(),
+						).unwrap();
+						
+						selfdata._cacheInstanceMem = Some(buffer);
+					}
+					haveatleastone = true;
 				}
 			});
+		
+		if(haveatleastone)
+		{
+			self._haveUpdate = false;
+		}
 	}
 	
 	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
 	{
 		let Some(pipelineLayout) = ManagerPipeline::singleton().layoutGet(&pipelinename) else { return; };
-		if(ManagerShaders::singleton().push_constants(names::instance3D, cmdBuilder, pipelineLayout.clone(), 0)==false)
+		if (ManagerShaders::singleton().push_constants(names::instance3D, cmdBuilder, pipelineLayout.clone(), 0) == false)
 		{
 			return;
 		}
@@ -312,29 +332,28 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 		});
 		
 		self._datas.iter().filter(|(_, selfdata)| {
-				selfdata._cacheDatasMem.is_some() && selfdata._cacheIndicesMem.is_some() && selfdata._cacheInstanceMem.is_some()
-			}).for_each(|(_, selfdata)|
-				{
-					
-					let datamem = selfdata._cacheDatasMem.clone().unwrap();
-					let indicemem = selfdata._cacheIndicesMem.clone().unwrap();
-					let instancemem = selfdata._cacheInstanceMem.clone().unwrap();
-					let lenIndice = selfdata._indices.len() as u32;
-					let lenInstance = selfdata._instance.len() as u32;
-					
-					ManagerBuilder::builderAddPipeline(cmdBuilder, &pipelinename);
-					
-					cmdBuilder
-						.bind_vertex_buffers(0, (datamem.clone(), instancemem.clone())).unwrap()
-						.bind_index_buffer(indicemem.clone()).unwrap()
-						.draw_indexed(lenIndice, lenInstance, 0, 0, 0).unwrap();
-					
-					ManagerBuilder::builderAddPipelineTransparency(cmdBuilder, &pipelinename);
-					
-					cmdBuilder
-						.bind_vertex_buffers(0, (datamem, instancemem)).unwrap()
-						.bind_index_buffer(indicemem).unwrap()
-						.draw_indexed(lenIndice, lenInstance, 0, 0, 0).unwrap();
-				});
+			selfdata._cacheDatasMem.is_some() && selfdata._cacheIndicesMem.is_some() && selfdata._cacheInstanceMem.is_some()
+		}).for_each(|(_, selfdata)|
+			{
+				let datamem = selfdata._cacheDatasMem.clone().unwrap();
+				let indicemem = selfdata._cacheIndicesMem.clone().unwrap();
+				let instancemem = selfdata._cacheInstanceMem.clone().unwrap();
+				let lenIndice = selfdata._cacheIndicesLen;
+				let lenInstance = selfdata._instance.len() as u32;
+				
+				ManagerBuilder::builderAddPipeline(cmdBuilder, &pipelinename);
+				
+				cmdBuilder
+					.bind_vertex_buffers(0, (datamem.clone(), instancemem.clone())).unwrap()
+					.bind_index_buffer(indicemem.clone()).unwrap()
+					.draw_indexed(lenIndice, lenInstance, 0, 0, 0).unwrap();
+				
+				ManagerBuilder::builderAddPipelineTransparency(cmdBuilder, &pipelinename);
+				
+				cmdBuilder
+					.bind_vertex_buffers(0, (datamem, instancemem)).unwrap()
+					.bind_index_buffer(indicemem).unwrap()
+					.draw_indexed(lenIndice, lenInstance, 0, 0, 0).unwrap();
+			});
 	}
 }

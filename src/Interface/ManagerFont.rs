@@ -12,7 +12,7 @@ use image::{GrayImage, Rgba, RgbaImage};
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use vulkano::image::sampler::{Filter, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode};
 use crate::Interface::Text::{Extra, TextCacheUpdater};
-use crate::Shaders::HGE_shader_2Dsimple::HGE_shader_2Dsimple;
+use crate::Shaders::HGE_shader_2Dsimple::HGE_shader_2Dsimple_def;
 use crate::Textures::generate::emptyTexture;
 use crate::Textures::Manager::ManagerTexture;
 use crate::Textures::Orders::Order_load::Order_load;
@@ -28,7 +28,7 @@ use crate::Textures::Orders::Order_computeCache::Order_computeCache;
 pub struct ManagerFont_verticestmp
 {
 	pub textId: u128,
-	pub vertex: Vec<HGE_shader_2Dsimple>,
+	pub vertex: Vec<HGE_shader_2Dsimple_def>,
 	pub indices: Vec<u32>
 }
 
@@ -202,7 +202,6 @@ impl ManagerFont
 			{
 				return;
 			}
-			let fontidtexture = fontidtexture.unwrap();
 			let _TextureSize = *self._fontEngineTextureSize.load_full();
 			
 			self._storeText.iter().for_each(|item| {
@@ -222,7 +221,7 @@ impl ManagerFont
 					textureUpdate.push(Box::new(self.processInternal_textureUpdate(rect, tex_data)));
 				},
 				|vertex_data| {
-					self.processInternal_vertexConvert(vertex_data, fontidtexture)
+					self.processInternal_vertexConvert(vertex_data)
 				},
 			);
 			
@@ -315,7 +314,7 @@ impl ManagerFont
 		}
 	}
 	
-	fn processInternal_vertexConvert(&self, vertex_data: GlyphVertex<Extra>, fontid: u32) -> ManagerFont_verticestmp
+	fn processInternal_vertexConvert(&self, vertex_data: GlyphVertex<Extra>) -> ManagerFont_verticestmp
 	{
 		let mut gl_rect = ab_glyph::Rect {
 			min: ab_glyph::point(vertex_data.pixel_coords.min.x, vertex_data.pixel_coords.min.y),
@@ -348,31 +347,31 @@ impl ManagerFont
 			tex_coords.min.y = tex_coords.max.y - tex_coords.height() * gl_rect.height() / old_height;
 		}
 		
-		let vertex = vec![HGE_shader_2Dsimple {
+		let vertex = vec![HGE_shader_2Dsimple_def {
 			position: [gl_rect.min.x, gl_rect.min.y, 0.0],
 			ispixel: 1,
-			texture: fontid,
+			texture: Some("font".to_string()),
 			uvcoord: [tex_coords.min.x, tex_coords.min.y],
 			color: vertex_data.extra.color,
 			color_blend_type: 0,
-		}, HGE_shader_2Dsimple {
+		}, HGE_shader_2Dsimple_def {
 			position: [gl_rect.max.x, gl_rect.min.y, 0.0],
 			ispixel: 1,
-			texture: fontid,
+			texture: Some("font".to_string()),
 			uvcoord: [tex_coords.max.x, tex_coords.min.y],
 			color: vertex_data.extra.color,
 			color_blend_type: 0,
-		}, HGE_shader_2Dsimple {
+		}, HGE_shader_2Dsimple_def {
 			position: [gl_rect.min.x, gl_rect.max.y, 0.0],
 			ispixel: 1,
-			texture: fontid,
+			texture: Some("font".to_string()),
 			uvcoord: [tex_coords.min.x, tex_coords.max.y],
 			color: vertex_data.extra.color,
 			color_blend_type: 0,
-		}, HGE_shader_2Dsimple {
+		}, HGE_shader_2Dsimple_def {
 			position: [gl_rect.max.x, gl_rect.max.y, 0.0],
 			ispixel: 1,
-			texture: fontid,
+			texture: Some("font".to_string()),
 			uvcoord: [tex_coords.max.x, tex_coords.max.y],
 			color: vertex_data.extra.color,
 			color_blend_type: 0,

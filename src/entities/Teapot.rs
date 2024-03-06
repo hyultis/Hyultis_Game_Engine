@@ -1,20 +1,23 @@
+use uuid::Uuid;
 use crate::components::{Components, HGEC_origin};
+use crate::components::color::color;
 use crate::components::event::event_trait;
 use crate::components::offset::offset;
 use crate::components::rotations::rotation;
 use crate::components::scale::scale;
 use crate::components::worldPosition::worldPosition;
 use crate::Models3D::chunk_content::chunk_content;
-use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
-use crate::Shaders::StructAllCache::StructAllCache;
+use crate::Models3D::ModelUtils;
+use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple_def, HGE_shader_3Dsimple_holder};
+use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
+use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn, ShaderDrawerImplStruct};
 
 #[derive(Clone)]
 pub struct Teapot
 {
 	_components: Components,
-	_color: [f32;4],
 	_canUpdate: bool,
-	_cache: StructAllCache
+	_uuidStorage: Option<Uuid>
 }
 
 impl Teapot
@@ -24,2670 +27,2669 @@ impl Teapot
 		Teapot
 		{
 			_components: Default::default(),
-			_color: [1.0,1.0,1.0,1.0],
 			_canUpdate: true,
-			_cache: StructAllCache::new(),
+			_uuidStorage: None,
 		}
 	}
 	
-	fn getTeapotVertexs(&self) -> Vec<HGE_shader_3Dsimple>
+	fn getTeapotVertexs(&self) -> Vec<HGE_shader_3Dsimple_def>
 	{
 		[
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.0, 0.0, 0.0],
 				normal: [0.0, 0.0, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			}, // dummy vector because in the original model indices
 			// start at 1
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [40.6266, 28.3457, -1.10804],
 				normal: [-0.966742, -0.255752, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [40.0714, 30.4443, -1.10804],
 				normal: [-0.966824, 0.255443, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [40.7155, 31.1438, -1.10804],
 				normal: [-0.092052, 0.995754, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [42.0257, 30.4443, -1.10804],
 				normal: [0.68205, 0.731305, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [43.4692, 28.3457, -1.10804],
 				normal: [0.870301, 0.492521, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [37.5425, 28.3457, 14.5117],
 				normal: [-0.893014, -0.256345, -0.369882],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [37.0303, 30.4443, 14.2938],
 				normal: [-0.893437, 0.255997, -0.369102],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [37.6244, 31.1438, 14.5466],
 				normal: [-0.0838771, 0.995843, -0.0355068],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [38.8331, 30.4443, 15.0609],
 				normal: [0.629724, 0.73186, 0.260439],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [40.1647, 28.3457, 15.6274],
 				normal: [0.803725, 0.49337, 0.332584],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [29.0859, 28.3457, 27.1468],
 				normal: [-0.683407, -0.256729, -0.683407],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [28.6917, 30.4443, 26.7527],
 				normal: [-0.683531, 0.256067, -0.683531],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [29.149, 31.1438, 27.2099],
 				normal: [-0.0649249, 0.995776, -0.0649248],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [30.0792, 30.4443, 28.1402],
 				normal: [0.481398, 0.732469, 0.481398],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [31.1041, 28.3457, 29.165],
 				normal: [0.614804, 0.493997, 0.614804],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [16.4508, 28.3457, 35.6034],
 				normal: [-0.369882, -0.256345, -0.893014],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [16.2329, 30.4443, 35.0912],
 				normal: [-0.369102, 0.255997, -0.893437],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [16.4857, 31.1438, 35.6853],
 				normal: [-0.0355067, 0.995843, -0.0838772],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [16.9999, 30.4443, 36.894],
 				normal: [0.260439, 0.73186, 0.629724],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [17.5665, 28.3457, 38.2256],
 				normal: [0.332584, 0.49337, 0.803725],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 28.3457, 38.6876],
 				normal: [-0.00284834, -0.257863, -0.966177],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 30.4443, 38.1324],
 				normal: [-0.00192311, 0.254736, -0.967009],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 31.1438, 38.7764],
 				normal: [-0.000266114, 0.995734, -0.0922702],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 30.4443, 40.0866],
 				normal: [0.0, 0.731295, 0.682061],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 28.3457, 41.5301],
 				normal: [0.0, 0.492521, 0.870301],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-15.868, 28.3457, 35.6034],
 				normal: [0.379058, -0.3593, -0.852771],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-15.0262, 30.4443, 35.0912],
 				normal: [0.37711, 0.149086, -0.914091],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-14.9585, 31.1438, 35.6853],
 				normal: [0.0275022, 0.992081, -0.122551],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-15.3547, 30.4443, 36.894],
 				normal: [-0.26101, 0.726762, 0.635367],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-15.9044, 28.3457, 38.2256],
 				normal: [-0.332485, 0.492546, 0.804271],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-28.3832, 28.3457, 27.1468],
 				normal: [0.663548, -0.410791, -0.625264],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-27.4344, 30.4443, 26.7527],
 				normal: [0.712664, 0.0737216, -0.697621],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-27.6068, 31.1438, 27.2099],
 				normal: [0.0997268, 0.987509, -0.121984],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-28.4322, 30.4443, 28.1402],
 				normal: [-0.48732, 0.723754, 0.488568],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-29.4421, 28.3457, 29.165],
 				normal: [-0.615242, 0.492602, 0.615484],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-36.2402, 28.3457, 14.5117],
 				normal: [0.880028, -0.332908, -0.338709],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-35.52, 30.4443, 14.2938],
 				normal: [0.917276, 0.167113, -0.361493],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-36.0073, 31.1438, 14.5466],
 				normal: [0.113584, 0.992365, -0.0480695],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-37.1767, 30.4443, 15.0609],
 				normal: [-0.63415, 0.727508, 0.261889],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-38.5027, 28.3457, 15.6274],
 				normal: [-0.804126, 0.492634, 0.332705],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-38.9646, 28.3457, -1.10804],
 				normal: [0.96669, -0.255738, 0.0104537],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-38.4094, 30.4443, -1.10804],
 				normal: [0.967442, 0.252962, 0.00810329],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-39.0534, 31.1438, -1.10804],
 				normal: [0.0934365, 0.995624, 0.00128063],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-40.3636, 30.4443, -1.10804],
 				normal: [-0.682167, 0.731196, -0.00034353],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-41.8071, 28.3457, -1.10804],
 				normal: [-0.870322, 0.492483, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-35.8804, 28.3457, -16.7278],
 				normal: [0.893014, -0.256345, 0.369882],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-35.3683, 30.4443, -16.5099],
 				normal: [0.893437, 0.255997, 0.369102],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-35.9624, 31.1438, -16.7627],
 				normal: [0.0838768, 0.995843, 0.0355066],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-37.1711, 30.4443, -17.2769],
 				normal: [-0.629724, 0.73186, -0.260439],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-38.5027, 28.3457, -17.8435],
 				normal: [-0.803725, 0.49337, -0.332584],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-27.4238, 28.3457, -29.3629],
 				normal: [0.683407, -0.256729, 0.683407],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-27.0297, 30.4443, -28.9687],
 				normal: [0.683531, 0.256067, 0.683531],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-27.4869, 31.1438, -29.426],
 				normal: [0.0649249, 0.995776, 0.0649249],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-28.4172, 30.4443, -30.3562],
 				normal: [-0.481398, 0.732469, -0.481398],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-29.4421, 28.3457, -31.3811],
 				normal: [-0.614804, 0.493997, -0.614804],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-14.7887, 28.3457, -37.8195],
 				normal: [0.369882, -0.256345, 0.893014],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-14.5708, 30.4443, -37.3073],
 				normal: [0.369102, 0.255997, 0.893437],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-14.8236, 31.1438, -37.9014],
 				normal: [0.0355067, 0.995843, 0.083877],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-15.3379, 30.4443, -39.1101],
 				normal: [-0.260439, 0.73186, -0.629724],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-15.9044, 28.3457, -40.4417],
 				normal: [-0.332584, 0.49337, -0.803725],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 28.3457, -40.9036],
 				normal: [0.0, -0.255752, 0.966742],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 30.4443, -40.3484],
 				normal: [0.0, 0.255443, 0.966824],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 31.1438, -40.9925],
 				normal: [0.0, 0.995754, 0.092052],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 30.4443, -42.3027],
 				normal: [0.0, 0.731305, -0.68205],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 28.3457, -43.7462],
 				normal: [-0.0, 0.492521, -0.870301],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [16.4508, 28.3457, -37.8195],
 				normal: [-0.369882, -0.256345, 0.893014],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [16.2329, 30.4443, -37.3073],
 				normal: [-0.369102, 0.255996, 0.893437],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [16.4857, 31.1438, -37.9014],
 				normal: [-0.0355068, 0.995843, 0.0838771],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [16.9999, 30.4443, -39.1101],
 				normal: [0.260439, 0.73186, -0.629724],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [17.5665, 28.3457, -40.4417],
 				normal: [0.332584, 0.49337, -0.803725],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [29.0859, 28.3457, -29.3629],
 				normal: [-0.683407, -0.256729, 0.683407],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [28.6917, 30.4443, -28.9687],
 				normal: [-0.683531, 0.256067, 0.683531],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [29.149, 31.1438, -29.426],
 				normal: [-0.0649249, 0.995776, 0.064925],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [30.0792, 30.4443, -30.3562],
 				normal: [0.481398, 0.732469, -0.481398],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [31.1041, 28.3457, -31.3811],
 				normal: [0.614804, 0.493997, -0.614804],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [37.5425, 28.3457, -16.7278],
 				normal: [-0.893014, -0.256345, 0.369882],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [37.0303, 30.4443, -16.5099],
 				normal: [-0.893437, 0.255997, 0.369102],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [37.6244, 31.1438, -16.7627],
 				normal: [-0.0838767, 0.995843, 0.0355066],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [38.8331, 30.4443, -17.2769],
 				normal: [0.629724, 0.73186, -0.260439],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [40.1647, 28.3457, -17.8435],
 				normal: [0.803725, 0.49337, -0.332584],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [48.6879, 17.1865, -1.10804],
 				normal: [0.915321, 0.402725, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [53.2404, 6.22714, -1.10804],
 				normal: [0.941808, 0.336151, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [56.4605, -4.33246, -1.10804],
 				normal: [0.97869, 0.205342, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [57.6819, -14.2925, -1.10804],
 				normal: [0.997804, -0.0662397, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [44.979, 17.1865, 17.6758],
 				normal: [0.845438, 0.403546, 0.349835],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [49.1787, 6.22714, 19.4626],
 				normal: [0.869996, 0.336859, 0.360047],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [52.1492, -4.33246, 20.7265],
 				normal: [0.904193, 0.205791, 0.37428],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [53.2759, -14.2925, 21.2059],
 				normal: [0.921879, -0.0663697, 0.381752],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [34.8094, 17.1865, 32.8703],
 				normal: [0.646802, 0.404096, 0.646802],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [38.0417, 6.22714, 36.1026],
 				normal: [0.665655, 0.337351, 0.665655],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [40.3279, -4.33246, 38.3889],
 				normal: [0.691923, 0.20612, 0.691923],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [41.1951, -14.2925, 39.2561],
 				normal: [0.705542, -0.0664796, 0.705543],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [19.6148, 17.1865, 43.0399],
 				normal: [0.349835, 0.403546, 0.845438],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [21.4017, 6.22714, 47.2396],
 				normal: [0.360047, 0.336859, 0.869996],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [22.6656, -4.33246, 50.2101],
 				normal: [0.37428, 0.205791, 0.904193],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [23.145, -14.2925, 51.3369],
 				normal: [0.381752, -0.0663697, 0.921879],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 17.1865, 46.7488],
 				normal: [-0.0, 0.402725, 0.915321],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 6.22714, 51.3013],
 				normal: [0.0, 0.336151, 0.941808],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -4.33246, 54.5214],
 				normal: [-0.0, 0.205342, 0.97869],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -14.2925, 55.7428],
 				normal: [-0.0, -0.0662397, 0.997804],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-17.9528, 17.1865, 43.0399],
 				normal: [-0.349835, 0.403546, 0.845438],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-19.7397, 6.22714, 47.2396],
 				normal: [-0.360047, 0.336859, 0.869996],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-21.0035, -4.33246, 50.2101],
 				normal: [-0.37428, 0.205791, 0.904193],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-21.4829, -14.2925, 51.3369],
 				normal: [-0.381752, -0.0663697, 0.921879],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-33.1474, 17.1865, 32.8703],
 				normal: [-0.646802, 0.404096, 0.646802],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-36.3796, 6.22714, 36.1026],
 				normal: [-0.665655, 0.337351, 0.665655],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-38.6659, -4.33246, 38.3889],
 				normal: [-0.691923, 0.20612, 0.691923],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-39.5331, -14.2925, 39.2561],
 				normal: [-0.705543, -0.0664796, 0.705543],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-43.3169, 17.1865, 17.6758],
 				normal: [-0.845438, 0.403546, 0.349835],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-47.5166, 6.22714, 19.4626],
 				normal: [-0.869996, 0.336859, 0.360047],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-50.4871, -4.33246, 20.7265],
 				normal: [-0.904193, 0.205791, 0.37428],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-51.6139, -14.2925, 21.2059],
 				normal: [-0.921879, -0.0663697, 0.381752],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-47.0258, 17.1865, -1.10804],
 				normal: [-0.915321, 0.402725, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-51.5784, 6.22714, -1.10804],
 				normal: [-0.941808, 0.336151, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-54.7984, -4.33246, -1.10804],
 				normal: [-0.97869, 0.205342, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-56.0198, -14.2925, -1.10804],
 				normal: [-0.997804, -0.0662397, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-43.3169, 17.1865, -19.8919],
 				normal: [-0.845438, 0.403546, -0.349835],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-47.5166, 6.22714, -21.6787],
 				normal: [-0.869996, 0.336859, -0.360047],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-50.4871, -4.33246, -22.9426],
 				normal: [-0.904193, 0.205791, -0.37428],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-51.6139, -14.2925, -23.422],
 				normal: [-0.921879, -0.0663697, -0.381752],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-33.1474, 17.1865, -35.0864],
 				normal: [-0.646802, 0.404096, -0.646802],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-36.3796, 6.22714, -38.3187],
 				normal: [-0.665655, 0.337351, -0.665655],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-38.6659, -4.33246, -40.6049],
 				normal: [-0.691923, 0.20612, -0.691923],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-39.5331, -14.2925, -41.4721],
 				normal: [-0.705542, -0.0664796, -0.705543],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-17.9528, 17.1865, -45.256],
 				normal: [-0.349835, 0.403546, -0.845438],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-19.7397, 6.22714, -49.4557],
 				normal: [-0.360047, 0.336859, -0.869996],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-21.0035, -4.33246, -52.4262],
 				normal: [-0.37428, 0.205791, -0.904193],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-21.4829, -14.2925, -53.5529],
 				normal: [-0.381752, -0.0663697, -0.921879],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 17.1865, -48.9649],
 				normal: [0.0, 0.402725, -0.915321],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 6.22714, -53.5174],
 				normal: [-0.0, 0.336151, -0.941808],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -4.33246, -56.7375],
 				normal: [0.0, 0.205342, -0.97869],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -14.2925, -57.9589],
 				normal: [0.0, -0.0662397, -0.997804],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [19.6148, 17.1865, -45.256],
 				normal: [0.349835, 0.403546, -0.845438],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [21.4017, 6.22714, -49.4557],
 				normal: [0.360047, 0.336859, -0.869996],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [22.6656, -4.33246, -52.4262],
 				normal: [0.37428, 0.205791, -0.904193],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [23.145, -14.2925, -53.5529],
 				normal: [0.381752, -0.0663697, -0.921879],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [34.8094, 17.1865, -35.0864],
 				normal: [0.646802, 0.404096, -0.646802],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [38.0417, 6.22714, -38.3187],
 				normal: [0.665655, 0.337351, -0.665655],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [40.3279, -4.33246, -40.6049],
 				normal: [0.691923, 0.20612, -0.691923],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [41.1951, -14.2925, -41.4721],
 				normal: [0.705543, -0.0664796, -0.705542],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [44.979, 17.1865, -19.8919],
 				normal: [0.845438, 0.403546, -0.349835],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [49.1787, 6.22714, -21.6787],
 				normal: [0.869996, 0.336859, -0.360047],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [52.1492, -4.33246, -22.9426],
 				normal: [0.904193, 0.205791, -0.37428],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [53.2759, -14.2925, -23.422],
 				normal: [0.921879, -0.0663697, -0.381752],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [55.4611, -22.7202, -1.10804],
 				normal: [0.900182, -0.435513, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [50.5755, -28.9493, -1.10804],
 				normal: [0.729611, -0.683863, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [45.6899, -33.1798, -1.10804],
 				normal: [0.693951, -0.720022, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [43.4692, -35.6115, -1.10804],
 				normal: [0.79395, -0.607984, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [51.2273, -22.7202, 20.3343],
 				normal: [0.831437, -0.43618, 0.344179],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [46.7203, -28.9493, 18.4167],
 				normal: [0.673512, -0.684665, 0.278594],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [42.2133, -33.1798, 16.4991],
 				normal: [0.640399, -0.720924, 0.264874],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [40.1647, -35.6115, 15.6274],
 				normal: [0.732949, -0.608996, 0.303166],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [39.6184, -22.7202, 37.6793],
 				normal: [0.636092, -0.436777, 0.636092],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [36.1496, -28.9493, 34.2106],
 				normal: [0.514965, -0.685289, 0.514965],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [32.6808, -33.1798, 30.7418],
 				normal: [0.489651, -0.721446, 0.489651],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [31.1041, -35.6115, 29.165],
 				normal: [0.560555, -0.609554, 0.560555],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [22.2733, -22.7202, 49.2882],
 				normal: [0.344179, -0.43618, 0.831437],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [20.3557, -28.9493, 44.7813],
 				normal: [0.278594, -0.684665, 0.673512],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [18.4381, -33.1798, 40.2743],
 				normal: [0.264874, -0.720924, 0.640399],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [17.5665, -35.6115, 38.2256],
 				normal: [0.303166, -0.608996, 0.732949],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -22.7202, 53.5221],
 				normal: [0.0, -0.435513, 0.900182],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -28.9493, 48.6365],
 				normal: [-0.0, -0.683863, 0.729611],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -33.1798, 43.7508],
 				normal: [0.0, -0.720022, 0.693951],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -35.6115, 41.5301],
 				normal: [-0.0, -0.607984, 0.79395],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-20.6113, -22.7202, 49.2882],
 				normal: [-0.344179, -0.43618, 0.831437],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-18.6937, -28.9493, 44.7813],
 				normal: [-0.278594, -0.684665, 0.673512],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-16.7761, -33.1798, 40.2743],
 				normal: [-0.264874, -0.720924, 0.640399],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-15.9044, -35.6115, 38.2256],
 				normal: [-0.303166, -0.608996, 0.732949],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-37.9564, -22.7202, 37.6793],
 				normal: [-0.636092, -0.436777, 0.636092],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-34.4876, -28.9493, 34.2106],
 				normal: [-0.514965, -0.685289, 0.514965],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-31.0188, -33.1798, 30.7418],
 				normal: [-0.489651, -0.721446, 0.489651],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-29.4421, -35.6115, 29.165],
 				normal: [-0.560555, -0.609554, 0.560555],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-49.5653, -22.7202, 20.3343],
 				normal: [-0.831437, -0.43618, 0.344179],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-45.0583, -28.9493, 18.4167],
 				normal: [-0.673512, -0.684665, 0.278595],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-40.5513, -33.1798, 16.4991],
 				normal: [-0.640399, -0.720924, 0.264874],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-38.5027, -35.6115, 15.6274],
 				normal: [-0.732949, -0.608996, 0.303166],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-53.7991, -22.7202, -1.10804],
 				normal: [-0.900182, -0.435513, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-48.9135, -28.9493, -1.10804],
 				normal: [-0.729611, -0.683863, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-44.0279, -33.1798, -1.10804],
 				normal: [-0.693951, -0.720022, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-41.8071, -35.6115, -1.10804],
 				normal: [-0.79395, -0.607983, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-49.5653, -22.7202, -22.5504],
 				normal: [-0.831437, -0.43618, -0.344179],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-45.0583, -28.9493, -20.6327],
 				normal: [-0.673512, -0.684665, -0.278594],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-40.5513, -33.1798, -18.7151],
 				normal: [-0.640399, -0.720924, -0.264874],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-38.5027, -35.6115, -17.8435],
 				normal: [-0.732949, -0.608996, -0.303166],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-37.9564, -22.7202, -39.8954],
 				normal: [-0.636092, -0.436777, -0.636092],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-34.4876, -28.9493, -36.4266],
 				normal: [-0.514965, -0.685289, -0.514965],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-31.0188, -33.1798, -32.9578],
 				normal: [-0.489651, -0.721446, -0.489651],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-29.4421, -35.6115, -31.3811],
 				normal: [-0.560555, -0.609554, -0.560555],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-20.6113, -22.7202, -51.5043],
 				normal: [-0.344179, -0.43618, -0.831437],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-18.6937, -28.9493, -46.9973],
 				normal: [-0.278594, -0.684665, -0.673512],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-16.7761, -33.1798, -42.4903],
 				normal: [-0.264874, -0.720924, -0.640399],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-15.9044, -35.6115, -40.4417],
 				normal: [-0.303166, -0.608996, -0.732949],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -22.7202, -55.7382],
 				normal: [-0.0, -0.435513, -0.900182],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -28.9493, -50.8525],
 				normal: [0.0, -0.683863, -0.729611],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -33.1798, -45.9669],
 				normal: [-0.0, -0.720022, -0.693951],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -35.6115, -43.7462],
 				normal: [0.0, -0.607984, -0.79395],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [22.2733, -22.7202, -51.5043],
 				normal: [0.344179, -0.43618, -0.831437],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [20.3557, -28.9493, -46.9973],
 				normal: [0.278594, -0.684665, -0.673512],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [18.4381, -33.1798, -42.4903],
 				normal: [0.264874, -0.720924, -0.640399],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [17.5665, -35.6115, -40.4417],
 				normal: [0.303167, -0.608996, -0.732949],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [39.6184, -22.7202, -39.8954],
 				normal: [0.636092, -0.436777, -0.636092],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [36.1496, -28.9493, -36.4266],
 				normal: [0.514965, -0.685289, -0.514965],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [32.6808, -33.1798, -32.9578],
 				normal: [0.489651, -0.721446, -0.489651],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [31.1041, -35.6115, -31.3811],
 				normal: [0.560555, -0.609554, -0.560555],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [51.2273, -22.7202, -22.5504],
 				normal: [0.831437, -0.43618, -0.344179],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [46.7203, -28.9493, -20.6327],
 				normal: [0.673512, -0.684665, -0.278595],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [42.2133, -33.1798, -18.7151],
 				normal: [0.640399, -0.720924, -0.264874],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [40.1647, -35.6115, -17.8435],
 				normal: [0.732949, -0.608996, -0.303166],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [42.5031, -37.1772, -1.10804],
 				normal: [0.62386, -0.781536, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [37.3399, -38.5429, -1.10804],
 				normal: [0.177291, -0.984159, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [24.5818, -39.5089, -1.10804],
 				normal: [0.0492072, -0.998789, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -39.8754, -1.10804],
 				normal: [0.0, -1.0, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [39.2736, -37.1772, 15.2483],
 				normal: [0.576229, -0.781801, 0.238217],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [34.5105, -38.5429, 13.2217],
 				normal: [0.163629, -0.984208, 0.0675273],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [22.7411, -39.5089, 8.21414],
 				normal: [0.0454217, -0.998792, 0.0187357],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [30.4182, -37.1772, 28.4792],
 				normal: [0.440416, -0.782348, 0.440416],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [26.7523, -38.5429, 24.8133],
 				normal: [0.124903, -0.984276, 0.124903],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [17.6941, -39.5089, 15.755],
 				normal: [0.0346621, -0.998798, 0.0346621],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [17.1873, -37.1772, 37.3345],
 				normal: [0.238217, -0.781801, 0.576229],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [15.1608, -38.5429, 32.5714],
 				normal: [0.0675273, -0.984208, 0.163629],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [10.1532, -39.5089, 20.8021],
 				normal: [0.0187357, -0.998792, 0.0454217],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -37.1772, 40.5641],
 				normal: [-0.0, -0.781536, 0.62386],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -38.5429, 35.4009],
 				normal: [0.0, -0.984159, 0.177291],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -39.5089, 22.6427],
 				normal: [-0.0, -0.998789, 0.0492072],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-15.5253, -37.1772, 37.3345],
 				normal: [-0.238216, -0.781801, 0.576229],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-13.4987, -38.5429, 32.5714],
 				normal: [-0.0675273, -0.984208, 0.163629],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-8.49115, -39.5089, 20.8021],
 				normal: [-0.0187357, -0.998792, 0.0454217],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-28.7562, -37.1772, 28.4792],
 				normal: [-0.440416, -0.782348, 0.440416],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-25.0903, -38.5429, 24.8133],
 				normal: [-0.124903, -0.984276, 0.124903],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-16.032, -39.5089, 15.755],
 				normal: [-0.0346621, -0.998798, 0.0346621],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-37.6115, -37.1772, 15.2483],
 				normal: [-0.576229, -0.781801, 0.238217],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-32.8484, -38.5429, 13.2217],
 				normal: [-0.163629, -0.984208, 0.0675273],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-21.0791, -39.5089, 8.21414],
 				normal: [-0.0454217, -0.998792, 0.0187357],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-40.8411, -37.1772, -1.10804],
 				normal: [-0.62386, -0.781536, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-35.6779, -38.5429, -1.10804],
 				normal: [-0.177291, -0.984159, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-22.9198, -39.5089, -1.10804],
 				normal: [-0.0492072, -0.998789, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-37.6115, -37.1772, -17.4643],
 				normal: [-0.576229, -0.781801, -0.238217],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-32.8484, -38.5429, -15.4378],
 				normal: [-0.163629, -0.984208, -0.0675273],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-21.0791, -39.5089, -10.4302],
 				normal: [-0.0454217, -0.998792, -0.0187357],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-28.7562, -37.1772, -30.6952],
 				normal: [-0.440416, -0.782348, -0.440416],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-25.0903, -38.5429, -27.0294],
 				normal: [-0.124903, -0.984276, -0.124903],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-16.032, -39.5089, -17.9711],
 				normal: [-0.0346621, -0.998798, -0.0346621],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-15.5253, -37.1772, -39.5506],
 				normal: [-0.238217, -0.781801, -0.576229],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-13.4987, -38.5429, -34.7875],
 				normal: [-0.0675273, -0.984208, -0.163629],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-8.49115, -39.5089, -23.0181],
 				normal: [-0.0187357, -0.998792, -0.0454217],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -37.1772, -42.7802],
 				normal: [0.0, -0.781536, -0.62386],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -38.5429, -37.6169],
 				normal: [-0.0, -0.984159, -0.177291],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, -39.5089, -24.8588],
 				normal: [0.0, -0.998789, -0.0492072],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [17.1873, -37.1772, -39.5506],
 				normal: [0.238217, -0.781801, -0.576229],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [15.1608, -38.5429, -34.7875],
 				normal: [0.0675273, -0.984208, -0.163629],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [10.1532, -39.5089, -23.0181],
 				normal: [0.0187357, -0.998792, -0.0454217],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [30.4182, -37.1772, -30.6952],
 				normal: [0.440416, -0.782348, -0.440416],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [26.7523, -38.5429, -27.0294],
 				normal: [0.124903, -0.984276, -0.124903],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [17.6941, -39.5089, -17.9711],
 				normal: [0.0346621, -0.998798, -0.0346621],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [39.2736, -37.1772, -17.4643],
 				normal: [0.576229, -0.781801, -0.238217],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [34.5105, -38.5429, -15.4378],
 				normal: [0.163629, -0.984208, -0.0675273],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [22.7411, -39.5089, -10.4302],
 				normal: [0.0454217, -0.998792, -0.0187357],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-44.6497, 17.6861, -1.10804],
 				normal: [0.00778619, -0.99997, -0.000215809],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-57.9297, 17.5862, -1.10804],
 				normal: [0.0391385, -0.999233, -0.000988567],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-67.7453, 16.8867, -1.10804],
 				normal: [0.179511, -0.983746, -0.00436856],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-73.8301, 14.9879, -1.10804],
 				normal: [0.6123, -0.790556, -0.0104598],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-75.9176, 11.2904, -1.10804],
 				normal: [0.986152, -0.165707, -0.00666949],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-44.2055, 18.6855, 3.68876],
 				normal: [0.00703893, -0.812495, 0.582926],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-58.3252, 18.5699, 3.68876],
 				normal: [0.0361273, -0.837257, 0.545614],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-68.6891, 17.7611, 3.68876],
 				normal: [0.161845, -0.810421, 0.563048],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-75.0724, 15.5657, 3.68876],
 				normal: [0.482365, -0.595148, 0.642746],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-77.2501, 11.2904, 3.68876],
 				normal: [0.73872, -0.114593, 0.664199],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-43.2284, 20.884, 5.28769],
 				normal: [-0.00190867, 0.162121, 0.986769],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-59.1955, 20.7341, 5.28769],
 				normal: [0.0027616, 0.0171073, 0.99985],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-70.7655, 19.6848, 5.28769],
 				normal: [0.0105326, 0.0733989, 0.997247],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-77.8053, 16.8367, 5.28769],
 				normal: [-0.0660406, 0.130069, 0.989303],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-80.1814, 11.2904, 5.28769],
 				normal: [-0.0944272, 0.0165946, 0.995393],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-42.2513, 23.0825, 3.68876],
 				normal: [-0.009203, 0.871509, 0.490293],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-60.0657, 22.8983, 3.68876],
 				normal: [-0.0486064, 0.840609, 0.539457],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-72.8419, 21.6085, 3.68876],
 				normal: [-0.223298, 0.802881, 0.552739],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-80.5381, 18.1077, 3.68876],
 				normal: [-0.596365, 0.559971, 0.575135],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-83.1128, 11.2904, 3.68876],
 				normal: [-0.803337, 0.0682361, 0.591602],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-41.8071, 24.0819, -1.10804],
 				normal: [-0.0105609, 0.999944, 0.000103364],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-60.4613, 23.882, -1.10804],
 				normal: [-0.0587986, 0.99827, 0.000709759],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-73.7857, 22.4829, -1.10804],
 				normal: [-0.28071, 0.959787, 0.00326876],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-81.7804, 18.6855, -1.10804],
 				normal: [-0.749723, 0.661738, 0.0042684],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-84.4453, 11.2904, -1.10804],
 				normal: [-0.997351, 0.0727144, 0.00205923],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-42.2513, 23.0825, -5.90483],
 				normal: [-0.00879197, 0.871493, -0.49033],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-60.0657, 22.8983, -5.90483],
 				normal: [-0.0464937, 0.841178, -0.538756],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-72.8419, 21.6085, -5.90483],
 				normal: [-0.217909, 0.806807, -0.549161],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-80.5381, 18.1077, -5.90483],
 				normal: [-0.597291, 0.560026, -0.574121],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-83.1128, 11.2904, -5.90483],
 				normal: [-0.804, 0.0629127, -0.591291],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-43.2284, 20.884, -7.50376],
 				normal: [-0.00180555, 0.161691, -0.98684],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-59.1955, 20.7341, -7.50376],
 				normal: [0.00203087, 0.014555, -0.999892],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-70.7655, 19.6848, -7.50376],
 				normal: [0.00921499, 0.0600698, -0.998152],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-77.8053, 16.8367, -7.50376],
 				normal: [-0.0593333, 0.113865, -0.991723],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-80.1814, 11.2904, -7.50376],
 				normal: [-0.0868992, 0.0122903, -0.996141],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-44.2055, 18.6855, -5.90483],
 				normal: [0.00641779, -0.812379, -0.583094],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-58.3252, 18.5699, -5.90483],
 				normal: [0.0337833, -0.837512, -0.545373],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-68.6891, 17.7611, -5.90483],
 				normal: [0.157112, -0.811947, -0.56219],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-75.0724, 15.5657, -5.90483],
 				normal: [0.484407, -0.589365, -0.646528],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-77.2501, 11.2904, -5.90483],
 				normal: [0.73887, -0.10132, -0.666187],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-74.8073, 5.4943, -1.10804],
 				normal: [0.946512, 0.32265, -0.0033571],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-71.2985, -1.50103, -1.10804],
 				normal: [0.82583, 0.56387, -0.00745213],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-65.1248, -8.49634, -1.10804],
 				normal: [0.650011, 0.759893, -0.00693681],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-56.0198, -14.2925, -1.10804],
 				normal: [0.532429, 0.846458, -0.00524544],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-76.0183, 4.93477, 3.68876],
 				normal: [0.725608, 0.259351, 0.637362],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-72.159, -2.35462, 3.68876],
 				normal: [0.645945, 0.461988, 0.607719],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-65.4267, -9.55033, 3.68876],
 				normal: [0.531614, 0.63666, 0.558615],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-55.5757, -15.6249, 3.68876],
 				normal: [0.424964, 0.681717, 0.59554],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-78.6824, 3.70383, 5.28769],
 				normal: [-0.0495616, -0.019755, 0.998576],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-74.0522, -4.23253, 5.28769],
 				normal: [-0.0378162, -0.0356243, 0.99865],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-66.0909, -11.8691, 5.28769],
 				normal: [-0.0379139, -0.0365122, 0.998614],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-54.5986, -18.5563, 5.28769],
 				normal: [-0.168854, -0.297946, 0.93953],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-81.3466, 2.47288, 3.68876],
 				normal: [-0.742342, -0.299166, 0.599523],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-75.9454, -6.11044, 3.68876],
 				normal: [-0.619602, -0.529406, 0.579503],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-66.755, -14.1878, 3.68876],
 				normal: [-0.483708, -0.685761, 0.543837],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-53.6214, -21.4877, 3.68876],
 				normal: [-0.445293, -0.794355, 0.413176],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-82.5576, 1.91336, -1.10804],
 				normal: [-0.926513, -0.376257, 0.00199587],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-76.8059, -6.96404, -1.10804],
 				normal: [-0.75392, -0.656952, 0.00431723],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-67.0569, -15.2418, -1.10804],
 				normal: [-0.566224, -0.824244, 0.00346105],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-53.1773, -22.8201, -1.10804],
 				normal: [-0.481804, -0.876277, 0.00185047],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-81.3466, 2.47288, -5.90483],
 				normal: [-0.744675, -0.294424, -0.598977],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-75.9454, -6.11044, -5.90483],
 				normal: [-0.621949, -0.528114, -0.578165],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-66.755, -14.1878, -5.90483],
 				normal: [-0.481171, -0.68834, -0.542828],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-53.6214, -21.4877, -5.90483],
 				normal: [-0.438055, -0.797035, -0.415744],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-78.6824, 3.70383, -7.50376],
 				normal: [-0.0443368, -0.0170558, -0.998871],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-74.0522, -4.23253, -7.50376],
 				normal: [-0.0261761, -0.0281665, -0.99926],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-66.0909, -11.8691, -7.50376],
 				normal: [-0.0252939, -0.0283323, -0.999278],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-54.5986, -18.5563, -7.50376],
 				normal: [-0.157482, -0.289392, -0.944167],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-76.0183, 4.93477, -5.90483],
 				normal: [0.728244, 0.25241, -0.637142],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-72.159, -2.35462, -5.90483],
 				normal: [0.647055, 0.459725, -0.608254],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-65.4267, -9.55033, -5.90483],
 				normal: [0.522994, 0.640657, -0.562171],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-55.5757, -15.6249, -5.90483],
 				normal: [0.409978, 0.682857, -0.604669],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [49.1543, 0.630882, -1.10804],
 				normal: [-0.230787, 0.972982, -0.00652338],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [62.7896, 3.76212, -1.10804],
 				normal: [-0.548936, 0.835863, -0.00151111],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [68.6967, 11.2904, -1.10804],
 				normal: [-0.875671, 0.482807, 0.00989278],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [71.939, 20.4176, -1.10804],
 				normal: [-0.877554, 0.479097, 0.0190923],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [77.5797, 28.3457, -1.10804],
 				normal: [-0.69619, 0.717439, 0.024497],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [49.1543, -3.03333, 9.4449],
 				normal: [-0.152878, 0.687211, 0.71019],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [63.8305, 1.04519, 8.42059],
 				normal: [-0.316721, 0.63775, 0.702113],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [70.0292, 9.70814, 6.1671],
 				normal: [-0.601067, 0.471452, 0.64533],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [73.5629, 19.8451, 3.91361],
 				normal: [-0.635889, 0.44609, 0.6298],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [80.2446, 28.3457, 2.88929],
 				normal: [-0.435746, 0.601008, 0.670011],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [49.1543, -11.0946, 12.9626],
 				normal: [0.111112, -0.0850694, 0.99016],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [66.1207, -4.93206, 11.5968],
 				normal: [0.22331, 0.00654036, 0.974726],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [72.9605, 6.22714, 8.59214],
 				normal: [0.190097, 0.154964, 0.969458],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [77.1355, 18.5855, 5.58749],
 				normal: [0.00527077, 0.189482, 0.98187],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [86.1073, 28.3457, 4.22173],
 				normal: [-0.0117518, 0.246688, 0.969024],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [49.1543, -19.1559, 9.4449],
 				normal: [0.343906, -0.722796, 0.599412],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [68.4108, -10.9093, 8.42059],
 				normal: [0.572489, -0.567656, 0.591627],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [75.8919, 2.74614, 6.1671],
 				normal: [0.787436, -0.256459, 0.560512],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [80.7081, 17.326, 3.91361],
 				normal: [0.647097, -0.306374, 0.698141],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [91.97, 28.3457, 2.88929],
 				normal: [0.427528, -0.499343, 0.753576],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [49.1543, -22.8201, -1.10804],
 				normal: [0.410926, -0.911668, 0.00128446],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [69.4518, -13.6262, -1.10804],
 				normal: [0.67152, -0.740986, -0.000899122],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [77.2244, 1.16386, -1.10804],
 				normal: [0.922026, -0.38706, -0.00725269],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [82.3321, 16.7534, -1.10804],
 				normal: [0.84691, -0.531556, -0.0138542],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [94.6349, 28.3457, -1.10804],
 				normal: [0.535925, -0.8442, -0.0105045],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [49.1543, -19.1559, -11.661],
 				normal: [0.341188, -0.722822, -0.600931],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [68.4108, -10.9093, -10.6367],
 				normal: [0.578664, -0.561139, -0.591838],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [75.8919, 2.74614, -8.38317],
 				normal: [0.784869, -0.25102, -0.566542],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [80.7081, 17.326, -6.12968],
 				normal: [0.642681, -0.302257, -0.70399],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [91.97, 28.3457, -5.10536],
 				normal: [0.418589, -0.500042, -0.758117],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [49.1543, -11.0946, -15.1786],
 				normal: [0.115806, -0.0791394, -0.990114],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [66.1207, -4.93206, -13.8129],
 				normal: [0.232811, 0.0125652, -0.972441],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [72.9605, 6.22714, -10.8082],
 				normal: [0.206662, 0.153601, -0.96628],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [77.1355, 18.5855, -7.80356],
 				normal: [0.0244996, 0.161443, -0.986578],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [86.1073, 28.3457, -6.4378],
 				normal: [0.00338193, 0.211115, -0.977455],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [49.1543, -3.03333, -11.661],
 				normal: [-0.134912, 0.687491, -0.713551],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [63.8305, 1.04519, -10.6367],
 				normal: [-0.31954, 0.633073, -0.705062],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [70.0292, 9.70814, -8.38317],
 				normal: [-0.603902, 0.461442, -0.649903],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [73.5629, 19.8451, -6.12968],
 				normal: [-0.631816, 0.437169, -0.640072],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [80.2446, 28.3457, -5.10536],
 				normal: [-0.424306, 0.612706, -0.66675],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [79.6227, 29.5449, -1.10804],
 				normal: [-0.4258, 0.904753, 0.0108049],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [81.1329, 29.9446, -1.10804],
 				normal: [0.0220472, 0.999756, 0.00162273],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [81.577, 29.5449, -1.10804],
 				normal: [0.999599, 0.0258705, 0.0115556],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [80.4222, 28.3457, -1.10804],
 				normal: [0.709585, -0.704553, 0.00967183],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [82.4767, 29.6034, 2.63946],
 				normal: [-0.259858, 0.791936, 0.552549],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [83.8116, 30.0383, 2.08983],
 				normal: [0.00953916, 0.99972, -0.0216718],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [83.8515, 29.6268, 1.54019],
 				normal: [0.410156, 0.332912, -0.849083],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [82.1988, 28.3457, 1.29036],
 				normal: [0.541523, -0.54862, -0.637],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [88.7555, 29.7322, 3.88862],
 				normal: [0.0463104, 0.455224, 0.889172],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [89.7049, 30.2444, 3.15578],
 				normal: [-0.0106883, 0.988794, 0.148901],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [88.8555, 29.8072, 2.42294],
 				normal: [-0.0443756, 0.682947, -0.729118],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [86.1073, 28.3457, 2.08983],
 				normal: [0.122825, 0.00923214, -0.992385],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [95.0343, 29.8611, 2.63946],
 				normal: [0.481839, -0.180439, 0.85748],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [95.5982, 30.4505, 2.08983],
 				normal: [0.455272, 0.736752, 0.499925],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [93.8594, 29.9875, 1.54019],
 				normal: [-0.220542, 0.907193, -0.358276],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [90.0158, 28.3457, 1.29036],
 				normal: [-0.23592, 0.657249, -0.715797],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [97.8883, 29.9196, -1.10804],
 				normal: [0.728092, -0.685302, -0.0155853],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [98.2769, 30.5442, -1.10804],
 				normal: [0.888739, 0.45811, -0.0166791],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [96.1339, 30.0695, -1.10804],
 				normal: [-0.260097, 0.965582, 0.000800195],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [91.7924, 28.3457, -1.10804],
 				normal: [-0.371612, 0.928378, -0.00441745],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [95.0343, 29.8611, -4.85553],
 				normal: [0.480166, -0.17836, -0.858853],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [95.5982, 30.4505, -4.3059],
 				normal: [0.488103, 0.716801, -0.497947],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [93.8594, 29.9875, -3.75626],
 				normal: [-0.222004, 0.905399, 0.361893],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [90.0158, 28.3457, -3.50643],
 				normal: [-0.235405, 0.66318, 0.710477],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [88.7555, 29.7322, -6.10469],
 				normal: [0.0587203, 0.437704, -0.8972],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [89.7049, 30.2444, -5.37185],
 				normal: [0.00132612, 0.986459, -0.164003],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [88.8555, 29.8072, -4.63901],
 				normal: [-0.0441901, 0.681677, 0.730317],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [86.1073, 28.3457, -4.3059],
 				normal: [0.138801, -0.0341896, 0.98973],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [82.4767, 29.6034, -4.85553],
 				normal: [-0.25889, 0.797206, -0.54538],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [83.8116, 30.0383, -4.3059],
 				normal: [0.0122703, 0.999739, 0.0192865],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [83.8515, 29.6268, -3.75626],
 				normal: [0.39863, 0.35489, 0.845663],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [82.1988, 28.3457, -3.50643],
 				normal: [0.537564, -0.5814, 0.610737],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 49.6647, -1.10804],
 				normal: [-0.0, 1.0, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [10.5134, 48.2657, -1.10804],
 				normal: [0.82454, 0.565804, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [10.0693, 44.868, -1.10804],
 				normal: [0.917701, -0.397272, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [6.42728, 40.6708, -1.10804],
 				normal: [0.935269, -0.353939, 0.000112842],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [6.51611, 36.8733, -1.10804],
 				normal: [0.780712, 0.624891, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [9.76642, 48.2657, 2.70243],
 				normal: [0.762641, 0.565035, 0.314825],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [9.35632, 44.868, 2.52698],
 				normal: [0.847982, -0.397998, 0.350034],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [5.9947, 40.6708, 1.09187],
 				normal: [0.864141, -0.355261, 0.356441],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [6.07552, 36.8733, 1.12336],
 				normal: [0.720991, 0.625625, 0.297933],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [7.71453, 48.2657, 5.77547],
 				normal: [0.583357, 0.565165, 0.583338],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [7.39819, 44.868, 5.45913],
 				normal: [0.648485, -0.398726, 0.648448],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [4.80736, 40.6708, 2.8683],
 				normal: [0.660872, -0.355894, 0.660748],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [4.86744, 36.8733, 2.92838],
 				normal: [0.551862, 0.62529, 0.55178],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [4.64149, 48.2657, 7.82736],
 				normal: [0.314824, 0.565051, 0.762629],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [4.46604, 44.868, 7.41726],
 				normal: [0.350045, -0.397976, 0.847988],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [3.03093, 40.6708, 4.05564],
 				normal: [0.356474, -0.3552, 0.864153],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [3.06242, 36.8733, 4.13646],
 				normal: [0.297983, 0.625515, 0.721067],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 48.2657, 8.57438],
 				normal: [-0.0, 0.565804, 0.82454],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 44.868, 8.13023],
 				normal: [-0.0, -0.397272, 0.917701],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 40.6708, 4.48822],
 				normal: [-0.000112839, -0.353939, 0.935269],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 36.8733, 4.57705],
 				normal: [-0.0, 0.624891, 0.780712],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-2.97944, 48.2657, 7.82736],
 				normal: [-0.314825, 0.565035, 0.762641],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-2.80399, 44.868, 7.41726],
 				normal: [-0.350034, -0.397998, 0.847982],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-1.36888, 40.6708, 4.05564],
 				normal: [-0.356441, -0.355261, 0.864141],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-1.40037, 36.8733, 4.13646],
 				normal: [-0.297933, 0.625625, 0.720991],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-6.05248, 48.2657, 5.77547],
 				normal: [-0.583338, 0.565165, 0.583357],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-5.73614, 44.868, 5.45913],
 				normal: [-0.648448, -0.398726, 0.648485],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-3.14531, 40.6708, 2.8683],
 				normal: [-0.660748, -0.355894, 0.660872],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-3.20539, 36.8733, 2.92838],
 				normal: [-0.55178, 0.62529, 0.551862],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-8.10437, 48.2657, 2.70243],
 				normal: [-0.762629, 0.565051, 0.314824],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-7.69427, 44.868, 2.52698],
 				normal: [-0.847988, -0.397976, 0.350045],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-4.33265, 40.6708, 1.09187],
 				normal: [-0.864153, -0.3552, 0.356474],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-4.41347, 36.8733, 1.12336],
 				normal: [-0.721067, 0.625515, 0.297983],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-8.85139, 48.2657, -1.10804],
 				normal: [-0.82454, 0.565804, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-8.40724, 44.868, -1.10804],
 				normal: [-0.917701, -0.397272, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-4.76523, 40.6708, -1.10804],
 				normal: [-0.935269, -0.353939, -0.000112839],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-4.85406, 36.8733, -1.10804],
 				normal: [-0.780712, 0.624891, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-8.10437, 48.2657, -4.9185],
 				normal: [-0.76264, 0.565035, -0.314825],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-7.69427, 44.868, -4.74305],
 				normal: [-0.847982, -0.397998, -0.350034],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-4.33265, 40.6708, -3.30794],
 				normal: [-0.864141, -0.355261, -0.356441],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-4.41347, 36.8733, -3.33943],
 				normal: [-0.720991, 0.625625, -0.297933],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-6.05248, 48.2657, -7.99154],
 				normal: [-0.583357, 0.565165, -0.583338],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-5.73614, 44.868, -7.6752],
 				normal: [-0.648485, -0.398726, -0.648448],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-3.14531, 40.6708, -5.08437],
 				normal: [-0.660872, -0.355894, -0.660748],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-3.20539, 36.8733, -5.14445],
 				normal: [-0.551862, 0.62529, -0.55178],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-2.97944, 48.2657, -10.0434],
 				normal: [-0.314824, 0.565051, -0.762629],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-2.80399, 44.868, -9.63333],
 				normal: [-0.350045, -0.397976, -0.847988],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-1.36888, 40.6708, -6.27171],
 				normal: [-0.356474, -0.3552, -0.864153],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-1.40037, 36.8733, -6.35253],
 				normal: [-0.297983, 0.625515, -0.721067],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 48.2657, -10.7904],
 				normal: [0.0, 0.565804, -0.82454],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 44.868, -10.3463],
 				normal: [0.0, -0.397272, -0.917701],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 40.6708, -6.70429],
 				normal: [0.000112839, -0.353939, -0.935269],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 36.8733, -6.79312],
 				normal: [0.0, 0.624891, -0.780712],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [4.64149, 48.2657, -10.0434],
 				normal: [0.314825, 0.565035, -0.762641],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [4.46604, 44.868, -9.63333],
 				normal: [0.350034, -0.397998, -0.847982],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [3.03093, 40.6708, -6.27171],
 				normal: [0.356441, -0.355261, -0.864141],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [3.06242, 36.8733, -6.35253],
 				normal: [0.297933, 0.625625, -0.720991],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [7.71453, 48.2657, -7.99154],
 				normal: [0.583338, 0.565165, -0.583357],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [7.39819, 44.868, -7.6752],
 				normal: [0.648448, -0.398726, -0.648485],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [4.80736, 40.6708, -5.08437],
 				normal: [0.660748, -0.355894, -0.660872],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [4.86744, 36.8733, -5.14445],
 				normal: [0.55178, 0.62529, -0.551862],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [9.76642, 48.2657, -4.9185],
 				normal: [0.762629, 0.565051, -0.314824],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [9.35632, 44.868, -4.74305],
 				normal: [0.847988, -0.397976, -0.350045],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [5.9947, 40.6708, -3.30794],
 				normal: [0.864153, -0.3552, -0.356474],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [6.07552, 36.8733, -3.33943],
 				normal: [0.721067, 0.625515, -0.297983],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [13.8001, 34.3417, -1.10804],
 				normal: [0.236584, 0.971611, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [24.282, 32.6095, -1.10804],
 				normal: [0.173084, 0.984907, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [33.6979, 30.8773, -1.10804],
 				normal: [0.379703, 0.925108, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [37.7841, 28.3457, -1.10804],
 				normal: [0.526673, 0.850068, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [12.795, 34.3417, 3.98234],
 				normal: [0.217978, 0.971775, 0.0902162],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [22.4646, 32.6095, 8.09647],
 				normal: [0.15959, 0.984977, 0.0659615],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [31.1507, 30.8773, 11.7922],
 				normal: [0.350498, 0.925312, 0.14474],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [34.9202, 28.3457, 13.396],
 				normal: [0.48559, 0.850653, 0.201474],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [10.0391, 34.3417, 8.10003],
 				normal: [0.166631, 0.971838, 0.166631],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [17.4812, 32.6095, 15.5422],
 				normal: [0.121908, 0.985026, 0.121908],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [24.1665, 30.8773, 22.2275],
 				normal: [0.267668, 0.925585, 0.267668],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [27.0677, 28.3457, 25.1286],
 				normal: [0.371315, 0.851029, 0.371315],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [5.9214, 34.3417, 10.856],
 				normal: [0.0902162, 0.971775, 0.217978],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [10.0355, 32.6095, 20.5255],
 				normal: [0.0659615, 0.984977, 0.15959],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [13.7313, 30.8773, 29.2117],
 				normal: [0.14474, 0.925312, 0.350498],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [15.3351, 28.3457, 32.9812],
 				normal: [0.201474, 0.850653, 0.48559],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 34.3417, 11.8611],
 				normal: [-0.0, 0.971611, 0.236584],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 32.6095, 22.3429],
 				normal: [0.0, 0.984907, 0.173084],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 30.8773, 31.7589],
 				normal: [0.0, 0.925108, 0.379703],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 28.3457, 35.845],
 				normal: [0.0, 0.850068, 0.526673],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-4.25935, 34.3417, 10.856],
 				normal: [-0.0902162, 0.971775, 0.217978],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-8.37348, 32.6095, 20.5255],
 				normal: [-0.0659615, 0.984977, 0.15959],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-12.0692, 30.8773, 29.2117],
 				normal: [-0.14474, 0.925312, 0.350498],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-13.673, 28.3457, 32.9812],
 				normal: [-0.201474, 0.850653, 0.48559],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-8.37704, 34.3417, 8.10003],
 				normal: [-0.166631, 0.971838, 0.166631],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-15.8192, 32.6095, 15.5422],
 				normal: [-0.121908, 0.985026, 0.121908],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-22.5045, 30.8773, 22.2275],
 				normal: [-0.267668, 0.925585, 0.267668],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-25.4056, 28.3457, 25.1286],
 				normal: [-0.371315, 0.851029, 0.371315],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-11.133, 34.3417, 3.98234],
 				normal: [-0.217978, 0.971775, 0.0902162],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-20.8025, 32.6095, 8.09647],
 				normal: [-0.15959, 0.984977, 0.0659615],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-29.4887, 30.8773, 11.7922],
 				normal: [-0.350498, 0.925312, 0.14474],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-33.2582, 28.3457, 13.396],
 				normal: [-0.48559, 0.850653, 0.201474],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-12.1381, 34.3417, -1.10804],
 				normal: [-0.236583, 0.971611, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-22.62, 32.6095, -1.10804],
 				normal: [-0.173084, 0.984907, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-32.0359, 30.8773, -1.10804],
 				normal: [-0.379703, 0.925108, -0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-36.122, 28.3457, -1.10804],
 				normal: [-0.526673, 0.850068, 0.0],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-11.133, 34.3417, -6.19841],
 				normal: [-0.217978, 0.971775, -0.0902162],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-20.8025, 32.6095, -10.3125],
 				normal: [-0.15959, 0.984977, -0.0659615],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-29.4887, 30.8773, -14.0083],
 				normal: [-0.350498, 0.925312, -0.14474],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-33.2582, 28.3457, -15.6121],
 				normal: [-0.48559, 0.850653, -0.201474],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-8.37704, 34.3417, -10.3161],
 				normal: [-0.166631, 0.971838, -0.166631],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-15.8192, 32.6095, -17.7582],
 				normal: [-0.121908, 0.985026, -0.121908],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-22.5045, 30.8773, -24.4435],
 				normal: [-0.267668, 0.925585, -0.267668],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-25.4056, 28.3457, -27.3447],
 				normal: [-0.371315, 0.851029, -0.371315],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-4.25935, 34.3417, -13.072],
 				normal: [-0.0902162, 0.971775, -0.217978],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-8.37348, 32.6095, -22.7416],
 				normal: [-0.0659615, 0.984977, -0.15959],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-12.0692, 30.8773, -31.4277],
 				normal: [-0.14474, 0.925312, -0.350498],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [-13.673, 28.3457, -35.1972],
 				normal: [-0.201474, 0.850653, -0.485589],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 34.3417, -14.0771],
 				normal: [0.0, 0.971611, -0.236584],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 32.6095, -24.559],
 				normal: [-0.0, 0.984907, -0.173084],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 30.8773, -33.9749],
 				normal: [-0.0, 0.925108, -0.379703],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [0.831025, 28.3457, -38.0611],
 				normal: [-0.0, 0.850068, -0.526673],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [5.9214, 34.3417, -13.072],
 				normal: [0.0902162, 0.971775, -0.217978],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [10.0355, 32.6095, -22.7416],
 				normal: [0.0659615, 0.984977, -0.15959],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [13.7313, 30.8773, -31.4277],
 				normal: [0.14474, 0.925312, -0.350498],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [15.3351, 28.3457, -35.1972],
 				normal: [0.201474, 0.850653, -0.48559],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [10.0391, 34.3417, -10.3161],
 				normal: [0.166631, 0.971838, -0.166631],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [17.4812, 32.6095, -17.7582],
 				normal: [0.121908, 0.985026, -0.121908],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [24.1665, 30.8773, -24.4435],
 				normal: [0.267668, 0.925585, -0.267668],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [27.0677, 28.3457, -27.3447],
 				normal: [0.371315, 0.851029, -0.371315],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [12.795, 34.3417, -6.19841],
 				normal: [0.217978, 0.971775, -0.0902162],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [22.4646, 32.6095, -10.3125],
 				normal: [0.15959, 0.984977, -0.0659615],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [31.1507, 30.8773, -14.0083],
 				normal: [0.350498, 0.925312, -0.14474],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
-			HGE_shader_3Dsimple {
+			HGE_shader_3Dsimple_def {
 				position: [34.9202, 28.3457, -15.6121],
 				normal: [0.48559, 0.850653, -0.201474],
-				..HGE_shader_3Dsimple::default()
+				..HGE_shader_3Dsimple_def::default()
 			},
 		].to_vec()
 	}
@@ -2864,36 +2866,60 @@ impl Teapot
 		self._canUpdate = true;
 		&mut self._components
 	}
-	
-	pub fn color_setAll(&mut self, color : [f32;4])
-	{
-		self._color = color;
-		self._canUpdate = true;
-	}
 }
 
 impl event_trait for Teapot {}
 
-impl chunk_content for Teapot
-{
-	fn cache_isUpdated(&self) -> bool {
+impl chunk_content for Teapot{}
+
+impl ShaderDrawerImpl for Teapot {
+	fn cache_mustUpdate(&self) -> bool {
 		self._canUpdate
 	}
-	fn cache_update(&mut self) {
+	
+	fn cache_submit(&mut self) {
+		let Some(structure) = self.cache_get() else {return};
+		
+		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
+			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		}))
+		{
+			self._canUpdate = false;
+		}
+	}
+}
+
+impl ShaderDrawerImplReturn<HGE_shader_3Dsimple_def> for Teapot
+{
+	fn cache_get(&mut self) -> Option<ShaderDrawerImplStruct<HGE_shader_3Dsimple_def>>
+	{
+		let texturename = self._components.texture().getName().clone();
+		let color_blend_type = self._components.texture().colorBlend().toU32();
+		let mut texturecolor = color::default();
+		if let Some(texture) = self._components.computeTexture()
+		{
+			texturecolor = texture.color;
+		}
+		
+		let mut vecstruct = Vec::new();
 		let mut vertex = self.getTeapotVertexs();
 		for x in vertex.iter_mut()
 		{
 			let mut tmp = worldPosition::new(x.position[0],x.position[1],x.position[2]);
 			self._components.computeVertex(&mut tmp);
 			x.position = tmp.get();
-			x.color = self._color;
+			x.texture = texturename.clone();
+			x.color_blend_type = color_blend_type;
+			x.color = texturecolor.toArray();
 		}
 		
-		self._cache = StructAllCache::newFrom::<HGE_shader_3Dsimple_holder>(HGE_shader_3Dsimple_holder::new(vertex,self.getTeapotIndices()).into());
-		self._canUpdate = false;
-	}
-	
-	fn cache_get(&self) -> &StructAllCache {
-		&self._cache
+		let indice = [0, 1, 2, 1, 3, 2].to_vec();
+		ModelUtils::generateNormal(&mut vecstruct, &indice);
+		
+		return Some(
+			ShaderDrawerImplStruct{
+				vertex: vecstruct,
+				indices: indice,
+			});
 	}
 }

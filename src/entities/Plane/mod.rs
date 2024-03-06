@@ -1,9 +1,9 @@
 use std::default::Default;
+use uuid::Uuid;
 use crate::components::corners::corner4;
 use crate::components::event::{event, event_trait, event_trait_add, event_type};
 use crate::components::{Components, HGEC_origin, HGEC_rotation, HGEC_scale};
 use crate::Interface::UiHitbox::UiHitbox;
-use crate::Shaders::StructAllCache::StructAllCache;
 use crate::components::color::color;
 use crate::components::offset::offset;
 use crate::components::rotations::rotation;
@@ -22,10 +22,10 @@ pub struct Plane<A>
 	_posHitbox: Option<[A; 4]>,
 	_uvcoord: Option<[[f32; 2]; 4]>,
 	_color: Option<[color; 4]>,
-	_cache: StructAllCache,
 	_canUpdate: bool,
 	_hitbox: UiHitbox,
 	_events: event<Plane<A>>,
+	_uuidStorage: Option<Uuid>
 }
 
 impl<A> Plane<A>
@@ -41,10 +41,10 @@ impl<A> Plane<A>
 			_posHitbox: None,
 			_uvcoord: None,
 			_color: None, //[[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]],
-			_cache: StructAllCache::new(),
 			_canUpdate: true,
 			_hitbox: UiHitbox::new(),
 			_events: event::new(),
+			_uuidStorage: None,
 		};
 	}
 	

@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 use cgmath::{InnerSpace, Vector3};
-use crate::Shaders::HGE_shader_3Dsimple::HGE_shader_3Dsimple;
+use crate::Shaders::HGE_shader_3Dsimple::HGE_shader_3Dsimple_def;
 
 pub mod ManagerModels;
 pub mod chunk;
@@ -12,7 +12,7 @@ pub struct ModelUtils
 impl ModelUtils
 {
 	// found on : https://stackoverflow.com/questions/6656358/calculating-normals-in-a-triangle-mesh/6661242#6661242
-	pub fn generateNormal(datas: &mut Vec<HGE_shader_3Dsimple>, indices: Vec<u32>)
+	pub fn generateNormal(datas: &mut Vec<HGE_shader_3Dsimple_def>, indices: &Vec<u32>)
 	{
 		if(indices.len()%3 !=0)
 		{

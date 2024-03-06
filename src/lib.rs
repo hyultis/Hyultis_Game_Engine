@@ -2,7 +2,7 @@
 #![allow(unused_doc_comments)]
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
-#![allow(dead_code)]
+#![allow(dead_code, deprecated)]
 
 pub mod Paths;
 pub mod HGEMain;

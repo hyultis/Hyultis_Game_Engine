@@ -1,13 +1,11 @@
 use ahash::AHashMap;
 use HArcMut::HArcMut;
 use crate::Models3D::chunk_content::chunk_content;
-use crate::Shaders::StructAllCache::StructAllCache;
 
 pub struct chunk
 {
 	_pos: [i32;3],
 	_content: AHashMap<String,HArcMut<Box<dyn chunk_content + Send + Sync>>>,
-	_cache: StructAllCache
 }
 
 impl chunk
@@ -17,7 +15,6 @@ impl chunk
 		return chunk{
 			_pos: [x,y,z],
 			_content: Default::default(),
-			_cache: StructAllCache::new(),
 		};
 	}
 	
@@ -52,41 +49,34 @@ impl chunk
 		return self._content.get(&name).map(|x|x.clone());
 	}
 	
-	pub fn cache_get(&self) -> &StructAllCache
-	{
-		return &self._cache;
-	}
-	
-	pub fn cacheUpdate(&mut self) -> bool
+	pub fn cacheUpdate(&mut self)
 	{
 		let haveupdate = self._content.iter()
-			.any(|(_, elem)| elem.get().cache_isUpdated() || elem.isWantDrop());
+			.any(|(_, elem)| elem.get().cache_mustUpdate() || elem.isWantDrop());
 		
-		if (haveupdate)
+		if (!haveupdate)
 		{
-			let havedrop = self._content.iter()
-				.any(|(_, elem)| elem.isWantDrop());
-			if(havedrop)
-			{
-				self._content.retain(|_, item| !item.isWantDrop());
-			}
-			
-			let mut cache = StructAllCache::new();
-			self._content.iter().for_each(|(_, elem)| {
-				elem.updateIf(|i| {
-					let mut haveupdated = false;
-					if (i.cache_isUpdated())
-					{
-						haveupdated = true;
-						i.cache_update();
-					}
-					cache.append(i.cache_get());
-					haveupdated
-				});
-			});
-			self._cache = cache;
-			return true;
+			return;
 		}
-		return false;
+		
+		let havedrop = self._content.iter()
+			.any(|(_, elem)| elem.isWantDrop());
+		
+		if(havedrop)
+		{
+			self._content.retain(|_, item| !item.isWantDrop());
+		}
+			
+		self._content.iter().for_each(|(_, elem)| {
+			elem.updateIf(|i| {
+				let mut haveupdated = false;
+				if (i.cache_mustUpdate())
+				{
+					haveupdated = true;
+					i.cache_submit();
+				}
+				haveupdated
+			});
+		});
 	}
 }

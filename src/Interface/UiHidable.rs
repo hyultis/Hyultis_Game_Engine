@@ -1,20 +1,24 @@
-use std::any::Any;
+use uuid::Uuid;
 use crate::components::event::{event, event_trait, event_trait_add, event_type};
 use crate::components::hideable::hideable;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::{UiPageContent, UiPageContent_type};
-use crate::Shaders::StructAllCache::StructAllCache;
+use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple_def, HGE_shader_2Dsimple_holder};
+use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
+use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn, ShaderDrawerImplStruct};
 
+pub trait UiHidable_content: UiPageContent + ShaderDrawerImplReturn<HGE_shader_2Dsimple_def>{}
+dyn_clone::clone_trait_object!(UiHidable_content);
 
 #[derive(Clone)]
 pub struct UiHidable
 {
 	_hitbox: UiHitbox,
-	_content: Vec<Box<dyn UiPageContent + Send + Sync>>,
+	_content: Vec<Box<dyn UiHidable_content + Send + Sync>>,
 	_hide: bool,
 	_cacheUpdated: bool,
 	_event: event<Self>,
-	_cache: StructAllCache
+	_uuidStorage: Option<Uuid>
 }
 
 impl UiHidable
@@ -28,12 +32,12 @@ impl UiHidable
 			_hide: false,
 			_cacheUpdated: true,
 			_event: event::new(),
-			_cache: StructAllCache::new(),
+			_uuidStorage: None,
 		}
 	}
 	
 	// add a ui content to drawing
-	pub fn add(&mut self, content: impl UiPageContent + Send + Sync +'static)
+	pub fn add(&mut self, content: impl UiHidable_content + Send + Sync +'static)
 	{
 		self._content.push(Box::new(content));
 	}
@@ -43,7 +47,7 @@ impl UiHidable
 		return Box::new(self);
 	}
 	
-	pub fn content_mut(&mut self) -> &mut Vec<Box<dyn UiPageContent + Send + Sync>>
+	pub fn content_mut(&mut self) -> &mut Vec<Box<dyn UiHidable_content + Send + Sync>>
 	{
 		&mut self._content
 	}
@@ -53,7 +57,7 @@ impl UiHidable
 	fn checkContentUpdate(&self) -> bool
 	{
 		self._content.iter().any(|x|{
-			x.cache_isUpdated()
+			x.cache_mustUpdate()
 		})
 	}
 	
@@ -103,6 +107,45 @@ impl hideable for UiHidable
 	}
 }
 
+impl ShaderDrawerImpl for UiHidable {
+	fn cache_mustUpdate(&self) -> bool
+	{
+		self._cacheUpdated || self.checkContentUpdate()
+	}
+	
+	fn cache_submit(&mut self)
+	{
+		if(self._hide)
+		{
+			if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+				holder.remove(self._uuidStorage);
+			})){
+				self._cacheUpdated = false;
+			}
+			self._cacheUpdated = false;
+			return;
+		}
+		
+		let mut structure = ShaderDrawerImplStruct::default();
+		let mut newHitbox = UiHitbox::new();
+		for x in self._content.iter_mut()
+		{
+			if let Some(mut subcontent) = x.cache_get()
+			{
+				structure.combine(&mut subcontent);
+				newHitbox.updateFromHitbox(x.getHitbox());
+			}
+		}
+		
+		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		})){
+			self._hitbox = newHitbox;
+			self._cacheUpdated = false;
+		}
+	}
+}
+
 impl UiPageContent for UiHidable
 {
 	fn getType(&self) -> UiPageContent_type
@@ -113,43 +156,4 @@ impl UiPageContent for UiHidable
 	fn getHitbox(&self) -> UiHitbox {
 		self._hitbox.clone()
 	}
-	
-	fn cache_isUpdated(&self) -> bool {
-		self._cacheUpdated || self.checkContentUpdate()
-	}
-	
-	fn cache_update(&mut self) {
-		if(self._hide)
-		{
-			self._cache = StructAllCache::new();
-			self._cacheUpdated = false;
-			return;
-		}
-		
-		let mut newcache = StructAllCache::new();
-		let mut newHitbox = UiHitbox::new();
-		for x in self._content.iter_mut()
-		{
-			if(x.cache_isUpdated() || x.getHitbox().isEmpty())
-			{
-				x.cache_update();
-			}
-			newcache.append(x.getCache());
-			newHitbox.updateFromHitbox(x.getHitbox());
-		}
-		
-		self._hitbox = newHitbox;
-		self._cache = newcache;
-		self._cacheUpdated = false;
-	}
-	
-	fn getCache(&self) -> &StructAllCache
-	{
-		&self._cache
-	}
-
-	fn as_any_mut(&mut self) -> &mut dyn Any {
-		self
-	}
-
 }

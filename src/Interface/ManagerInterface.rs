@@ -6,19 +6,14 @@ use Htrace::HTracer::HTracer;
 use Htrace::TSpawner;
 use parking_lot::RwLock;
 use singletonThread::SingletonThread;
-use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
 use crate::components::event::{event_trait, event_type};
 use crate::Interface::UiPage::UiPage;
-use crate::Shaders::StructAllCache::StructAllCache;
 
 pub struct ManagerInterface
 {
 	_pageArray: DashMap<String, UiPage>,
-	_cache: ArcSwap<StructAllCache>,
-	_cacheForceUpdate: ArcSwap<bool>,
 	_activePage: ArcSwap<String>,
 	_pageChanged: ArcSwap<bool>,
-	_threadUpdate: RwLock<SingletonThread>,
 	_threadEachTickUpdate: RwLock<SingletonThread>,
 	_threadEachSecondUpdate: RwLock<SingletonThread>,
 }
@@ -29,10 +24,6 @@ impl ManagerInterface
 {
 	fn new() -> ManagerInterface
 	{
-		let thread = SingletonThread::new(||{
-			HTracer::threadSetName("ManagerInterface_ST");
-			ManagerInterface::singleton().StructUpdate();
-		});
 		let threadEachTick = SingletonThread::new(||{
 			HTracer::threadSetName("ManagerInterface_ST");
 			ManagerInterface::singleton().EachTickUpdate();
@@ -45,11 +36,8 @@ impl ManagerInterface
 		
 		return ManagerInterface {
 			_pageArray: Default::default(),
-			_cache: ArcSwap::new(Arc::new(StructAllCache::new())),
 			_activePage: ArcSwap::new(Arc::new("default".to_string())),
 			_pageChanged: ArcSwap::new(Arc::new(false)),
-			_cacheForceUpdate: ArcSwap::new(Arc::new(false)),
-			_threadUpdate: RwLock::new(thread),
 			_threadEachTickUpdate: RwLock::new(threadEachTick),
 			_threadEachSecondUpdate: RwLock::new(threadEachSecond),
 		};
@@ -77,6 +65,8 @@ impl ManagerInterface
 			
 			Self::singleton()._activePage.swap(Arc::new(name.clone()));
 			Self::singleton()._pageChanged.swap(Arc::new(true));
+			
+			Self::singleton().page_resubmit();
 			
 			if let Some(mut page) = Self::singleton()._pageArray.get_mut(&oldpage) {
 				page.event_trigger(event_type::IDLE);
@@ -116,7 +106,6 @@ impl ManagerInterface
 	pub fn UiPageAppend(&self, name: &str, page: UiPage)
 	{
 		self._pageArray.insert(name.to_string(),page);
-		self._cacheForceUpdate.swap(Arc::new(true));
 	}
 	
 	pub fn UiPageUpdate(&self, name: &str, func: impl Fn(&mut UiPage))
@@ -127,10 +116,8 @@ impl ManagerInterface
 		}
 	}
 	
-	pub fn StructDraw(&self, combuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>)
+	pub fn tickUpdate(&self)
 	{
-		self._cache.load().holderDraw(combuilder);
-		self._threadUpdate.write().thread_launch();
 		self._threadEachTickUpdate.write().thread_launch();
 		self._threadEachSecondUpdate.write().thread_launch();
 	}
@@ -175,28 +162,11 @@ impl ManagerInterface
 		}
 	}
 	
-	fn StructUpdate(&self)
+	fn page_resubmit(&self)
 	{
-		let mut cache = StructAllCache::new();
-		let mut haveUpdate = false;
 		if let Some(mut page) = self._pageArray.get_mut(self.getActivePage().as_str())
 		{
-			let force = **self._cacheForceUpdate.load();
-			if(page.cacheUpdate() || force)
-			{
-				haveUpdate=true;
-				if(force)
-				{
-					self._cacheForceUpdate.swap(Arc::new(false));
-				}
-			}
-			cache.append(page.cache_get());
-		}
-		
-		if(haveUpdate || **self._pageChanged.load())
-		{
-			cache.holderUpdate();
-			self._cache.swap(Arc::new(cache));
+			page.cache_resubmit();
 		}
 	}
 }

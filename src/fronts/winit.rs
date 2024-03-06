@@ -1,12 +1,18 @@
+use std::any::Any;
 use std::sync::OnceLock;
-use Htrace::HTraceError;
+use Hconfig::HConfigManager::HConfigManager;
+use Htrace::{HTrace, HTraceError};
+use json::JsonValue;
 use parking_lot::{RawRwLock, RwLock};
 use parking_lot::lock_api::{RwLockReadGuard, RwLockWriteGuard};
+use vulkano::swapchain::Surface;
 use winit::event::{ElementState, Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use winit::keyboard::{KeyCode, PhysicalKey};
-use winit::window::Window;
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+use winit::window::{Fullscreen, Window, WindowBuilder};
 use crate::configs::general::HGEconfig_general;
+use crate::configs::HGEconfig::HGEconfig;
 use crate::fronts::Inputs::Inputs;
 use crate::HGEMain::HGEMain;
 
@@ -62,7 +68,12 @@ impl HGEwinit
 				{
 					if event == Event::Resumed
 					{
-						HTraceError!(HGEMain::initialize(eventloop,generalConf.clone()));
+						let preinit = HGEMain::preinitialize(generalConf.clone());
+						let window = match Self::buildAgnosticWindow(eventloop) {
+							Ok(x) => x,
+							Err(err) => {panic!("cannot get window from winit : {}",err);}
+						};
+						HTraceError!(HGEMain::initialize(Surface::required_extensions(eventloop),window,preinit));
 						initialized = true;
 						
 						let func = &mut *Self::singleton()._funcPostInit.write();
@@ -73,7 +84,11 @@ impl HGEwinit
 				{
 					if event ==	Event::Resumed
 					{
-						HTraceError!(HGEMain::singleton().engineResumed(eventloop));
+						let window = match Self::buildAgnosticWindow(eventloop) {
+							Ok(x) => x,
+							Err(err) => {panic!("cannot get window from winit : {}",err);}
+						};
+						HTraceError!(HGEMain::singleton().engineResumed(window));
 					}
 				}
 				else
@@ -189,5 +204,63 @@ impl HGEwinit
 			_funcPre_exit: RwLock::new(Box::new(||{})),
 			_inputsC: RwLock::new(Inputs::new()),
 		}
+	}
+	
+	fn buildAgnosticWindow(eventloop: &EventLoopWindowTarget<()>) -> anyhow::Result<impl HasRawWindowHandle + HasRawDisplayHandle + Any + Send + Sync>
+	{
+		let configBind = HGEconfig::singleton().general_get();
+		
+		let mut defaultwindowtype = 2;// 1 or 2 = fullscreen
+		if (!HGEconfig::singleton().general_get().startFullscreen)
+		{
+			defaultwindowtype = 0;
+		}
+		
+		let mut config = HConfigManager::singleton().get("config");
+		let mut windowtype = config.getOrSetDefault("window/type", JsonValue::from(defaultwindowtype)).as_u32().unwrap_or(2);
+		let mut fullscreenmode = None;
+		if (windowtype == 1 && eventloop.primary_monitor().is_none())
+		{
+			windowtype = 2;
+		}
+		if (configBind.isSteamdeck || configBind.isAndroid) // config ignored for steam deck and android
+		{
+			windowtype = 1;
+			config.set("window/type", JsonValue::from(windowtype));
+		}
+		
+		if (windowtype == 1)
+		{
+			let mut video_mode = eventloop.primary_monitor().unwrap().video_modes().collect::<Vec<_>>();
+			HTrace!("video modes : {:?}",video_mode);
+			video_mode.sort_by(|a, b| {
+				use std::cmp::Ordering::*;
+				match b.size().width.cmp(&a.size().width) {
+					Equal => match b.size().height.cmp(&a.size().height) {
+						Equal => b
+							.refresh_rate_millihertz()
+							.cmp(&a.refresh_rate_millihertz()),
+						default => default,
+					},
+					default => default,
+				}
+			});
+			fullscreenmode = Some(Fullscreen::Exclusive(video_mode.first().unwrap().clone()));
+		}
+		if (windowtype == 2)
+		{
+			fullscreenmode = Some(Fullscreen::Borderless(None));
+		}
+		
+		let window = WindowBuilder::new()
+			//.with_min_inner_size(LogicalSize{ width: 640, height: 480 })
+			//.with_name("Truc much", "yolo")
+			.with_title(&configBind.windowTitle)
+			.with_fullscreen(fullscreenmode)
+			.build(eventloop)?;
+		
+		let _ = config.save();
+		
+		return Ok(window);
 	}
 }

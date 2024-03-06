@@ -1,20 +1,21 @@
-use std::any::Any;
+use uuid::Uuid;
 use crate::components::corners::corner2;
 use crate::components::event::{event, event_trait, event_trait_add, event_type};
 use crate::components::interfacePosition::interfacePosition;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::UiPageContent;
-use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
-use crate::Shaders::StructAllCache::StructAllCache;
+use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple_def, HGE_shader_2Dsimple_holder};
+use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
+use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn, ShaderDrawerImplStruct};
 
 #[derive(Clone)]
 pub struct Line
 {
 	_pos: [interfacePosition; 2],
 	_color: [[f32; 4]; 2],
-	_cache: StructAllCache,
 	_events: event<Line>,
-	_canUpdate: bool
+	_canUpdate: bool,
+	_uuidStorage: Option<Uuid>
 }
 
 impl Line
@@ -36,31 +37,6 @@ impl Line
 		self._color[0] = colors.start;
 		self._color[1] = colors.end;
 	}
-	
-	fn cacheRefresh(&mut self)
-	{
-		let mut vecstruct = Vec::new();
-		vecstruct.push(HGE_shader_2Dsimple {
-			position: self._pos[0].convertToVertex(),
-			ispixel: self._pos[0].getTypeInt(),
-			texture: 0,
-			uvcoord: [0.0, 0.0],
-			color: self._color[0],
-			color_blend_type: 0,
-		});
-		vecstruct.push(HGE_shader_2Dsimple {
-			position: self._pos[1].convertToVertex(),
-			ispixel: self._pos[1].getTypeInt(),
-			texture: 0,
-			uvcoord: [1.0, 1.0],
-			color: self._color[1],
-			color_blend_type: 0,
-		});
-		//println!("vecstruct {:?}", vecstruct);
-		
-		self._cache = StructAllCache::newFromString("interface_line", HGE_shader_2Dsimple_holder::new(vecstruct,[0, 1].to_vec()).into());
-		self._canUpdate = false;
-	}
 }
 
 impl Default for Line
@@ -72,9 +48,9 @@ impl Default for Line
 		{
 			_pos: [interfacePosition::new_percent(0.0, 0.0), interfacePosition::new_percent(0.0, 0.0)],
 			_color: [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
-			_cache: StructAllCache::new(),
 			_events: event,
 			_canUpdate: true,
+			_uuidStorage: None,
 		};
 	}
 }
@@ -84,7 +60,7 @@ impl event_trait for Line
 	fn event_trigger(&mut self, eventtype: event_type) -> bool
 	{
 		let update = self._events.clone().trigger(eventtype, self);
-		self.cacheRefresh();
+		self.cache_submit();
 		return update;
 	}
 	
@@ -101,26 +77,48 @@ impl event_trait_add<Line> for Line
 	}
 }
 
+impl ShaderDrawerImpl for Line {
+	fn cache_mustUpdate(&self) -> bool
+	{
+		self._canUpdate
+	}
+	
+	fn cache_submit(&mut self)
+	{
+		let Some(structure) = self.cache_get() else {return};
+		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		}))
+		{
+			self._canUpdate = false;
+		}
+	}
+}
+
+impl ShaderDrawerImplReturn<HGE_shader_2Dsimple_def> for Line
+{
+	fn cache_get(&mut self) -> Option<ShaderDrawerImplStruct<HGE_shader_2Dsimple_def>> {
+		let mut vecstruct = Vec::new();
+		vecstruct.push(HGE_shader_2Dsimple_def {
+			position: self._pos[0].convertToVertex(),
+			ispixel: self._pos[0].getTypeInt(),
+			color: self._color[0],
+			..HGE_shader_2Dsimple_def::default()
+		});
+		vecstruct.push(HGE_shader_2Dsimple_def {
+			position: self._pos[1].convertToVertex(),
+			ispixel: self._pos[1].getTypeInt(),
+			color: self._color[1],
+			..HGE_shader_2Dsimple_def::default()
+		});
+		
+		Some(ShaderDrawerImplStruct{ vertex: vecstruct, indices: vec![0,1] })
+	}
+}
+
 impl UiPageContent for Line
 {
 	fn getHitbox(&self) -> UiHitbox {
 		UiHitbox::new()
-	}
-	
-	fn cache_isUpdated(&self) -> bool {
-		self._canUpdate
-	}
-	
-	fn cache_update(&mut self) {
-		self.cacheRefresh();
-	}
-	
-	fn getCache(&self) -> &StructAllCache
-	{
-		&self._cache
-	}
-	
-	fn as_any_mut(&mut self) -> &mut dyn Any {
-		self
 	}
 }

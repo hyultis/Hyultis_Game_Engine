@@ -13,12 +13,14 @@ dyn_clone::clone_trait_object!(ShaderStruct);
 
 pub trait ShaderStructHolder: DynClone + Send + Sync + Downcast
 {
+	fn init() -> Self
+		where
+			Self: Sized;
+	
 	fn pipelineName() -> String
 	where
 		Self: Sized;
 	
-	fn appendHolder(&mut self, unkownholder: &Box<dyn ShaderStructHolder>);
-	fn replaceHolder(&mut self,unkownholder: &Box<dyn ShaderStructHolder>);
 	fn reset(&mut self);
 	
 	fn update(&mut self);

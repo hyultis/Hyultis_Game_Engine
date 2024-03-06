@@ -1,8 +1,11 @@
+use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 use vulkano::pipeline::graphics::vertex_input::Vertex;
 use std::convert::TryInto;
+use std::sync::Arc;
 use anyhow::anyhow;
 use Htrace::HTraceError;
+use uuid::Uuid;
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
@@ -13,10 +16,93 @@ use crate::ManagerBuilder::ManagerBuilder;
 use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Pipeline::EnginePipelines;
 use crate::Pipeline::ManagerPipeline::ManagerPipeline;
+use crate::Shaders::intoVertexed::IntoVertexted;
 use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::names;
+use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
 use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder};
 use crate::Textures::Manager::ManagerTexture;
+
+
+// struct externe, a changer en HGE_shader_2Dsimple
+#[derive(Clone, Debug)]
+pub struct HGE_shader_3Dsimple_def {
+	pub position: [f32; 3],
+	pub normal: [f32; 3],
+	pub texture: Option<String>,
+	pub uvcoord: [f32; 2],
+	pub color: [f32; 4],
+	pub color_blend_type: u32 // 0 = mul, 1 = add
+}
+
+impl Default for HGE_shader_3Dsimple_def
+{
+	fn default() -> Self {
+		Self {
+			position: [0.0, 0.0, 0.0],
+			normal: [0.0, 0.0, 0.0],
+			texture: None,
+			uvcoord: [0.0, 0.0],
+			color: [1.0, 1.0, 1.0, 1.0],
+			color_blend_type: 0,
+		}
+	}
+}
+
+impl IntoVertexted<HGE_shader_3Dsimple> for HGE_shader_3Dsimple_def
+{
+	fn IntoVertexted(&self, descriptorContext: bool) -> Option<HGE_shader_3Dsimple> {
+		let mut textureid = 0;
+		
+		if let Some(texture) = self.texture.clone()
+		{
+			let Some(id) = ManagerTexture::singleton().getTextureToId(texture) else { return None; };
+			textureid = id;
+		}
+		
+		return Some(HGE_shader_3Dsimple {
+			position: self.position,
+			normal: self.normal,
+			nbtexture: textureid,
+			color: self.color,
+			color_blend_type: self.color_blend_type,
+			texcoord: self.uvcoord,
+		});
+	}
+}
+
+
+
+impl PartialEq for HGE_shader_3Dsimple_def {
+	fn eq(&self, other: &Self) -> bool {
+		self.position == other.position &&
+			self.normal == other.normal &&
+			self.uvcoord == other.uvcoord &&
+			self.color == other.color &&
+			self.texture == other.texture &&
+			self.color_blend_type == other.color_blend_type
+	}
+}
+
+impl Eq for HGE_shader_3Dsimple_def {}
+
+impl Hash for HGE_shader_3Dsimple_def {
+	fn hash<H: Hasher>(&self, state: &mut H) {
+		self.position[0].to_bits().hash(state);
+		self.position[1].to_bits().hash(state);
+		self.position[2].to_bits().hash(state);
+		self.normal[0].to_bits().hash(state);
+		self.normal[1].to_bits().hash(state);
+		self.normal[2].to_bits().hash(state);
+		self.uvcoord[0].to_bits().hash(state);
+		self.uvcoord[1].to_bits().hash(state);
+		self.color[0].to_bits().hash(state);
+		self.color[1].to_bits().hash(state);
+		self.color[2].to_bits().hash(state);
+		self.color[3].to_bits().hash(state);
+		self.texture.hash(state);
+	}
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Vertex, BufferContents)]
@@ -50,37 +136,6 @@ impl Default for HGE_shader_3Dsimple
 	}
 }
 
-impl PartialEq for HGE_shader_3Dsimple {
-	fn eq(&self, other: &Self) -> bool {
-		self.position == other.position &&
-			self.normal == other.normal &&
-			self.texcoord == other.texcoord &&
-			self.color == other.color &&
-			self.nbtexture == other.nbtexture &&
-			self.color_blend_type == other.color_blend_type
-	}
-}
-
-impl Eq for HGE_shader_3Dsimple {}
-
-impl Hash for HGE_shader_3Dsimple {
-	fn hash<H: Hasher>(&self, state: &mut H) {
-		self.position[0].to_bits().hash(state);
-		self.position[1].to_bits().hash(state);
-		self.position[2].to_bits().hash(state);
-		self.normal[0].to_bits().hash(state);
-		self.normal[1].to_bits().hash(state);
-		self.normal[2].to_bits().hash(state);
-		self.texcoord[0].to_bits().hash(state);
-		self.texcoord[1].to_bits().hash(state);
-		self.color[0].to_bits().hash(state);
-		self.color[1].to_bits().hash(state);
-		self.color[2].to_bits().hash(state);
-		self.color[3].to_bits().hash(state);
-		self.nbtexture.hash(state);
-	}
-}
-
 impl ShaderStruct for HGE_shader_3Dsimple {
 	fn createPipeline() -> anyhow::Result<()>
 	{
@@ -106,32 +161,83 @@ impl ShaderStruct for HGE_shader_3Dsimple {
 #[derive(Clone, Default)]
 pub struct HGE_shader_3Dsimple_holder
 {
-	_datas: Vec<HGE_shader_3Dsimple>,
-	_indices: Vec<u32>,
+	_datas: BTreeMap<Uuid, ShaderDrawerImplStruct<Arc<dyn IntoVertexted<HGE_shader_3Dsimple> + Send + Sync>>>,
+	_haveUpdate: bool,
 	_cacheDatasMem: Option<Subbuffer<[HGE_shader_3Dsimple]>>,
-	_cacheIndicesMem: Option<Subbuffer<[u32]>>
+	_cacheIndicesMem: Option<Subbuffer<[u32]>>,
+	_cacheIndicesLen: u32,
 }
 
 impl HGE_shader_3Dsimple_holder
 {
-	pub fn new(vertex: Vec<HGE_shader_3Dsimple>, indices: Vec<u32>) -> Self
+	pub fn new() -> Self
 	{
 		Self {
-			_datas: vertex,
-			_indices: indices,
+			_datas: BTreeMap::new(),
+			_haveUpdate: false,
 			_cacheDatasMem: None,
 			_cacheIndicesMem: None,
+			_cacheIndicesLen: 0,
 		}
 	}
 	
-	pub fn getDatas(&self) -> &Vec<HGE_shader_3Dsimple>
+	pub fn insert(&mut self, uuid: Option<Uuid>, mut structure: ShaderDrawerImplStruct<impl IntoVertexted<HGE_shader_3Dsimple> + Send + Sync + 'static>) -> Uuid
 	{
-		&self._datas
+		let mut vertexconvert = Vec::new();
+		for x in structure.vertex.drain(0..) {
+			let tmp: Arc<dyn IntoVertexted<HGE_shader_3Dsimple> + Send + Sync> = Arc::new(x);
+			vertexconvert.push(tmp);
+		};
+		
+		let newstruct = ShaderDrawerImplStruct{
+			vertex: vertexconvert,
+			indices: structure.indices.clone(),
+		};
+		
+		let uuid = uuid.unwrap_or_else(|| Uuid::new_v4());
+		self._datas.insert(uuid, newstruct);
+		
+		self._haveUpdate = true;
+		return uuid;
 	}
 	
-	pub fn getIndices(&self) -> &Vec<u32>
+	pub fn remove(&mut self,  uuid: Option<Uuid>)
 	{
-		&self._indices
+		let Some(uuid) = uuid else {return};
+		self._datas.remove(&uuid);
+		self._haveUpdate = true;
+	}
+	
+	fn compileData(&self) -> (Vec<HGE_shader_3Dsimple>, Vec<u32>, bool)
+	{
+		let mut vertex = Vec::new();
+		let mut indices = Vec::new();
+		let mut atleastone = false;
+		
+		for (_, one) in &self._datas
+		{
+			let mut stop = false;
+			let mut tmpvertex = Vec::new();
+			let oldindices = vertex.len() as u32;
+			for x in &one.vertex {
+				let Some(unwraped) = x.IntoVertexted(false) else {
+					stop = true;
+					break;
+				};
+				tmpvertex.push(unwraped);
+			}
+			
+			if (!stop)
+			{
+				vertex.append(&mut tmpvertex);
+				for x in &one.indices {
+					indices.push(*x + oldindices);
+				}
+				atleastone = true;
+			}
+		};
+		
+		return (vertex, indices, atleastone);
 	}
 }
 
@@ -144,91 +250,83 @@ impl Into<Box<dyn ShaderStructHolder>> for HGE_shader_3Dsimple_holder
 
 impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 {
+	fn init() -> Self {
+		Self{
+			_datas: BTreeMap::new(),
+			_cacheDatasMem: None,
+			_cacheIndicesMem: None,
+			_haveUpdate: false,
+			_cacheIndicesLen: 0,
+		}
+	}
+	
 	fn pipelineName() -> String {
 		names::simple3D.to_string()
 	}
 	
-	fn appendHolder(&mut self, unkownholder: &Box<dyn ShaderStructHolder>)
+	fn reset(&mut self)
 	{
-		if let Some(getbackholder) = unkownholder.downcast_ref::<HGE_shader_3Dsimple_holder>()
-		{
-			let oldmaxindice = self._datas.len() as u32;
-			getbackholder._datas.iter().for_each(|x| {
-				self._datas.push(*x);
-			});
-			getbackholder._indices.iter().for_each(|x| {
-				self._indices.push(*x + oldmaxindice);
-			});
-		}
-	}
-	
-	fn replaceHolder(&mut self, unkownholder: &Box<dyn ShaderStructHolder>)
-	{
-		if let Some(getbackholder) = unkownholder.downcast_ref::<HGE_shader_3Dsimple_holder>()
-		{
-			self._datas = getbackholder._datas.clone();
-			self._indices = getbackholder._indices.clone();
-		}
-	}
-	
-	fn reset(&mut self) {
-		self._indices = Vec::new();
-		self._datas = Vec::new();
+		self._datas = BTreeMap::new();
+		self._haveUpdate = false;
 		self._cacheIndicesMem = None;
 		self._cacheDatasMem = None;
+		self._cacheIndicesLen = 0;
 	}
 	
-	fn update(&mut self) {
-		let lendatas = self._datas.len();
-		if (lendatas > 0)
-		{
-			let buffer = Buffer::from_iter(
-				ManagerMemoryAllocator::singleton().get(),
-				BufferCreateInfo {
-					usage: BufferUsage::VERTEX_BUFFER,
-					..Default::default()
-				},
-				AllocationCreateInfo {
-					memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-						| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-					..Default::default()
-				},
-				self._datas.clone(),
-			).unwrap();
-			
-			self._cacheDatasMem = Some(buffer);
-		}
-		
-		let lenindices = self._indices.len();
-		if (lenindices > 0)
-		{
-			let buffer = Buffer::from_iter(
-				ManagerMemoryAllocator::singleton().get(),
-				BufferCreateInfo {
-					usage: BufferUsage::INDEX_BUFFER,
-					..Default::default()
-				},
-				AllocationCreateInfo {
-					memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-						| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-					..Default::default()
-				},
-				self._indices.clone(),
-			).unwrap();
-			
-			self._cacheIndicesMem = Some(buffer);
-		}
-	}
-	
-	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
+	fn update(&mut self)
 	{
-		if (self._cacheDatasMem.is_none() || self._cacheIndicesMem.is_none())
+		if (!self._haveUpdate)
 		{
 			return;
 		}
 		
+		let (vertex, indices, atleastone) = self.compileData();
+		if(!atleastone)
+		{
+			return;
+		}
+		
+		let buffer = Buffer::from_iter(
+			ManagerMemoryAllocator::singleton().get(),
+			BufferCreateInfo {
+				usage: BufferUsage::VERTEX_BUFFER,
+				..Default::default()
+			},
+			AllocationCreateInfo {
+				memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+					| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+				..Default::default()
+			},
+			vertex,
+		).unwrap();
+		self._cacheDatasMem = Some(buffer);
+		
+		self._cacheIndicesLen = indices.len() as u32;
+		let buffer = Buffer::from_iter(
+			ManagerMemoryAllocator::singleton().get(),
+			BufferCreateInfo {
+				usage: BufferUsage::INDEX_BUFFER,
+				..Default::default()
+			},
+			AllocationCreateInfo {
+				memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+					| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+				..Default::default()
+			},
+			indices,
+		).unwrap();
+		
+		self._cacheIndicesMem = Some(buffer);
+		self._haveUpdate = false;
+	}
+	
+	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
+	{
+		let Some(datamem) = &self._cacheDatasMem else {return};
+		let Some(indicemem) = &self._cacheIndicesMem else {return};
+		
 		let Some(pipelineLayout) = ManagerPipeline::singleton().layoutGet(&pipelinename) else { return; };
-		if(ManagerShaders::singleton().push_constants(names::simple3D, cmdBuilder, pipelineLayout.clone(), 0)==false)
+		if (ManagerShaders::singleton().push_constants(names::simple2D, cmdBuilder, pipelineLayout.clone(), 0) == false)
 		{
 			return;
 		}
@@ -244,9 +342,7 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 			));
 		});
 		
-		let datamem = self._cacheDatasMem.clone().unwrap();
-		let indicemem = self._cacheIndicesMem.clone().unwrap();
-		let lenIndice = self._indices.len() as u32;
+		let lenIndice = self._cacheIndicesLen;
 		
 		ManagerBuilder::builderAddPipeline(cmdBuilder, &pipelinename);
 		
@@ -258,8 +354,8 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 		if ManagerBuilder::builderAddPipelineTransparency(cmdBuilder, &pipelinename)
 		{
 			cmdBuilder
-				.bind_vertex_buffers(0, (datamem)).unwrap()
-				.bind_index_buffer(indicemem).unwrap()
+				.bind_vertex_buffers(0, (datamem.clone())).unwrap()
+				.bind_index_buffer(indicemem.clone()).unwrap()
 				.draw_indexed(lenIndice, 1, 0, 0, 0).unwrap();
 		}
 	}

@@ -10,17 +10,16 @@ use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::PipelineBindPoint;
 use vulkano::render_pass::{RenderPass, Subpass};
 use crate::HGEFrame::HGEFrame;
-use crate::Interface::ManagerInterface::ManagerInterface;
 use crate::HGEMain::HGEMain;
 use crate::ManagerBuilder::ManagerBuilder;
 use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Pipeline::ManagerPipeline::ManagerPipeline;
-use crate::Models3D::ManagerModels::ManagerModels;
 use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::names;
 use crate::Shaders::HGE_shader_screen::HGE_shader_screen;
+use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum HGEsubpassName
 {
 	UI,
@@ -114,23 +113,14 @@ impl HGEsubpass
 			}
 		).unwrap();
 		
-		match thispass {
-			HGEsubpassName::UI => self.pass_UISolid(&mut cmdBuilder),
-			HGEsubpassName::WORLDSOLID => self.pass_WorldSolid(&mut cmdBuilder),
-			HGEsubpassName::FINAL => self.pass_Final(&mut cmdBuilder, HGEFrameC)
+		ShaderDrawer_Manager::singleton().holder_Draw(thispass.clone(),&mut cmdBuilder);
+		
+		if(thispass==HGEsubpassName::FINAL)
+		{
+			self.pass_Final(&mut cmdBuilder, HGEFrameC)
 		};
 		
 		return ManagerBuilder::builderEnd(cmdBuilder);
-	}
-	
-	fn pass_UISolid(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>)
-	{
-		ManagerInterface::singleton().StructDraw(cmdBuilder);
-	}
-	
-	fn pass_WorldSolid(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>)
-	{
-		ManagerModels::singleton().ModelsDraw(cmdBuilder);
 	}
 	
 	fn pass_Final(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, HGEFrameC: &HGEFrame)

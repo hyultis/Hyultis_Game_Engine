@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::HashMap;
 use crate::components::color::color;
 use crate::components::Components;
@@ -11,7 +10,7 @@ use crate::components::scale::scale;
 use crate::entities::Plane::Plane;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::{UiPageContent, UiPageContent_type};
-use crate::Shaders::StructAllCache::StructAllCache;
+use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Bar_orientation
@@ -39,7 +38,6 @@ pub struct Bar
 	_textureSize: [f32;2],
 	_orientation : Bar_orientation,
 	_canUpdate: bool,
-	_cache: StructAllCache,
 	_events: event<Bar>,
 	_hitbox: UiHitbox
 }
@@ -64,7 +62,6 @@ impl Bar
 			_textureSize: [1.0,1.0],
 			_orientation: Bar_orientation::HORIZONTAL,
 			_canUpdate: true,
-			_cache: StructAllCache::new(),
 			_events: event::new(),
 			_hitbox: UiHitbox::new(),
 		};
@@ -233,17 +230,6 @@ impl Bar
 		self._planes = newplanes;
 		self._canUpdate = true;
 	}
-	
-	pub fn cacheRefresh(&mut self)
-	{
-		self._cache.reset();
-		for x in self._planes.iter_mut() {
-			*x.components_mut() = self._components.clone();
-			x.cache_update();
-			self._cache.append(x.getCache());
-		}
-		//self._hitbox = UiHitbox::newFromCache(&self._cache);
-	}
 }
 
 impl event_trait for Bar
@@ -251,7 +237,7 @@ impl event_trait for Bar
 	fn event_trigger(&mut self, eventtype: event_type) -> bool
 	{
 		let update = self._events.clone().trigger(eventtype, self);
-		self.cacheRefresh();
+		self.cache_submit();
 		return update;
 	}
 	
@@ -268,6 +254,19 @@ impl event_trait_add<Bar> for Bar
 	}
 }
 
+impl ShaderDrawerImpl for Bar {
+	fn cache_mustUpdate(&self) -> bool {
+		self._canUpdate
+	}
+	
+	fn cache_submit(&mut self) {
+		for x in self._planes.iter_mut() {
+			*x.components_mut() = self._components.clone();
+			x.cache_submit();
+		}
+	}
+}
+
 impl UiPageContent for Bar
 {
 	fn getType(&self) -> UiPageContent_type
@@ -281,22 +280,5 @@ impl UiPageContent for Bar
 	
 	fn getHitbox(&self) -> UiHitbox {
 		self._hitbox.clone()
-	}
-	
-	fn cache_isUpdated(&self) -> bool {
-		self._canUpdate
-	}
-	
-	fn cache_update(&mut self) {
-		self.cacheRefresh();
-	}
-	
-	fn getCache(&self) -> &StructAllCache
-	{
-		&self._cache
-	}
-	
-	fn as_any_mut(&mut self) -> &mut dyn Any {
-		self
 	}
 }

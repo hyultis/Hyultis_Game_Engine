@@ -15,6 +15,7 @@ pub mod uvcoord;
 pub mod color;
 pub mod hideable;
 pub mod window;
+mod uid;
 
 pub trait HGEC_base<T>: Clone + Debug + Send + Sync + Default
 {

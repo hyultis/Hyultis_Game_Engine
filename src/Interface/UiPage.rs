@@ -1,10 +1,11 @@
 use std::any::Any;
 use ahash::AHashMap;
+use downcast_rs::Downcast;
 use dyn_clone::DynClone;
 use HArcMut::HArcMut;
 use crate::components::event::{event, event_trait, event_type};
 use crate::Interface::UiHitbox::UiHitbox;
-use crate::Shaders::StructAllCache::StructAllCache;
+use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImpl;
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone, Debug)]
 pub enum UiPageContent_type
@@ -20,7 +21,7 @@ pub enum UiEvent
 	HOVER,
 }
 
-pub trait UiPageContent: DynClone + event_trait + Any
+pub trait UiPageContent: DynClone + event_trait + ShaderDrawerImpl + Downcast
 {
 	fn getType(&self) -> UiPageContent_type
 	{
@@ -28,12 +29,6 @@ pub trait UiPageContent: DynClone + event_trait + Any
 	}
 	
 	fn getHitbox(&self) -> UiHitbox;
-	
-	fn cache_isUpdated(&self) -> bool;
-	fn cache_update(&mut self);
-	fn getCache(&self) -> &StructAllCache;
-
-	fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 dyn_clone::clone_trait_object!(UiPageContent);
@@ -42,8 +37,6 @@ dyn_clone::clone_trait_object!(UiPageContent);
 pub struct UiPage
 {
 	_content: AHashMap<String, HArcMut<Box<dyn UiPageContent + Sync + Send>>>,
-	_cachedStaticContent: StructAllCache,
-	_cache: StructAllCache,
 	_events: event<UiPage>
 }
 
@@ -54,8 +47,6 @@ impl UiPage
 		return UiPage
 		{
 			_content: AHashMap::new(),
-			_cachedStaticContent: StructAllCache::new(),
-			_cache: StructAllCache::new(),
 			_events: event::new(),
 		};
 	}
@@ -63,7 +54,7 @@ impl UiPage
 	pub fn add(&mut self, name: impl Into<String>, mut content: impl UiPageContent + Any + Clone + Sync + Send + 'static) -> HArcMut<Box<dyn UiPageContent + Sync + Send>>
 	{
 		let name: String = name.into();
-		content.cache_update();
+		content.cache_submit();
 		let content: Box<dyn UiPageContent + Sync + Send> = Box::new(content); // need to be explicit
 		let returning = HArcMut::new(content);
 		if let Some(oldone) = self._content.insert(name, returning.clone())
@@ -155,95 +146,27 @@ impl UiPage
 			});
 	}
 	
-	pub fn cacheUpdate(&mut self) -> bool
+	pub fn cache_resubmit(&mut self)
 	{
 		let haveupdate = self._content.iter()
-			.any(|(_, elem)| elem.get().cache_isUpdated() || elem.isWantDrop());
+			.any(|(_, elem)| elem.get().cache_mustUpdate() || elem.isWantDrop());
 		
-		if (haveupdate)
-		{
-			let havedrop = self._content.iter()
-				.any(|(_, elem)| elem.isWantDrop());
-			if(havedrop)
-			{
-				self._content.retain(|_, item| !item.isWantDrop());
-			}
-			
-			let mut cache = StructAllCache::new();
-			self._content.iter().for_each(|(_, elem)| {
-				elem.updateIf(|i| {
-					let mut haveupdated = false;
-					if (i.cache_isUpdated())
-					{
-						haveupdated = true;
-						i.cache_update();
-					}
-					cache.append(i.getCache());
-					haveupdated
-				});
-			});
-			cache.holderUpdate();
-			self._cache = cache;
-			return true;
-		}
+		if (!haveupdate) {return}
 		
-		return false;
-	}
-	
-	pub fn cache_get(&self) -> &StructAllCache
-	{
-		return &self._cache;
-	}
-	
-	///////////// PRIVATE ////////////
-	
-	/*fn checkCacheStaticUpdate(&mut self)
-	{
-		let mut havedrop = false;
-		let haveStaticUpdated = self._content.iter_mut()
-			.filter(|(_, item)| item.get().getType() == UiPageContent_type::IDLE)
-			.find_map(|(_, item)| {
-				let mut returning = None;
-				item.updateIf(|i| {
-					if (i.getCacheUpdated())
-					{
-						returning = Some(true);
-						return true;
-					}
-					return false;
-				});
-				if(item.isWantDrop())
-				{
-					havedrop = true;
-				}
-				return returning;
-			}).is_some();
-
+		let havedrop = self._content.iter()
+			.any(|(_, elem)| elem.isWantDrop());
+		
 		if(havedrop)
 		{
-			self._content.retain(|_,item|!item.isWantDrop());
+			self._content.retain(|_, item| !item.isWantDrop());
 		}
 		
-		if (havedrop || haveStaticUpdated)
-		{
-			self.reloadCacheStatic();
-		}
-	}
-	
-	fn reloadCacheStatic(&mut self)
-	{
-		let mut newcache = StructAllCache::new();
-		self._content.iter_mut()
-			.filter(|(_, item)| item.get().getType() == UiPageContent_type::IDLE)
-			.for_each(|(_, item)| {
-				item.updateIf(|i| {
-					i.getCacheUpdated();
-					newcache.append(i.getCache());
-					true
-				});
+		self._content.iter().for_each(|(_, elem)| {
+			elem.update(|i| {
+				i.cache_submit();
 			});
-		self._cachedStaticContent = newcache;
-	}*/
+		});
+	}
 }
 
 impl event_trait for UiPage
