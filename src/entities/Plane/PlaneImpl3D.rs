@@ -1,4 +1,5 @@
 use crate::components::color::color;
+use crate::components::event::{event_trait, event_trait_add, event_type};
 use crate::components::HGEC_origin;
 use crate::components::worldPosition::worldPosition;
 use crate::entities::Plane::Plane;
@@ -79,12 +80,15 @@ impl ShaderDrawerImpl for Plane<worldPosition> {
 	fn cache_submit(&mut self) {
 		let Some(structure) = self.cache_get() else {return};
 		
-		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
 			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
-		}))
-		{
-			self._canUpdate = false;
-		}
+		});
+	}
+	
+	fn cache_remove(&mut self) {
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
+			holder.remove(self._uuidStorage);
+		});
 	}
 }
 
@@ -124,10 +128,37 @@ impl ShaderDrawerImplReturn<HGE_shader_3Dsimple_def> for Plane<worldPosition>
 		let indice = [0, 1, 2, 1, 3, 2].to_vec();
 		ModelUtils::generateNormal(&mut vecstruct, &indice);
 		
+		self._canUpdate = false;
+		
 		return Some(
 			ShaderDrawerImplStruct{
 				vertex: vecstruct,
 				indices: indice,
 			});
+	}
+}
+
+impl event_trait for Plane<worldPosition>
+{
+	fn event_trigger(&mut self, eventtype: event_type) -> bool {
+		let update = self._events.clone().trigger(eventtype, self);
+		if (eventtype == event_type::WINREFRESH)
+		{
+			self._canUpdate = true;
+		}
+		self.cache_submit();
+		return update;
+	}
+	
+	fn event_have(&self, eventtype: event_type) -> bool
+	{
+		self._events.have(eventtype)
+	}
+}
+
+impl event_trait_add<Plane<worldPosition>> for Plane<worldPosition>
+{
+	fn event_add(&mut self, eventtype: event_type, func: impl Fn(&mut Plane<worldPosition>) -> bool + Send + Sync + 'static) {
+		self._events.add(eventtype, func);
 	}
 }

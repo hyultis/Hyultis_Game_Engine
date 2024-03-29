@@ -137,12 +137,15 @@ impl ShaderDrawerImpl for Cube {
 	fn cache_submit(&mut self) {
 		let Some(structure) = self.cache_get() else {return};
 		
-		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
 			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
-		}))
-		{
-			self._canUpdate = false;
-		}
+		});
+	}
+	
+	fn cache_remove(&mut self) {
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
+			holder.remove(self._uuidStorage);
+		});
 	}
 }
 
@@ -170,6 +173,8 @@ impl ShaderDrawerImplReturn<HGE_shader_3Dsimple_def> for Cube
 		}
 		
 		ModelUtils::generateNormal(&mut vertex.vertex, &vertex.indices);
+		
+		self._canUpdate = false;
 		
 		return Some(vertex);
 	}

@@ -2,25 +2,23 @@ use std::collections::BTreeMap;
 use vulkano::pipeline::graphics::vertex_input::Vertex;
 use std::convert::TryInto;
 use std::fmt::Debug;
-use std::sync::Arc;
 use anyhow::anyhow;
 use Htrace::HTraceError;
 use uuid::Uuid;
-use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
+use vulkano::buffer::{BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::graphics::input_assembly::PrimitiveTopology;
 use vulkano::pipeline::PipelineBindPoint;
 use crate::HGEsubpass::HGEsubpassName;
 use crate::ManagerBuilder::ManagerBuilder;
-use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Pipeline::EnginePipelines;
 use crate::Pipeline::ManagerPipeline::ManagerPipeline;
 use crate::Shaders::intoVertexed::IntoVertexted;
 use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::names;
 use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
-use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder};
+use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder, ShaderStructHolder_utils};
 use crate::Textures::Manager::ManagerTexture;
 
 // struct externe, a changer en HGE_shader_2Dsimple
@@ -50,12 +48,12 @@ impl Default for HGE_shader_2Dsimple_def
 
 impl IntoVertexted<HGE_shader_2Dsimple> for HGE_shader_2Dsimple_def
 {
-	fn IntoVertexted(&self, descriptorContext: bool) -> Option<HGE_shader_2Dsimple> {
+	fn IntoVertexted(&self, _: bool) -> Option<HGE_shader_2Dsimple> {
 		let mut textureid = 0;
 		
-		if let Some(texture) = self.texture.clone()
+		if let Some(texture) = &self.texture
 		{
-			let Some(id) = ManagerTexture::singleton().getTextureToId(texture) else { return None; };
+			let Some(id) = ManagerTexture::singleton().getTextureToId(texture.clone()) else { return None; };
 			textureid = id;
 		}
 		
@@ -134,10 +132,9 @@ impl ShaderStruct for HGE_shader_2Dsimple {
 
 ///////// Holder
 
-#[derive(Clone,Default)]
 pub struct HGE_shader_2Dsimple_holder
 {
-	_datas: BTreeMap<Uuid, ShaderDrawerImplStruct<Arc<dyn IntoVertexted<HGE_shader_2Dsimple> + Send + Sync>>>,
+	_datas: BTreeMap<Uuid, ShaderDrawerImplStruct<Box<dyn IntoVertexted<HGE_shader_2Dsimple> + Send + Sync>>>,
 	_haveUpdate: bool,
 	_cacheDatasMem: Option<Subbuffer<[HGE_shader_2Dsimple]>>,
 	_cacheIndicesMem: Option<Subbuffer<[u32]>>,
@@ -146,22 +143,11 @@ pub struct HGE_shader_2Dsimple_holder
 
 impl HGE_shader_2Dsimple_holder
 {
-	pub fn new() -> Self
-	{
-		Self {
-			_datas: BTreeMap::new(),
-			_haveUpdate: false,
-			_cacheDatasMem: None,
-			_cacheIndicesMem: None,
-			_cacheIndicesLen: 0,
-		}
-	}
-	
 	pub fn insert(&mut self, uuid: Option<Uuid>, mut structure: ShaderDrawerImplStruct<impl IntoVertexted<HGE_shader_2Dsimple> + Send + Sync + 'static>) -> Uuid
 	{
 		let mut vertexconvert = Vec::new();
 		for x in structure.vertex.drain(0..) {
-			let tmp: Arc<dyn IntoVertexted<HGE_shader_2Dsimple> + Send + Sync> = Arc::new(x);
+			let tmp: Box<dyn IntoVertexted<HGE_shader_2Dsimple> + Send + Sync> = Box::new(x);
 			vertexconvert.push(tmp);
 		};
 		
@@ -177,11 +163,16 @@ impl HGE_shader_2Dsimple_holder
 		return uuid;
 	}
 	
-	pub fn remove(&mut self,  uuid: Option<Uuid>)
+	pub fn remove(&mut self,  uuid: &mut Option<Uuid>)
 	{
-		let Some(uuid) = uuid else {return};
-		self._datas.remove(&uuid);
-		self._haveUpdate = true;
+		if let Some(uuid) = uuid
+		{
+			if(self._datas.remove(&uuid).is_some())
+			{
+				self._haveUpdate = true;
+			}
+		}
+		*uuid = None;
 	}
 	
 	fn compileData(&self) -> (Vec<HGE_shader_2Dsimple>, Vec<u32>, bool)
@@ -190,7 +181,7 @@ impl HGE_shader_2Dsimple_holder
 		let mut indices = Vec::new();
 		let mut atleastone = false;
 		
-		for (_, one) in &self._datas
+		for (_,one) in &self._datas
 		{
 			let mut stop = false;
 			let mut tmpvertex = Vec::new();
@@ -217,13 +208,6 @@ impl HGE_shader_2Dsimple_holder
 	}
 }
 
-impl Into<Box<dyn ShaderStructHolder>> for HGE_shader_2Dsimple_holder
-{
-	fn into(self) -> Box<dyn ShaderStructHolder> {
-		Box::new(self)
-	}
-}
-
 impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 {
 	fn init() -> Self {
@@ -238,6 +222,10 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 	
 	fn pipelineName() -> String {
 		names::simple2D.to_string()
+	}
+	
+	fn pipelineNameResolve(&self) -> String {
+		Self::pipelineName()
 	}
 	
 	fn reset(&mut self)
@@ -262,37 +250,24 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 			return;
 		}
 		
-		let buffer = Buffer::from_iter(
-			ManagerMemoryAllocator::singleton().get(),
-			BufferCreateInfo {
-				usage: BufferUsage::VERTEX_BUFFER,
-				..Default::default()
-			},
-			AllocationCreateInfo {
-				memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-					| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-				..Default::default()
-			},
-			vertex,
-		).unwrap();
-		self._cacheDatasMem = Some(buffer);
+		ShaderStructHolder_utils::updateBuffer(vertex,&mut self._cacheDatasMem,BufferCreateInfo {
+			usage: BufferUsage::VERTEX_BUFFER,
+			..Default::default()
+		},AllocationCreateInfo {
+			memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+				| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+			..Default::default()
+		});
 		
-		self._cacheIndicesLen = indices.len() as u32;
-		let buffer = Buffer::from_iter(
-			ManagerMemoryAllocator::singleton().get(),
-			BufferCreateInfo {
-				usage: BufferUsage::INDEX_BUFFER,
-				..Default::default()
-			},
-			AllocationCreateInfo {
-				memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-					| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-				..Default::default()
-			},
-			indices,
-		).unwrap();
+		self._cacheIndicesLen = ShaderStructHolder_utils::updateBuffer(indices,&mut self._cacheIndicesMem,BufferCreateInfo {
+			usage: BufferUsage::INDEX_BUFFER,
+			..Default::default()
+		},AllocationCreateInfo {
+			memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+				| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+			..Default::default()
+		});
 		
-		self._cacheIndicesMem = Some(buffer);
 		self._haveUpdate = false;
 	}
 	
@@ -314,7 +289,7 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 				PipelineBindPoint::Graphics,
 				pipelineLayout.clone(),
 				setid,
-				descriptor.value().clone(),
+				descriptor.value().load_full(),
 			));
 		});
 		

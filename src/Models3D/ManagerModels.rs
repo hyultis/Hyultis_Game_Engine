@@ -61,8 +61,16 @@ impl ManagerModels
 	
 	pub fn active_chunk_resetAndAdd(&self, add: Vec<[i32; 3]>)
 	{
-		self._active.swap(Arc::new(add));
+		let old = self._active.swap(Arc::new(add));
 		self._activeChanged.swap(Arc::new(true));
+		
+		for x in Arc::unwrap_or_clone(old)
+		{
+			if let Some(mut chunk) = self._chunks.get_mut(&x)
+			{
+				chunk.cache_remove();
+			}
+		}
 	}
 	
 	pub fn active_chunk_get(&self) -> Arc<Vec<[i32; 3]>>

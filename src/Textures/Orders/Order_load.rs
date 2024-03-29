@@ -8,6 +8,7 @@ use crate::Textures::Orders::Order_reload::Order_reload;
 use crate::Textures::textureLoader::textureLoader;
 use crate::Textures::Textures::{Texture, Texture_atlasType, TextureState};
 
+#[derive(Clone)]
 pub struct Order_load
 {
 	pub from: Box<dyn textureLoader + Send + Sync>,

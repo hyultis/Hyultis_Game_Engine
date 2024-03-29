@@ -4,6 +4,7 @@ use crate::Textures::Order::Order;
 use crate::Textures::Textures::Texture;
 use image::GenericImage;
 
+#[derive(Clone)]
 pub struct Order_partialTextureUpdate
 {
 	pub raw: RgbaImage,

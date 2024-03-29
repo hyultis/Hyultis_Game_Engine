@@ -2,6 +2,7 @@ use crate::Textures::Order::Order;
 use crate::Textures::texturePart::texturePart;
 use crate::Textures::Textures::Texture;
 
+#[derive(Clone)]
 pub struct Order_loadPart
 {
 	pub from: Box<dyn texturePart + Send + Sync>

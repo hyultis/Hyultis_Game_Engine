@@ -1,9 +1,9 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, OnceLock};
 use std::vec;
-use ahash::{AHashMap, HashMap, HashMapExt};
+use arc_swap::ArcSwap;
 use dashmap::DashMap;
-use dashmap::mapref::one::RefMut;
+use dashmap::mapref::one::Ref;
 use dashmap::try_result::TryResult;
 use Htrace::HTrace;
 use Htrace::HTracer::HTracer;
@@ -33,20 +33,21 @@ use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use crate::Shaders::HGE_shader_3Dsimple::HGE_shader_3Dsimple_holder;
 use crate::Shaders::ShaderStruct::ShaderStructHolder;
+use HArcMut::HArcMut;
 
 pub struct ManagerTexture
 {
-	_textures: DashMap<u32, Texture>,
+	_textures: DashMap<u32, HArcMut<Texture>>,
 	_texturesToId: DashMap<String, u32>,
-	_texturesOrder: DashMap<u32, Vec<Box<dyn Order + Send + Sync>>>,
+	_texturesOrder: DashMap<u32, HArcMut<Vec<Box<dyn Order + Send + Sync>>>>,
 	_texturesCallback: DashMap<u32, Box<dyn Fn(&mut Texture) + Send + Sync + 'static>>,
 	_samplers: DashMap<String, Arc<Sampler>>,
-	_persistentDescriptorSet: DashMap<Texture_atlasType, Arc<PersistentDescriptorSet>>,
+	_persistentDescriptorSet: DashMap<Texture_atlasType, ArcSwap<PersistentDescriptorSet>>,
 	_commandBufferWaiting: DashMap<u32, Vec<SecondaryAutoCommandBuffer>>,
 	_NbTotalTexture: RwLock<u32>,
 	_NbTotalLoadedTexture: RwLock<u32>,
 	
-	_atlasSizeId: DashMap<Texture_atlasType,u32>,
+	_atlasSizeId: DashMap<Texture_atlasType,ArcSwap<u32>>,
 	
 	// thread stuff
 	_threadLoading: Mutex<SingletonThread>,
@@ -105,12 +106,12 @@ impl ManagerTexture
 		let sampler = sampler.unwrap_or("default").to_string();
 		HTrace!("ManagerTexture: load {} with id {} and sampler {}",name,id,sampler);
 		
-		self._textures.insert(id, Texture {
+		self._textures.insert(id, HArcMut::new(Texture {
 			name: name.clone(),
 			sampler: sampler,
 			..Texture::default()
-		});
-		self._texturesOrder.insert(id,Vec::new());
+		}));
+		self._texturesOrder.insert(id,HArcMut::new(Vec::new()));
 		if (!found)
 		{
 			self._texturesToId.insert(name, id);
@@ -119,11 +120,12 @@ impl ManagerTexture
 		
 		if(loadOrder.isSameThread())
 		{
-			if let Some(mut texture ) = self._textures.get_mut(&id)
+			if let Some(texture ) = self._textures.get(&id)
 			{
-				loadOrder.exec(id, texture.value_mut());
-				Order_computeCache::new().exec(id, texture.value_mut());
-				if(texture.atlasType!=Texture_atlasType::FONT)
+				let mut texturemut = texture.get_mut();
+				loadOrder.exec(id, &mut texturemut);
+				Order_computeCache::new().exec(id, &mut texturemut);
+				if(texturemut.atlasType!=Texture_atlasType::FONT)
 				{
 					*self._haveOneTextureUpdate.write() = true;
 				}
@@ -139,13 +141,14 @@ impl ManagerTexture
 	pub fn texture_update(&self, name: impl Into<String>, mut updateOrders: Vec<Box<dyn Order + Sync + Send + 'static>>)
 	{
 		let name = name.into();
-		if let Some(mut texture) = self.getMut(name.clone())
+		if let Some(bind) = self.getMut(name.clone())
 		{
+			let mut texture = bind.get_mut();
 			//HTrace!("ManagerTexture: texture_update for {}",name);
 			updateOrders.retain(|sameThreadOrder|{
 				if (sameThreadOrder.isSameThread())
 				{
-					sameThreadOrder.exec(*texture.key(), texture.value_mut());
+					sameThreadOrder.exec(*bind.key(), &mut texture);
 					
 					if(texture.atlasType!=Texture_atlasType::FONT)
 					{
@@ -160,19 +163,20 @@ impl ManagerTexture
 				}
 			});
 			
-			self.orderAdd(*texture.key(),updateOrders);
+			self.orderAdd(*bind.key(),updateOrders);
 		}
 	}
 	
 	pub fn textureDebug(&self)
 	{
-		let mut tmp = HashMap::new();
-		for x in self._textures.clone().iter()
+		let mut tmp = BTreeMap::new();
+		for x in self._textures.iter()
 		{
-			HTrace!("textureDebug {} : state {:?} - sendToGpu {:?} - atlas Type {:?} - atlas id {:?}",x.name,x.state,x.sendToGpu,x.atlasType,x.atlasId);
-			let debug = format!("{} => {:?}",x.name,x.atlasId);
-			match tmp.get_mut(&x.atlasType) {
-				None => {tmp.insert(x.atlasType,vec![debug]);},
+			let bind = x.get();
+			HTrace!("textureDebug {} : state {:?} - sendToGpu {:?} - atlas Type {:?} - atlas id {:?}",bind.name,bind.state,bind.sendToGpu,bind.atlasType,bind.atlasId);
+			let debug = format!("{} => {:?}",bind.name,bind.atlasId);
+			match tmp.get_mut(&bind.atlasType) {
+				None => {tmp.insert(bind.atlasType,vec![debug]);},
 				Some(vec) => {
 					vec.push(debug)
 				}
@@ -191,11 +195,12 @@ impl ManagerTexture
 	
 	pub fn texture_reloadAll(&self)
 	{
-		for x in self._textures.clone().iter()
+		for x in self._textures.iter()
 		{
-			if let Some(reloader) = &x.reloadLoader
+			let tmp = x.get();
+			if let Some(reloader) = &tmp.reloadLoader
 			{
-				HTrace!("texture {} : put in reload",x.name);
+				HTrace!("texture {} : put in reload",tmp.name);
 				self.orderAdd(*x.key(),vec![Box::new(reloader.clone())]);
 				self.orderAdd(*x.key(),vec![Box::new(Order_computeCache::new())]);
 			}
@@ -207,7 +212,7 @@ impl ManagerTexture
 		match self.getMut(name) {
 			None => {}
 			Some(x) => {
-				if let Some(reloader) = &x.reloadLoader
+				if let Some(reloader) = &x.get().reloadLoader
 				{
 					self.orderAdd(*x.key(),vec![Box::new(reloader.clone())]);
 					self.orderAdd(*x.key(),vec![Box::new(Order_computeCache::new())]);
@@ -255,7 +260,9 @@ impl ManagerTexture
 		
 		return match self._textures.get(&textureid) {
 			None => None,
-			Some(x) => Some(x.value().clone())
+			Some(x) => {
+				Some((&**x.get()).clone())
+			}
 		};
 	}
 	
@@ -273,7 +280,7 @@ impl ManagerTexture
 		};
 		println!("have textureid : {} {}",name,textureid);
 		
-		return self._textures.get(&textureid).map(|x|{x.state.clone()});
+		return self._textures.get(&textureid).map(|x|{x.get().state.clone()});
 	}
 	
 	pub fn texture_loadPart(&self, name: &str, partLoader: impl texturePart + Sync + Send + 'static)
@@ -298,7 +305,7 @@ impl ManagerTexture
 		let texture = self.getMut(name);
 		match texture {
 			None => None,
-			Some(x) => {x.partUVCoord.get(&part.into()).copied()}
+			Some(x) => {x.get().partUVCoord.get(&part.into()).copied()}
 		}
 	}
 	
@@ -306,7 +313,7 @@ impl ManagerTexture
 	pub fn getTextureToId(&self, name: impl Into<String>) -> Option<u32>
 	{
 		let name = name.into();
-		match self.getMut(&name) {
+		match self.get(&name) {
 			None => None,
 			Some(tex) => {
 				match tex.atlasType {
@@ -317,10 +324,6 @@ impl ManagerTexture
 				}
 			}
 		}
-		/*match self._texturesToId.get(&name.into()) {
-			None => { return 0; }
-			Some(id) => { id.value() + 1 }
-		}*/
 	}
 	
 	pub fn launchThreads(&self)
@@ -330,7 +333,7 @@ impl ManagerTexture
 		//return;
 	}
 	
-	pub fn getPersistentDescriptorSet(&self) -> &DashMap<Texture_atlasType, Arc<PersistentDescriptorSet>>
+	pub fn getPersistentDescriptorSet(&self) -> &DashMap<Texture_atlasType, ArcSwap<PersistentDescriptorSet>>
 	{
 		return &self._persistentDescriptorSet;
 	}
@@ -354,34 +357,36 @@ impl ManagerTexture
 	
 	pub fn textureSetSendToGpu(&self, id: u32)
 	{
-		match self._textures.get_mut(&id) {
+		match self._textures.get(&id) {
 			None => {}
-			Some(mut texture) => {
-				texture.sendToGpu = TextureStateGPU::SEND;
-				texture.clearContent();
+			Some(texture) => {
+				let mut bind = texture.get_mut();
+				bind.sendToGpu = TextureStateGPU::SEND;
+				bind.clearContent();
 			}
 		}
 	}
 	
 	pub fn getNewAtlasId(&self, atlastype: Texture_atlasType) -> u32
 	{
-		match self._atlasSizeId.get_mut(&atlastype) {
+		match self._atlasSizeId.get(&atlastype) {
 			None => {
-				self._atlasSizeId.insert(atlastype,0);
+				self._atlasSizeId.insert(atlastype,ArcSwap::new(Arc::new(0)));
 				0
 			}
-			Some(mut id) => {
-				*id.value_mut()+=1;
-				*id.value()
+			Some(id) => {
+				let value = **id.load()+1;
+				id.swap(Arc::new(value));
+				value
 			}
 		}
 	}
 	
 	pub fn fontDescriptorUpdate(&self, newdescriptor: Arc<PersistentDescriptorSet>)
 	{
-		if let Some(mut descriptor) = self._persistentDescriptorSet.get_mut(&Texture_atlasType::FONT)
+		if let Some(descriptor) = self._persistentDescriptorSet.get(&Texture_atlasType::FONT)
 		{
-			*descriptor = newdescriptor;
+			descriptor.swap(newdescriptor);
 		}
 	}
 	
@@ -411,7 +416,7 @@ impl ManagerTexture
 		let persistentDescriptorDefault = DashMap::new();
 		for x in [Texture_atlasType::SMALL,Texture_atlasType::LARGE,Texture_atlasType::FONT]
 		{
-			persistentDescriptorDefault.insert(x,Self::emptyDescriptor(x.getSetId()));
+			persistentDescriptorDefault.insert(x,ArcSwap::new(Self::emptyDescriptor(x.getSetId())));
 		}
 		
 		let mut orderThread = SingletonThread::newFiltered(|| {
@@ -528,7 +533,7 @@ impl ManagerTexture
 		HTrace!("launched textureOrder");
 		//HTrace!((Type::DEBUG)"ManagerTexture singleton thread start");
 		let keytorun = Self::singleton()._texturesOrder.iter()
-			.filter(|textureOrders|textureOrders.len()>0)
+			.filter(|textureOrders|textureOrders.get().len()>0)
 			.map(|textureOrders|textureOrders.key().clone()).collect::<Vec<_>>();
 		
 		keytorun.par_iter().copied().for_each(|id| // par_iter
@@ -543,7 +548,7 @@ impl ManagerTexture
 		// exiting but with checking if new order have been added
 		let mut tmp = Self::singleton()._haveOneOrderUpdate.write();
 		if(Self::singleton()._texturesOrder.iter()
-			.find(|textureOrders|textureOrders.len()>0)
+			.find(|textureOrders|textureOrders.get().len()>0)
 			.is_none())
 		{
 			*tmp = false;
@@ -568,15 +573,15 @@ impl ManagerTexture
 					return;
 				},
 				Some(defaultTexture) => {
-					
-					if(/*defaultTexture.cache.is_none() && */defaultTexture.contentSizeAtlas.is_none())
+					let bind = defaultTexture.get();
+					if(/*defaultTexture.cache.is_none() && */bind.contentSizeAtlas.is_none())
 					{
 						*Self::singleton()._updatedDescriptor.write() = true;
 						*Self::singleton()._haveOneTextureUpdate.write() = true;
 						return;
 					}
 					
-					defaultTexture.value().clone()
+					(&**bind).clone()
 				}
 			}
 		};
@@ -584,7 +589,7 @@ impl ManagerTexture
 		
 		let mut emptyrun = true;
 		let mut idTextureUsed = Vec::new();
-		let mut descriptorlist = AHashMap::new();
+		let mut descriptorlist = BTreeMap::new();
 		let mut cmdbuff = HGEMain::singleton().SecondaryCmdBuffer_generate();
 		for altastype in [Texture_atlasType::SMALL, Texture_atlasType::LARGE]
 		{
@@ -592,14 +597,18 @@ impl ManagerTexture
 			let mut finalDataArray = BTreeMap::new();
 			Self::singleton()._textures
 				.iter()
-				.filter(|tex|{tex.atlasType==altastype})
+				.filter(|tex|{tex.get().atlasType==altastype})
 				.for_each(|tex|{
-					idTextureUsed.push(*tex.key());
-					atlasnb+=1;
-					finalDataArray.insert(tex.atlasId.unwrap_or(0),match &tex.contentSizeAtlas {
-						None => defaulttextureslice.clone(),
-						Some(content) => content.clone()
-					});
+					let bind = tex.get();
+					if let Some(atlasid) = bind.atlasId
+					{
+						idTextureUsed.push(*tex.key());
+						atlasnb+=1;
+						finalDataArray.insert(atlasid,match &bind.contentSizeAtlas {
+							None => defaulttextureslice.clone(), Some(content) => content.clone()
+						});
+					}
+					
 				});
 			
 			let finalData: Vec<u8> = finalDataArray.into_iter().flat_map(|(_,data)|{data}).collect();
@@ -692,12 +701,12 @@ impl ManagerTexture
 		
 		let newnb = Self::singleton()._textures
 			.iter()
-			.filter(|tex|{tex.state!=TextureState::CREATED}).count() as u32; // texture font statut is ignored
+			.filter(|tex|{tex.get().state!=TextureState::CREATED}).count() as u32; // texture font statut is ignored
 		
 		// TODO FIX DISORDER
 		HGEMain::SecondaryCmdBuffer_add(HGEMain_secondarybuffer_type::TEXTURE, cmdbuff.build().unwrap(), move ||{
 			descriptorlist.iter().for_each(|(a,b)|{
-				Self::singleton()._persistentDescriptorSet.insert(a.clone(),b.clone());
+				Self::singleton()._persistentDescriptorSet.insert(a.clone(),ArcSwap::new(b.clone()));
 			});
 			Self::singleton().executeCallback();
 			*Self::singleton()._updatedDescriptor.write() = true;
@@ -857,11 +866,12 @@ impl ManagerTexture
 	fn order_execute_for(&self, id: u32)
 	{
 		// check Waiting
-		if let Some(mut tmp) = self._texturesOrder.get_mut(&id)
+		if let Some(tmp) = self._texturesOrder.get(&id)
 		{
-			for x in tmp.iter_mut()
+			let mut bind = tmp.get_mut();
+			for x in bind.iter_mut()
 			{
-				if (x.isWaiting())// we waiting for something, so we are waiting executing these order list
+				if (x.isWaiting())// we're waiting for something, so we are waiting executing these order list
 				{
 					return;
 				}
@@ -869,20 +879,16 @@ impl ManagerTexture
 		}
 		
 		
-		let orders = self._texturesOrder.remove(&id);
-		if(orders.is_none())
-		{
-			return;
-		}
-		let (_,orders) = orders.unwrap();
+		let Some((_,orders)) = self._texturesOrder.remove(&id) else {return};
 		
-		if let Some(mut texture) = self._textures.get_mut(&id)
+		if let Some(texture) = self._textures.get(&id)
 		{
-			for oneorder in orders
+			let mut bind = texture.get_mut();
+			for oneorder in orders.get().iter()
 			{
-				oneorder.exec(id, texture.value_mut());
+				oneorder.exec(id, &mut bind);
 			}
-			if(texture.atlasType!=Texture_atlasType::FONT)
+			if(bind.atlasType!=Texture_atlasType::FONT)
 			{
 				*self._haveOneTextureUpdate.write() = true;
 			}
@@ -892,9 +898,10 @@ impl ManagerTexture
 	fn executeCallback(&self)
 	{
 		self._texturesCallback.retain(|id,func|{
-			if let Some(mut texture) = self._textures.get_mut(id)
+			if let Some(texture) = self._textures.get(id)
 			{
-				func(texture.value_mut());
+				let mut bind = texture.get_mut();
+				func(&mut bind);
 			}
 			false
 		});
@@ -911,34 +918,34 @@ impl ManagerTexture
 					return (0, false);
 				}
 				
-				let tmp = self._textures.iter().max_by_key(|a| a.key().clone())
-					.map(|x| x.key().clone())
-					.unwrap_or(0); // this one is if there none of entry but 0 is reserved for defautl
-				return (tmp + 1, false);
+				match self._textures.iter().max_by_key(|a| a.key().clone())
+					.map(|x| x.key().clone()) {
+					None => return (1, false), // 0 is reserved
+					Some(max) => return (max + 1, false) // because 0 is reserved, we move all by +1
+				}
 			}
 		}
 	}
 	
 	fn internal_getStateId(&self, id: &u32) -> Option<TextureState>
 	{
-		match ManagerTexture::singleton()._textures.clone().try_get(&id) {
-			TryResult::Present(x) => return Some(x.state.clone()),
+		match ManagerTexture::singleton()._textures.try_get(&id) {
+			TryResult::Present(x) => return Some(x.get().state.clone()),
 			TryResult::Absent => return None,
 			TryResult::Locked => return None,
 		}
 	}
 	
-	fn getMut(&self, name: impl Into<String>) -> Option<RefMut<u32, Texture>>
+	fn getMut(&self, name: impl Into<String>) -> Option<Ref<u32, HArcMut<Texture>>>
 	{
 		let textureid = {
-			let binding = self._texturesToId.clone();
-			let returning = match binding.get(&name.into()) {
+			let returning = match self._texturesToId.get(&name.into()) {
 				None => return None,
 				Some(textureid) => textureid.value().clone()
 			};returning
 		};
 		
-		return self._textures.get_mut(&textureid);
+		return self._textures.get(&textureid);
 	}
 	
 	fn orderAdd(&self, id: u32, mut orders: Vec<Box<dyn Order + Sync + Send + 'static>>)
@@ -948,12 +955,13 @@ impl ManagerTexture
 			return;
 		}
 		
-		match self._texturesOrder.get_mut(&id) {
+		match self._texturesOrder.get(&id) {
 			None => {
-				self._texturesOrder.insert(id,orders);
+				self._texturesOrder.insert(id,HArcMut::new(orders));
 			}
-			Some(mut vec) => {
-				vec.append(&mut orders);
+			Some(vec) => {
+				let mut bind = vec.get_mut();
+				bind.append(&mut orders);
 			}
 		}
 		*Self::singleton()._haveOneOrderUpdate.write() = true;

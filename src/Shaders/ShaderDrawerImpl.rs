@@ -2,6 +2,7 @@ pub trait ShaderDrawerImpl //: DynClone + Downcast
 {
 	fn cache_mustUpdate(&self) -> bool;
 	fn cache_submit(&mut self);
+	fn cache_remove(&mut self);
 }
 
 //impl_downcast!(ShaderDrawerImpl);

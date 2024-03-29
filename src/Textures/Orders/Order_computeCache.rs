@@ -15,6 +15,7 @@ use crate::Textures::Manager::ManagerTexture;
 use crate::Textures::Order::Order;
 use crate::Textures::Textures::{Texture, Texture_atlasType, TextureStateGPU};
 
+#[derive(Clone)]
 pub struct Order_computeCache
 {
 	sameThread : bool

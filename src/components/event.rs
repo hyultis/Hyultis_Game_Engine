@@ -1,5 +1,5 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
-use ahash::AHashMap;
 
 pub trait event_trait_add<T>: event_trait
 	where T: ?Sized + Send + Sync
@@ -20,7 +20,7 @@ pub trait event_trait
 	}
 }
 
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
 pub enum event_type
 {
 	IDLE,
@@ -46,7 +46,7 @@ impl event_type
 pub struct event<T>
 	where T: Send + Sync
 {
-	_all: AHashMap<event_type,Vec<Arc<dyn Fn(&mut T) -> bool + Send + Sync>>>,
+	_all: BTreeMap<event_type,Vec<Arc<dyn Fn(&mut T) -> bool + Send + Sync>>>,
 	_haveOneEvent: bool
 }
 
@@ -55,18 +55,8 @@ impl<T> event<T>
 {
 	pub fn new() -> Self
 	{
-		let mut tmp = AHashMap::new();
-		tmp.insert(event_type::IDLE, Vec::new());
-		tmp.insert(event_type::HOVER, Vec::new());
-		tmp.insert(event_type::CLICKED, Vec::new());
-		tmp.insert(event_type::EACH_SECOND, Vec::new());
-		tmp.insert(event_type::EACH_TICK, Vec::new());
-		tmp.insert(event_type::WINREFRESH, Vec::new());
-		tmp.insert(event_type::ENTER, Vec::new());
-		tmp.insert(event_type::EXIT, Vec::new());
-		
 		return event {
-			_all: tmp,
+			_all: BTreeMap::new(),
 			_haveOneEvent: false,
 		};
 	}
@@ -74,16 +64,26 @@ impl<T> event<T>
 	pub fn add(&mut self, eventtype: event_type, func: impl Fn(&mut T) -> bool + Send + Sync + 'static)
 	{
 		self._haveOneEvent = true;
-		self._all.get_mut(&eventtype).unwrap().push(Arc::new(func));
+		match self._all.get_mut(&eventtype) {
+			None => {
+				self._all.insert(eventtype,vec![Arc::new(func)]);
+			},
+			Some(vec) => {
+				vec.push(Arc::new(func));
+			}
+		}
 	}
 	
 	pub fn trigger(&self, eventtype: event_type, data: &mut T) -> bool
 	{
 		let mut change = false;
-		for func in self._all.get(&eventtype).unwrap().iter() {
-			if(func(data))
-			{
-				change = true;
+		if let Some(tmp) = self._all.get(&eventtype)
+		{
+			for func in tmp.iter() {
+				if (func(data))
+				{
+					change = true;
+				}
 			}
 		}
 		

@@ -1,7 +1,7 @@
 use std::default::Default;
 use uuid::Uuid;
 use crate::components::corners::corner4;
-use crate::components::event::{event, event_trait, event_trait_add, event_type};
+use crate::components::event::event;
 use crate::components::{Components, HGEC_origin, HGEC_rotation, HGEC_scale};
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::components::color::color;
@@ -132,33 +132,5 @@ impl<A> Plane<A>
 	{
 		self._posHitbox = Some(newpos.intoArray());
 		self._canUpdate = true;
-	}
-}
-
-impl<A> event_trait for Plane<A>
-	where A: HGEC_origin,
-	      rotation: HGEC_rotation<A>, scale: HGEC_scale<A>
-{
-	fn event_trigger(&mut self, eventtype: event_type) -> bool {
-		let update = self._events.clone().trigger(eventtype, self);
-		if (eventtype == event_type::WINREFRESH)
-		{
-			self._canUpdate = true;
-		}
-		return update;
-	}
-	
-	fn event_have(&self, eventtype: event_type) -> bool
-	{
-		self._events.have(eventtype)
-	}
-}
-
-impl<A> event_trait_add<Plane<A>> for Plane<A>
-	where A: HGEC_origin,
-	      rotation: HGEC_rotation<A>, scale: HGEC_scale<A>
-{
-	fn event_add(&mut self, eventtype: event_type, func: impl Fn(&mut Plane<A>) -> bool + Send + Sync + 'static) {
-		self._events.add(eventtype, func);
 	}
 }

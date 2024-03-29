@@ -1,7 +1,9 @@
 use crate::components::color::color;
-use crate::components::event::event_type;
+use crate::components::event::{event_trait, event_trait_add, event_type};
 use crate::components::interfacePosition::interfacePosition;
 use crate::entities::Plane::Plane;
+use crate::Interface::UiButton::UiButton_content;
+use crate::Interface::UiHidable::UiHidable_content;
 use crate::Interface::UiHitbox::{UiHitbox, UiHitbox_raw};
 use crate::Interface::UiPage::{UiPageContent, UiPageContent_type};
 use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple_def, HGE_shader_2Dsimple_holder};
@@ -48,43 +50,15 @@ impl ShaderDrawerImpl for Plane<interfacePosition> {
 	fn cache_submit(&mut self) {
 		let Some(structure) = self.cache_get() else {return};
 		
-		if let Some(vec) = &self._posHitbox
-		{
-			let mut hitboxvec = Vec::new();
-			for i in 0..4
-			{
-				let mut tmp = vec[i].clone();
-				self._components.computeVertex(&mut tmp);
-				
-				hitboxvec.push(UiHitbox_raw {
-					position: tmp.convertToVertex(),
-					ispixel: tmp.getTypeInt()==1,
-				});
-			}
-			
-			self._hitbox = UiHitbox::newFrom2D(&hitboxvec);
-		}
-		else
-		{
-			
-			let mut hitboxvec = Vec::new();
-			for x in structure.vertex.iter()
-			{
-				hitboxvec.push(UiHitbox_raw {
-					position: x.position,
-					ispixel: x.ispixel==1,
-				});
-			}
-			self._hitbox = UiHitbox::newFrom2D(&hitboxvec);
-		}
-		
-		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
 			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
-		}))
-		{
-			self._canUpdate = false;
-		}
-		
+		});
+	}
+	
+	fn cache_remove(&mut self) {
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+			holder.remove(&mut self._uuidStorage);
+		});
 	}
 }
 
@@ -126,10 +100,73 @@ impl ShaderDrawerImplReturn<HGE_shader_2Dsimple_def> for Plane<interfacePosition
 			});
 		}
 		
+		if let Some(vec) = &self._posHitbox
+		{
+			let mut hitboxvec = Vec::new();
+			for i in 0..4
+			{
+				let mut tmp = vec[i].clone();
+				self._components.computeVertex(&mut tmp);
+				
+				hitboxvec.push(UiHitbox_raw {
+					position: tmp.convertToVertex(),
+					ispixel: tmp.getTypeInt()==1,
+				});
+			}
+			
+			self._hitbox = UiHitbox::newFrom2D(&hitboxvec);
+		}
+		else
+		{
+			
+			let mut hitboxvec = Vec::new();
+			for x in vecstruct.iter()
+			{
+				hitboxvec.push(UiHitbox_raw {
+					position: x.position,
+					ispixel: x.ispixel==1,
+				});
+			}
+			self._hitbox = UiHitbox::newFrom2D(&hitboxvec);
+		}
+		
+		self._canUpdate = false;
 		return Some(
 			ShaderDrawerImplStruct{
 				vertex: vecstruct,
 				indices: [0, 1, 2, 1, 3, 2].to_vec(),
 			});
+	}
+}
+
+
+impl UiHidable_content for Plane<interfacePosition> {}
+impl UiButton_content for Plane<interfacePosition> {}
+
+impl event_trait for Plane<interfacePosition>
+{
+	fn event_trigger(&mut self, eventtype: event_type) -> bool {
+		let update = self._events.clone().trigger(eventtype, self);
+		if (eventtype == event_type::WINREFRESH)
+		{
+			self._canUpdate = true;
+		}
+		if(self._uuidStorage.is_some())
+		{
+			self.cache_submit();
+		}
+		return update;
+	}
+	
+	fn event_have(&self, eventtype: event_type) -> bool
+	{
+		self._events.have(eventtype)
+	}
+}
+
+impl event_trait_add<Plane<interfacePosition>> for Plane<interfacePosition>
+{
+	fn event_add(&mut self, eventtype: event_type, func: impl Fn(&mut Plane<interfacePosition>) -> bool + Send + Sync + 'static) {
+		self._events.add(eventtype, func);
 	}
 }

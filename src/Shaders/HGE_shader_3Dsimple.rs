@@ -2,25 +2,23 @@ use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 use vulkano::pipeline::graphics::vertex_input::Vertex;
 use std::convert::TryInto;
-use std::sync::Arc;
 use anyhow::anyhow;
 use Htrace::HTraceError;
 use uuid::Uuid;
-use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
+use vulkano::buffer::{BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::graphics::input_assembly::PrimitiveTopology;
 use vulkano::pipeline::PipelineBindPoint;
 use crate::HGEsubpass::HGEsubpassName;
 use crate::ManagerBuilder::ManagerBuilder;
-use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Pipeline::EnginePipelines;
 use crate::Pipeline::ManagerPipeline::ManagerPipeline;
 use crate::Shaders::intoVertexed::IntoVertexted;
 use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::names;
 use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
-use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder};
+use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder, ShaderStructHolder_utils};
 use crate::Textures::Manager::ManagerTexture;
 
 
@@ -51,7 +49,7 @@ impl Default for HGE_shader_3Dsimple_def
 
 impl IntoVertexted<HGE_shader_3Dsimple> for HGE_shader_3Dsimple_def
 {
-	fn IntoVertexted(&self, descriptorContext: bool) -> Option<HGE_shader_3Dsimple> {
+	fn IntoVertexted(&self, _: bool) -> Option<HGE_shader_3Dsimple> {
 		let mut textureid = 0;
 		
 		if let Some(texture) = self.texture.clone()
@@ -158,10 +156,9 @@ impl ShaderStruct for HGE_shader_3Dsimple {
 
 ///////// Holder
 
-#[derive(Clone, Default)]
 pub struct HGE_shader_3Dsimple_holder
 {
-	_datas: BTreeMap<Uuid, ShaderDrawerImplStruct<Arc<dyn IntoVertexted<HGE_shader_3Dsimple> + Send + Sync>>>,
+	_datas: BTreeMap<Uuid, ShaderDrawerImplStruct<Box<dyn IntoVertexted<HGE_shader_3Dsimple> + Send + Sync>>>,
 	_haveUpdate: bool,
 	_cacheDatasMem: Option<Subbuffer<[HGE_shader_3Dsimple]>>,
 	_cacheIndicesMem: Option<Subbuffer<[u32]>>,
@@ -170,22 +167,11 @@ pub struct HGE_shader_3Dsimple_holder
 
 impl HGE_shader_3Dsimple_holder
 {
-	pub fn new() -> Self
-	{
-		Self {
-			_datas: BTreeMap::new(),
-			_haveUpdate: false,
-			_cacheDatasMem: None,
-			_cacheIndicesMem: None,
-			_cacheIndicesLen: 0,
-		}
-	}
-	
 	pub fn insert(&mut self, uuid: Option<Uuid>, mut structure: ShaderDrawerImplStruct<impl IntoVertexted<HGE_shader_3Dsimple> + Send + Sync + 'static>) -> Uuid
 	{
 		let mut vertexconvert = Vec::new();
 		for x in structure.vertex.drain(0..) {
-			let tmp: Arc<dyn IntoVertexted<HGE_shader_3Dsimple> + Send + Sync> = Arc::new(x);
+			let tmp: Box<dyn IntoVertexted<HGE_shader_3Dsimple> + Send + Sync> = Box::new(x);
 			vertexconvert.push(tmp);
 		};
 		
@@ -214,7 +200,7 @@ impl HGE_shader_3Dsimple_holder
 		let mut indices = Vec::new();
 		let mut atleastone = false;
 		
-		for (_, one) in &self._datas
+		for (_,one) in &self._datas
 		{
 			let mut stop = false;
 			let mut tmpvertex = Vec::new();
@@ -241,13 +227,6 @@ impl HGE_shader_3Dsimple_holder
 	}
 }
 
-impl Into<Box<dyn ShaderStructHolder>> for HGE_shader_3Dsimple_holder
-{
-	fn into(self) -> Box<dyn ShaderStructHolder> {
-		Box::new(self)
-	}
-}
-
 impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 {
 	fn init() -> Self {
@@ -262,6 +241,10 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 	
 	fn pipelineName() -> String {
 		names::simple3D.to_string()
+	}
+	
+	fn pipelineNameResolve(&self) -> String {
+		Self::pipelineName()
 	}
 	
 	fn reset(&mut self)
@@ -286,37 +269,24 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 			return;
 		}
 		
-		let buffer = Buffer::from_iter(
-			ManagerMemoryAllocator::singleton().get(),
-			BufferCreateInfo {
-				usage: BufferUsage::VERTEX_BUFFER,
-				..Default::default()
-			},
-			AllocationCreateInfo {
-				memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-					| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-				..Default::default()
-			},
-			vertex,
-		).unwrap();
-		self._cacheDatasMem = Some(buffer);
+		ShaderStructHolder_utils::updateBuffer(vertex,&mut self._cacheDatasMem,BufferCreateInfo {
+			usage: BufferUsage::VERTEX_BUFFER,
+			..Default::default()
+		},AllocationCreateInfo {
+			memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+				| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+			..Default::default()
+		});
 		
-		self._cacheIndicesLen = indices.len() as u32;
-		let buffer = Buffer::from_iter(
-			ManagerMemoryAllocator::singleton().get(),
-			BufferCreateInfo {
-				usage: BufferUsage::INDEX_BUFFER,
-				..Default::default()
-			},
-			AllocationCreateInfo {
-				memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-					| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-				..Default::default()
-			},
-			indices,
-		).unwrap();
+		self._cacheIndicesLen = ShaderStructHolder_utils::updateBuffer(indices,&mut self._cacheIndicesMem,BufferCreateInfo {
+			usage: BufferUsage::INDEX_BUFFER,
+			..Default::default()
+		},AllocationCreateInfo {
+			memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+				| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+			..Default::default()
+		});
 		
-		self._cacheIndicesMem = Some(buffer);
 		self._haveUpdate = false;
 	}
 	
@@ -326,7 +296,7 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 		let Some(indicemem) = &self._cacheIndicesMem else {return};
 		
 		let Some(pipelineLayout) = ManagerPipeline::singleton().layoutGet(&pipelinename) else { return; };
-		if (ManagerShaders::singleton().push_constants(names::simple2D, cmdBuilder, pipelineLayout.clone(), 0) == false)
+		if (ManagerShaders::singleton().push_constants(names::simple3D, cmdBuilder, pipelineLayout.clone(), 0) == false)
 		{
 			return;
 		}
@@ -338,7 +308,7 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 				PipelineBindPoint::Graphics,
 				pipelineLayout.clone(),
 				setid,
-				descriptor.value().clone(),
+				descriptor.value().load_full(),
 			));
 		});
 		

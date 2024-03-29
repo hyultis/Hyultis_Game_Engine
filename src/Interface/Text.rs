@@ -12,11 +12,13 @@ use crate::components::event::{event, event_trait, event_trait_add, event_type};
 use crate::components::offset::offset;
 use crate::components::rotations::rotation;
 use crate::components::scale::scale;
+use crate::Interface::UiButton::UiButton_content;
+use crate::Interface::UiHidable::UiHidable_content;
 use crate::Interface::UiHitbox::{UiHitbox, UiHitbox_raw};
 use crate::Interface::UiPage::{UiPageContent, UiPageContent_type};
 use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple_def, HGE_shader_2Dsimple_holder};
 use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
-use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImpl;
+use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn, ShaderDrawerImplStruct};
 
 #[derive(Clone)]
 pub struct Extra
@@ -301,10 +303,15 @@ impl event_trait for Text
 {
 	fn event_trigger(&mut self, eventtype: event_type) -> bool
 	{
-		let update = self._events.clone().trigger(eventtype, self);
+		let mut update = self._events.clone().trigger(eventtype, self);
 		if (eventtype == event_type::WINREFRESH)
 		{
+			update = true;
 			self._cacheShared.write().isUpdated = true;
+		}
+		if(self._uuidStorage.is_some() && update)
+		{
+			self.cache_submit();
 		}
 		return update;
 	}
@@ -354,7 +361,7 @@ impl ShaderDrawerImpl for Text {
 		if(!self._isVisible)
 		{
 			if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-				holder.remove(self._uuidStorage);
+				holder.remove(&mut self._uuidStorage);
 			}))
 			{
 				self._cacheShared.write().isUpdated = false;
@@ -363,11 +370,34 @@ impl ShaderDrawerImpl for Text {
 			return;
 		}
 		
-		let mut bindingvertex = self._cacheShared.write();
-		let mut tmp = bindingvertex.clone();
+		let Some(structure) = self.cache_get() else {return};
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+			self._uuidStorage = Some(holder.insert(self._uuidStorage,ShaderDrawerImplStruct{
+				vertex: structure.vertex.clone(),
+				indices: structure.indices.clone(),
+			}));
+		});
+		
+	}
+	
+	fn cache_remove(&mut self) {
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+			holder.remove(&mut self._uuidStorage);
+		});
+	}
+}
+
+impl ShaderDrawerImplReturn<HGE_shader_2Dsimple_def> for Text
+{
+	fn cache_get(&mut self) -> Option<ShaderDrawerImplStruct<HGE_shader_2Dsimple_def>> {
+		let mut structure = {
+			let mut tmp = self._cacheShared.write();
+			tmp.isUpdated = false;
+			tmp.clone()
+		};
 		let mut hitboxvec = Vec::new();
 		
-		for vertex in tmp.vertex.iter_mut() {
+		for vertex in structure.vertex.iter_mut() {
 			let mut vertexCorrected = interfacePosition::new_pixel(vertex.position[0] as i32,vertex.position[1] as i32);
 			self._components.computeVertex(&mut vertexCorrected);
 			vertex.position = vertexCorrected.convertToVertex();
@@ -383,17 +413,13 @@ impl ShaderDrawerImpl for Text {
 			});
 			
 		};
-		
 		self._hitbox = UiHitbox::newFrom2D(&hitboxvec);
-		//tmp.vertex,tmp.indices
-		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-			holder.remove(self._uuidStorage);
-		}))
-		{
-			bindingvertex.isUpdated = false;
-			self._cacheLocalUpdate = false;
-		}
+		self._cacheLocalUpdate = false;
 		
+		return Some(ShaderDrawerImplStruct{
+			vertex: structure.vertex.drain(0..).collect(),
+			indices: structure.indices.drain(0..).collect(),
+		});
 	}
 }
 
@@ -408,3 +434,6 @@ impl UiPageContent for Text
 		self._hitbox.clone()
 	}
 }
+
+impl UiButton_content for Text {}
+impl UiHidable_content for Text {}

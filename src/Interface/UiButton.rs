@@ -53,6 +53,7 @@ impl UiButton
 	pub fn add(&mut self, content: impl UiButton_content + Send + Sync +'static)
 	{
 		self._content.push(Box::new(content));
+		self._cacheUpdated = true;
 	}
 	
 	pub fn setClickedFn(&mut self, func: impl FnMut(&mut UiButton) + Send + Sync + 'static)
@@ -110,6 +111,7 @@ impl UiButton
 impl event_trait for UiButton {
 	fn event_trigger(&mut self, eventtype: event_type) -> bool
 	{
+		let mut returning = false;
 		match eventtype {
 			event_type::IDLE => {
 				if(self._state != UiButtonState::IDLE)
@@ -118,9 +120,8 @@ impl event_trait for UiButton {
 						item.event_trigger(eventtype);
 					});
 					self.setCacheToIdle();
-					return true;
+					returning = true;
 				}
-				return false;
 			}
 			event_type::HOVER => {
 				if(self._state != UiButtonState::HOVER)
@@ -129,9 +130,8 @@ impl event_trait for UiButton {
 						item.event_trigger(eventtype);
 					});
 					self.setCacheToHover();
-					return true;
+					returning = true;
 				}
-				return false;
 			}
 			event_type::CLICKED => {
 				if(self._state != UiButtonState::PRESSED)
@@ -146,9 +146,8 @@ impl event_trait for UiButton {
 					{
 						func(self);
 					}
-					return true;
+					returning = true;
 				}
-				return false;
 			}
 			event_type::EACH_SECOND => return false,
 			event_type::EACH_TICK => return false,
@@ -156,22 +155,37 @@ impl event_trait for UiButton {
 				let mut update = false;
 				for x in self._content.iter_mut()
 				{
-					x.cache_submit();
 					if(x.event_trigger(eventtype.clone()))
 					{
 						update = true;
 					}
 				}
 				
-				return update;
-			}
-			_ => return false
+				if(update)
+				{
+					returning = true;
+				}
+			},
+			_ => ()
 		};
+		
+		if(self._uuidStorage.is_some() && returning)
+		{
+			self.cache_submit();
+		}
+		
+		return returning;
 	}
 	
-	fn event_have(&self, _eventtype: event_type) -> bool
+	fn event_have(&self, eventtype: event_type) -> bool
 	{
-		true
+		match eventtype {
+			event_type::IDLE => true,
+			event_type::HOVER => true,
+			event_type::CLICKED => true,
+			event_type::WINREFRESH => true,
+			_ => false
+		}
 	}
 }
 
@@ -203,7 +217,7 @@ impl ShaderDrawerImpl for UiButton {
 		if(self._hide)
 		{
 			if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-				holder.remove(self._uuidStorage);
+				holder.remove(&mut self._uuidStorage);
 			})){
 				self._cacheUpdated = false;
 			}
@@ -219,23 +233,33 @@ impl ShaderDrawerImpl for UiButton {
 				structure.combine(&mut content);
 				newHitbox.updateFromHitbox(x.getHitbox());
 			}
+			else {
+				println!("uibutton content invalid");
+				return;
+			}
 		}
 		
 		if(self._state==UiButtonState::IDLE || self._hitbox.isEmpty())
 		{
 			if(newHitbox.isEmpty())
 			{
+				println!("uibutton pas de hitbox");
 				return;
 			}
 			self._hitbox = newHitbox;
 		}
 		
+		self._cacheUpdated = false;
 		
-		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
 			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
-		})){
-			self._cacheUpdated = false;
-		}
+		});
+	}
+	
+	fn cache_remove(&mut self) {
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+			holder.remove(&mut self._uuidStorage);
+		});
 	}
 }
 

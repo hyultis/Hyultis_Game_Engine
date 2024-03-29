@@ -1,11 +1,11 @@
-use ahash::AHashMap;
+use std::collections::BTreeMap;
 use HArcMut::HArcMut;
 use crate::Models3D::chunk_content::chunk_content;
 
 pub struct chunk
 {
 	_pos: [i32;3],
-	_content: AHashMap<String,HArcMut<Box<dyn chunk_content + Send + Sync>>>,
+	_content: BTreeMap<String,HArcMut<Box<dyn chunk_content + Send + Sync>>>,
 }
 
 impl chunk
@@ -47,6 +47,14 @@ impl chunk
 	{
 		let name: String = name.into();
 		return self._content.get(&name).map(|x|x.clone());
+	}
+	
+	pub fn cache_remove(&mut self)
+	{
+		self._content.iter_mut()
+			.for_each(|(_, elem)| {
+				elem.update(|content|content.cache_remove());
+			});
 	}
 	
 	pub fn cacheUpdate(&mut self)

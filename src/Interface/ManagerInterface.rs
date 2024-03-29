@@ -13,7 +13,6 @@ pub struct ManagerInterface
 {
 	_pageArray: DashMap<String, UiPage>,
 	_activePage: ArcSwap<String>,
-	_pageChanged: ArcSwap<bool>,
 	_threadEachTickUpdate: RwLock<SingletonThread>,
 	_threadEachSecondUpdate: RwLock<SingletonThread>,
 }
@@ -37,7 +36,6 @@ impl ManagerInterface
 		return ManagerInterface {
 			_pageArray: Default::default(),
 			_activePage: ArcSwap::new(Arc::new("default".to_string())),
-			_pageChanged: ArcSwap::new(Arc::new(false)),
 			_threadEachTickUpdate: RwLock::new(threadEachTick),
 			_threadEachSecondUpdate: RwLock::new(threadEachSecond),
 		};
@@ -54,23 +52,32 @@ impl ManagerInterface
 	{
 		let name = name.into();
 		let _ = TSpawner!(move ||{
-			let oldpage = {(*Self::singleton()._activePage.load_full()).clone()};
-			if let Some(mut page) = Self::singleton()._pageArray.get_mut(&oldpage) {
-				page.event_trigger(event_type::EXIT);
+			
+			println!("changeActivePage");
+			let oldpage = Arc::unwrap_or_clone(Self::singleton()._activePage.load_full());
+			if(name==oldpage) // si on change pas de page, on refresh juste
+			{
+				if let Some(mut page) = Self::singleton()._pageArray.get_mut(&name)
+				{
+					page.cache_resubmit();
+				}
+				println!("changeActivePage ok old");
+				return;
 			}
 			
-			if let Some(mut page) = Self::singleton()._pageArray.get_mut(&name) {
-				page.event_trigger(event_type::ENTER);
+			
+			if let Some(mut page) = Self::singleton()._pageArray.get_mut(&oldpage) {
+				page.event_trigger(event_type::EXIT);
+				page.cache_clear();
 			}
 			
 			Self::singleton()._activePage.swap(Arc::new(name.clone()));
-			Self::singleton()._pageChanged.swap(Arc::new(true));
 			
-			Self::singleton().page_resubmit();
-			
-			if let Some(mut page) = Self::singleton()._pageArray.get_mut(&oldpage) {
-				page.event_trigger(event_type::IDLE);
+			if let Some(mut page) = Self::singleton()._pageArray.get_mut(&name) {
+				page.event_trigger(event_type::ENTER);
+				page.cache_resubmit();
 			}
+			println!("changeActivePage ok");
 		});
 	}
 	
@@ -87,25 +94,33 @@ impl ManagerInterface
 	
 	pub fn mouseUpdate(&self, x: u16, y: u16, mouseClick: bool) -> bool
 	{
-		let page = self._pageArray.get_mut(self.getActivePage().as_str());
-		if(page.is_none())
-		{
-			return false;
-		}
-		let mut page = page.unwrap();
+		let Some(page) = self._pageArray.get_mut(self.getActivePage().as_str()) else {return false};
 		return page.eventMouse(x,y,mouseClick);
 	}
 	
 	pub fn WindowRefreshed(&self)
 	{
-		self._pageArray.iter_mut().for_each(|mut page|{
-			page.eventWinRefresh();
-		});
+		let Some(page) = self._pageArray.get(self.getActivePage().as_str()) else {return};
+		page.eventWinRefresh();
 	}
 	
-	pub fn UiPageAppend(&self, name: &str, page: UiPage)
+	pub fn UiPageAppend(&self, name: impl Into<String>, page: UiPage)
 	{
-		self._pageArray.insert(name.to_string(),page);
+		let name = name.into();
+		let old = self._pageArray.insert(name.clone(),page);
+		
+		if(self.getActivePage()==name)
+		{
+			if let Some(oldpage) = old
+			{
+				oldpage.cache_clear();
+			}
+			
+			if let Some(mut page) = self._pageArray.get_mut(&name)
+			{
+				page.cache_resubmit();
+			}
+		}
 	}
 	
 	pub fn UiPageUpdate(&self, name: &str, func: impl Fn(&mut UiPage))
@@ -113,6 +128,7 @@ impl ManagerInterface
 		if let Some(mut page) = self._pageArray.get_mut(name)
 		{
 			func(page.value_mut());
+			page.cache_resubmit();
 		}
 	}
 	
@@ -126,47 +142,14 @@ impl ManagerInterface
 	
 	fn EachTickUpdate(&self)
 	{
-		let mut tmp = vec![];
-		if let Some(page) = self._pageArray.get(self.getActivePage().as_str())
-		{
-			tmp = page.subevent_gets(event_type::EACH_TICK);
-		}
-		
-		if(tmp.len()==0)
-		{
-			return;
-		}
-		
-		if let Some(mut page) = self._pageArray.get_mut(self.getActivePage().as_str())
-		{
-			page.subevent_trigger(tmp,event_type::EACH_TICK);
-		}
+		let Some(page) = self._pageArray.get(self.getActivePage().as_str()) else {return};
+		page.subevent_trigger(event_type::EACH_TICK);
 	}
 	
 	fn EachSecondUpdate(&self)
 	{
-		let mut tmp = vec![];
-		if let Some(page) = self._pageArray.get(self.getActivePage().as_str())
-		{
-			tmp = page.subevent_gets(event_type::EACH_SECOND);
-		}
-		
-		if(tmp.len()==0)
-		{
-			return;
-		}
-		
-		if let Some(mut page) = self._pageArray.get_mut(self.getActivePage().as_str())
-		{
-			page.subevent_trigger(tmp,event_type::EACH_SECOND);
-		}
-	}
-	
-	fn page_resubmit(&self)
-	{
-		if let Some(mut page) = self._pageArray.get_mut(self.getActivePage().as_str())
-		{
-			page.cache_resubmit();
-		}
+		let Some(mut page) = self._pageArray.get_mut(self.getActivePage().as_str()) else {return};
+		page.subevent_trigger(event_type::EACH_SECOND);
+		page.cache_check();
 	}
 }

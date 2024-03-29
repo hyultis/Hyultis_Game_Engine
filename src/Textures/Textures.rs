@@ -6,7 +6,7 @@ use vulkano::image::view::ImageView;
 use crate::Textures::Orders::Order_reload::Order_reload;
 
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Texture_atlasType
 {
 	NONE,

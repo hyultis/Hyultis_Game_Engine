@@ -1,5 +1,5 @@
 use std::any::Any;
-use ahash::AHashMap;
+use std::collections::BTreeMap;
 use downcast_rs::Downcast;
 use dyn_clone::DynClone;
 use HArcMut::HArcMut;
@@ -36,7 +36,7 @@ dyn_clone::clone_trait_object!(UiPageContent);
 #[derive(Clone)]
 pub struct UiPage
 {
-	_content: AHashMap<String, HArcMut<Box<dyn UiPageContent + Sync + Send>>>,
+	_content: BTreeMap<String, HArcMut<Box<dyn UiPageContent + Sync + Send>>>,
 	_events: event<UiPage>
 }
 
@@ -46,20 +46,20 @@ impl UiPage
 	{
 		return UiPage
 		{
-			_content: AHashMap::new(),
+			_content: BTreeMap::new(),
 			_events: event::new(),
 		};
 	}
 	
-	pub fn add(&mut self, name: impl Into<String>, mut content: impl UiPageContent + Any + Clone + Sync + Send + 'static) -> HArcMut<Box<dyn UiPageContent + Sync + Send>>
+	pub fn add(&mut self, name: impl Into<String>, content: impl UiPageContent + Any + Clone + Sync + Send + 'static) -> HArcMut<Box<dyn UiPageContent + Sync + Send>>
 	{
 		let name: String = name.into();
-		content.cache_submit();
 		let content: Box<dyn UiPageContent + Sync + Send> = Box::new(content); // need to be explicit
 		let returning = HArcMut::new(content);
 		if let Some(oldone) = self._content.insert(name, returning.clone())
 		{
 			oldone.setDrop();
+			oldone.get_mut().cache_remove();
 		}
 		
 		return returning;
@@ -68,7 +68,10 @@ impl UiPage
 	pub fn remove(&mut self, name: impl Into<String>)
 	{
 		let name = name.into();
-		self._content.remove(&name);
+		if let Some(entity) = self._content.remove(&name)
+		{
+			entity.get_mut().cache_remove();
+		}
 	}
 
 	pub fn get(&self, name: impl Into<String>) -> Option<HArcMut<Box<dyn UiPageContent + Sync + Send>>>
@@ -86,10 +89,10 @@ impl UiPage
 		self._events.add(event_type::EXIT, func);
 	}
 	
-	pub fn eventMouse(&mut self, x: u16, y: u16, clicked: bool) -> bool
+	pub fn eventMouse(&self, x: u16, y: u16, clicked: bool) -> bool
 	{
 		let mut haveClicked = false;
-		self._content.iter_mut()
+		self._content.iter()
 			.filter(|(_, elem)| elem.get().getType() == UiPageContent_type::INTERACTIVE)
 			.for_each(|(_, elem)| {
 				let mut eventtype = event_type::IDLE;
@@ -114,44 +117,53 @@ impl UiPage
 		return haveClicked;
 	}
 	
-	pub fn subevent_gets(&self, eventtype: event_type) -> Vec<String>
+	pub fn subevent_trigger(&self, eventtype: event_type)
 	{
-		return self._content.iter()
-			.filter(|(_, elem)| {
-				let this = elem.get();
-				this.getType() == UiPageContent_type::INTERACTIVE && this.event_have(eventtype)
-			})
-			.map(|(name, _)| {
-				name.clone()
-			}).collect::<Vec<String>>();
-	}
-	
-	pub fn subevent_trigger(&mut self, names: Vec<String>, eventtype: event_type)
-	{
-		for name in names
+		for (_,content) in self._content.iter()
 		{
-			if let Some(content) = self._content.get_mut(&name)
-			{
-				content.updateIf(|i|i.event_trigger(eventtype));
-			}
+			content.updateIf(|i|i.event_trigger(eventtype));
 		}
 	}
 	
-	pub fn eventWinRefresh(&mut self)
+	pub fn eventWinRefresh(&self)
 	{
-		self._content.iter_mut()
+		self._content.iter()
 			.filter(|(_, elem)| elem.get().getType() == UiPageContent_type::INTERACTIVE)
 			.for_each(|(_, elem)| {
 				elem.updateIf(|i|i.event_trigger(event_type::WINREFRESH));
 			});
 	}
 	
+	pub fn cache_clear(&self)
+	{
+		println!("page clear");
+		self._content.iter().for_each(|(_, elem)| {
+			elem.update(|i| {
+				i.cache_remove();
+			});
+		});
+		println!("page clear end");
+	}
+	
+	pub fn cache_check(&mut self)
+	{
+		self._content.iter()
+			.for_each(|(_, elem)| {
+				elem.updateIf(|i|{
+					let mut returning = false;
+					if(i.cache_mustUpdate())
+					{
+						i.cache_submit();
+						returning = true;
+					}
+					returning
+				});
+			});
+	}
+	
 	pub fn cache_resubmit(&mut self)
 	{
-		let haveupdate = self._content.iter()
-			.any(|(_, elem)| elem.get().cache_mustUpdate() || elem.isWantDrop());
-		
-		if (!haveupdate) {return}
+		println!("page resubmit");
 		
 		let havedrop = self._content.iter()
 			.any(|(_, elem)| elem.isWantDrop());
@@ -160,12 +172,14 @@ impl UiPage
 		{
 			self._content.retain(|_, item| !item.isWantDrop());
 		}
+		println!("page havedrop{}",havedrop);
 		
 		self._content.iter().for_each(|(_, elem)| {
 			elem.update(|i| {
 				i.cache_submit();
 			});
 		});
+		println!("page end resubmit");
 	}
 }
 

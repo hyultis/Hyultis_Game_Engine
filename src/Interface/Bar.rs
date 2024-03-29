@@ -112,7 +112,42 @@ impl Bar
 		progress = progress.clamp(0.0, 1.0);
 		let progress = (progress*10000.0) as u16;
 		self._progress = progress;
-		
+		self._canUpdate = true;
+	}
+}
+
+impl event_trait for Bar
+{
+	fn event_trigger(&mut self, eventtype: event_type) -> bool
+	{
+		let update = self._events.clone().trigger(eventtype, self);
+		if(update)
+		{
+			self.cache_submit();
+		}
+		return update;
+	}
+	
+	fn event_have(&self, eventtype: event_type) -> bool
+	{
+		self._events.have(eventtype)
+	}
+}
+
+impl event_trait_add<Bar> for Bar
+{
+	fn event_add(&mut self, eventtype: event_type, func: impl Fn(&mut Bar) -> bool + Send + Sync + 'static) {
+		self._events.add(eventtype, func);
+	}
+}
+
+impl ShaderDrawerImpl for Bar {
+	fn cache_mustUpdate(&self) -> bool {
+		self._canUpdate
+	}
+	
+	fn cache_submit(&mut self)
+	{
 		let mut tmp: Vec<_> = self._progressState.keys().copied().collect();
 		tmp.sort_by(|x,y| x.cmp(&y));
 		
@@ -169,100 +204,77 @@ impl Bar
 			let mut newplane = Plane::new();
 			match self._orientation {
 				Bar_orientation::HORIZONTAL =>
-				{
-					let local_pos_start = Global_lastpos.clone();
-					let mut local_pos_end = Global_lastpos.clone();
-					local_pos_end.setX(Global_lastpos.getX() + (Global_pos_diffx * percentDiff * localprogress));
-					Global_lastpos.setX(Global_lastpos.getX() + (Global_pos_diffx * percentDiff * localprogress));
-					local_pos_end.setY(self._position[1].getY());
-					newplane.setSquare(local_pos_start,local_pos_end);
-					
-					newplane.setColor(corner4 {
-						LeftTop: startColor,
-						RightTop: startColor.interval(endColor, localprogress),
-						LeftBottom: startColor,
-						RightBottom: startColor.interval(endColor, localprogress),
-					});
-					
-					startUv = [
-						(endUVCoord[0]-startUVCoord[0]) * startPercent,
-						startUVCoord[1]
-					];
-					endUv = [
-						(endUVCoord[0]-startUVCoord[0]) * endPercent,
-						endUVCoord[1]
-					];
-					
-					//startUv[0]-=(self._progress as f32/10000.0)*2.0;
-					//endUv[0]-=(self._progress as f32/10000.0)*2.0;
-				}
+					{
+						let local_pos_start = Global_lastpos.clone();
+						let mut local_pos_end = Global_lastpos.clone();
+						local_pos_end.setX(Global_lastpos.getX() + (Global_pos_diffx * percentDiff * localprogress));
+						Global_lastpos.setX(Global_lastpos.getX() + (Global_pos_diffx * percentDiff * localprogress));
+						local_pos_end.setY(self._position[1].getY());
+						newplane.setSquare(local_pos_start,local_pos_end);
+						
+						newplane.setColor(corner4 {
+							LeftTop: startColor,
+							RightTop: startColor.interval(endColor, localprogress),
+							LeftBottom: startColor,
+							RightBottom: startColor.interval(endColor, localprogress),
+						});
+						
+						startUv = [
+							(endUVCoord[0]-startUVCoord[0]) * startPercent,
+							startUVCoord[1]
+						];
+						endUv = [
+							(endUVCoord[0]-startUVCoord[0]) * endPercent,
+							endUVCoord[1]
+						];
+						
+						//startUv[0]-=(self._progress as f32/10000.0)*2.0;
+						//endUv[0]-=(self._progress as f32/10000.0)*2.0;
+					}
 				Bar_orientation::VERTICAL =>
-				{
-					let local_pos_start = Global_lastpos.clone();
-					let mut local_pos_end = Global_lastpos.clone();
-					local_pos_end.setY(Global_lastpos.getY() + (Global_pos_diffy * percentDiff * localprogress));
-					Global_lastpos.setY(Global_lastpos.getY() + (Global_pos_diffy * percentDiff * localprogress));
-					local_pos_end.setX(self._position[1].getX());
-					newplane.setSquare(local_pos_start,local_pos_end);
-					
-					newplane.setColor(corner4 {
-						LeftTop: startColor,
-						RightTop: startColor,
-						LeftBottom: startColor.interval(endColor, localprogress),
-						RightBottom: startColor.interval(endColor, localprogress),
-					});
-					
-					startUv = [
-						startUVCoord[0],
-						(endUVCoord[1]-startUVCoord[1]) * startPercent
-					];
-					endUv = [
-						endUVCoord[0],
-						(endUVCoord[1]-startUVCoord[1]) * endPercent
-					];
-				}
+					{
+						let local_pos_start = Global_lastpos.clone();
+						let mut local_pos_end = Global_lastpos.clone();
+						local_pos_end.setY(Global_lastpos.getY() + (Global_pos_diffy * percentDiff * localprogress));
+						Global_lastpos.setY(Global_lastpos.getY() + (Global_pos_diffy * percentDiff * localprogress));
+						local_pos_end.setX(self._position[1].getX());
+						newplane.setSquare(local_pos_start,local_pos_end);
+						
+						newplane.setColor(corner4 {
+							LeftTop: startColor,
+							RightTop: startColor,
+							LeftBottom: startColor.interval(endColor, localprogress),
+							RightBottom: startColor.interval(endColor, localprogress),
+						});
+						
+						startUv = [
+							startUVCoord[0],
+							(endUVCoord[1]-startUVCoord[1]) * startPercent
+						];
+						endUv = [
+							endUVCoord[0],
+							(endUVCoord[1]-startUVCoord[1]) * endPercent
+						];
+					}
 			}
 			
 			newplane.setTexCoordSquare(startUv,endUv);
 			newplanes.push(newplane);
 		}
-
-		self._planes = newplanes;
-		self._canUpdate = true;
-	}
-}
-
-impl event_trait for Bar
-{
-	fn event_trigger(&mut self, eventtype: event_type) -> bool
-	{
-		let update = self._events.clone().trigger(eventtype, self);
-		self.cache_submit();
-		return update;
-	}
-	
-	fn event_have(&self, eventtype: event_type) -> bool
-	{
-		self._events.have(eventtype)
-	}
-}
-
-impl event_trait_add<Bar> for Bar
-{
-	fn event_add(&mut self, eventtype: event_type, func: impl Fn(&mut Bar) -> bool + Send + Sync + 'static) {
-		self._events.add(eventtype, func);
-	}
-}
-
-impl ShaderDrawerImpl for Bar {
-	fn cache_mustUpdate(&self) -> bool {
-		self._canUpdate
-	}
-	
-	fn cache_submit(&mut self) {
-		for x in self._planes.iter_mut() {
+		
+		self.cache_remove(); // removing old plane
+		for x in newplanes.iter_mut() {
 			*x.components_mut() = self._components.clone();
 			x.cache_submit();
+		}
+		
+		self._canUpdate = false;
+		self._planes = newplanes;
+	}
+	
+	fn cache_remove(&mut self) {
+		for mut x in self._planes.drain(0..) {
+			x.cache_remove();
 		}
 	}
 }

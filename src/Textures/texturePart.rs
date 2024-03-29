@@ -1,14 +1,18 @@
 use ahash::{HashMap, HashMapExt};
 use anyhow::anyhow;
 use csv::ReaderBuilder;
+use dyn_clone::DynClone;
 use crate::assetStreamReader::assetManager;
 use crate::Textures::Textures::{Texture, Texture_part};
 
-pub trait texturePart
+pub trait texturePart: DynClone
 {
 	fn load(&self, texture: &Texture) -> anyhow::Result<HashMap<String,Texture_part>>;
 }
 
+dyn_clone::clone_trait_object!(texturePart);
+
+#[derive(Clone)]
 pub struct texturePart_FromCSV
 {
 	pub path: String

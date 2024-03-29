@@ -60,7 +60,10 @@ impl event_trait for Line
 	fn event_trigger(&mut self, eventtype: event_type) -> bool
 	{
 		let update = self._events.clone().trigger(eventtype, self);
-		self.cache_submit();
+		if(self._uuidStorage.is_some() && update)
+		{
+			self.cache_submit();
+		}
 		return update;
 	}
 	
@@ -86,12 +89,15 @@ impl ShaderDrawerImpl for Line {
 	fn cache_submit(&mut self)
 	{
 		let Some(structure) = self.cache_get() else {return};
-		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
 			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
-		}))
-		{
-			self._canUpdate = false;
-		}
+		});
+	}
+	
+	fn cache_remove(&mut self) {
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+			holder.remove(&mut self._uuidStorage);
+		});
 	}
 }
 
@@ -111,6 +117,8 @@ impl ShaderDrawerImplReturn<HGE_shader_2Dsimple_def> for Line
 			color: self._color[1],
 			..HGE_shader_2Dsimple_def::default()
 		});
+		
+		self._canUpdate = false;
 		
 		Some(ShaderDrawerImplStruct{ vertex: vecstruct, indices: vec![0,1] })
 	}

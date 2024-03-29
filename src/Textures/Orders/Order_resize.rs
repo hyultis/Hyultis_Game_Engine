@@ -5,6 +5,7 @@ use crate::Textures::Textures::{Texture, TextureState};
 use image::GenericImage;
 use image::GenericImageView;
 
+#[derive(Clone)]
 pub struct Order_resize
 {
 	pub newWidth: u32,

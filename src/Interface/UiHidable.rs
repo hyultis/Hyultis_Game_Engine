@@ -81,6 +81,11 @@ impl event_trait for UiHidable {
 			}
 		});
 		
+		if(self._uuidStorage.is_some() && returned)
+		{
+			self.cache_submit();
+		}
+		
 		return returned;
 	}
 	
@@ -118,7 +123,7 @@ impl ShaderDrawerImpl for UiHidable {
 		if(self._hide)
 		{
 			if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-				holder.remove(self._uuidStorage);
+				holder.remove(&mut self._uuidStorage);
 			})){
 				self._cacheUpdated = false;
 			}
@@ -137,12 +142,18 @@ impl ShaderDrawerImpl for UiHidable {
 			}
 		}
 		
-		if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+		self._hitbox = newHitbox;
+		self._cacheUpdated = false;
+		
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
 			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
-		})){
-			self._hitbox = newHitbox;
-			self._cacheUpdated = false;
-		}
+		});
+	}
+	
+	fn cache_remove(&mut self) {
+		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
+			holder.remove(&mut self._uuidStorage);
+		});
 	}
 }
 

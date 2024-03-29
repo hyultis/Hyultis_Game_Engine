@@ -3,7 +3,7 @@ use dashmap::DashMap;
 use dashmap::mapref::one::RefMut;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
 use crate::HGEsubpass::HGEsubpassName;
-use crate::Shaders::ShaderStruct::ShaderStructHolder;
+use crate::Shaders::ShaderStruct::{ShaderStructHolder};
 
 pub struct ShaderDrawer_Manager
 {
@@ -26,7 +26,7 @@ impl ShaderDrawer_Manager
 	}
 	
 	pub fn register<T>(&self, subpass: HGEsubpassName)
-		where T: ShaderStructHolder, T: Into<Box<dyn ShaderStructHolder>>
+		where T: ShaderStructHolder
 	{
 		let key = T::pipelineName();
 		match self._subpassRegister.get_mut(&subpass) {
@@ -34,11 +34,11 @@ impl ShaderDrawer_Manager
 			Some(mut found) => {found.push(key.clone());}
 		};
 		
-		self._datas.insert(key,T::init().into());
+		self._datas.insert(key,Box::new(T::init()));
 	}
 	
 	pub fn inspect<T>(&self,func: impl FnOnce(&mut T)) -> bool
-		where T: ShaderStructHolder, T: Into<Box<dyn ShaderStructHolder>>
+		where T: ShaderStructHolder
 	{
 		let Some(mut tmp) = self.get::<T>() else {return false;};
 		if let Some(holder) = tmp.value_mut().downcast_mut::<T>()
@@ -50,7 +50,7 @@ impl ShaderDrawer_Manager
 	}
 	
 	pub fn get<T>(&self) -> Option<RefMut<String, Box<dyn ShaderStructHolder>>>
-		where T: ShaderStructHolder, T: Into<Box<dyn ShaderStructHolder>>
+		where T: ShaderStructHolder
 	{
 		return self._datas.get_mut(&T::pipelineName());
 	}

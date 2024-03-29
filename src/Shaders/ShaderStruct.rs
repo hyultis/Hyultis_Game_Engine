@@ -1,6 +1,9 @@
 use downcast_rs::{Downcast, impl_downcast};
 use dyn_clone::DynClone;
+use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, Subbuffer};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
+use vulkano::memory::allocator::AllocationCreateInfo;
+use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 
 pub trait ShaderStruct: DynClone + Send + Sync + Downcast {
 	fn createPipeline() -> anyhow::Result<()>
@@ -11,7 +14,7 @@ pub trait ShaderStruct: DynClone + Send + Sync + Downcast {
 impl_downcast!(ShaderStruct);
 dyn_clone::clone_trait_object!(ShaderStruct);
 
-pub trait ShaderStructHolder: DynClone + Send + Sync + Downcast
+pub trait ShaderStructHolder: Send + Sync + Downcast
 {
 	fn init() -> Self
 		where
@@ -21,6 +24,8 @@ pub trait ShaderStructHolder: DynClone + Send + Sync + Downcast
 	where
 		Self: Sized;
 	
+	fn pipelineNameResolve(&self) -> String;
+	
 	fn reset(&mut self);
 	
 	fn update(&mut self);
@@ -28,7 +33,31 @@ pub trait ShaderStructHolder: DynClone + Send + Sync + Downcast
 }
 
 impl_downcast!(ShaderStructHolder);
-dyn_clone::clone_trait_object!(ShaderStructHolder);
 
 pub trait ShaderStructInstance: ShaderStruct
 {}
+
+pub struct ShaderStructHolder_utils{}
+impl ShaderStructHolder_utils
+{
+	pub fn updateBuffer<T>(vertex: Vec<T>, output: &mut Option<Subbuffer<[T]>>, bufferInfos: BufferCreateInfo, allocInfos: AllocationCreateInfo) -> u32
+		where T: BufferContents
+	{
+		let len = vertex.len() as u32;
+		if(len==0)
+		{
+			*output = None;
+			return len;
+		}
+		
+		let buffer = Buffer::from_iter(
+			ManagerMemoryAllocator::singleton().get(),
+			bufferInfos,
+			allocInfos,
+			vertex,
+		).unwrap();
+		*output = Some(buffer);
+		
+		return len;
+	}
+}
