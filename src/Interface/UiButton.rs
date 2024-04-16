@@ -235,6 +235,7 @@ impl ShaderDrawerImpl for UiButton {
 			}
 			else {
 				println!("uibutton content invalid");
+				self._cacheUpdated = false;
 				return;
 			}
 		}
@@ -244,6 +245,7 @@ impl ShaderDrawerImpl for UiButton {
 			if(newHitbox.isEmpty())
 			{
 				println!("uibutton pas de hitbox");
+				self._cacheUpdated = false;
 				return;
 			}
 			self._hitbox = newHitbox;

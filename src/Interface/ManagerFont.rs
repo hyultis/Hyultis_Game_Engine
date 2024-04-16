@@ -120,14 +120,13 @@ impl ManagerFont
 	}
 	
 	
-	pub fn FontLoad(&self, lang: impl Into<String>) -> anyhow::Result<()>
+	pub fn FontLoad(&self, fileUser: String, fileUniversel: String, fileBold: String) -> anyhow::Result<()>
 	{
-		let lang = lang.into();
-		let fontUser = self.loadFond(lang.clone(), "NotoSans-SemiBold")?;
+		let fontUser = self.loadFond(fileUser)?;
 		let fontUser = FontArc::try_from_vec(fontUser)?;
-		let fontUniversel = self.loadFond("world", "NotoSans-SemiBold")?;
+		let fontUniversel = self.loadFond(fileUniversel)?;
 		let fontUniversel = FontArc::try_from_vec(fontUniversel)?;
-		let fontBold = self.loadFond("world", "NotoSans-Black")?;
+		let fontBold = self.loadFond(fileBold)?;
 		let fontBold = FontArc::try_from_vec(fontBold)?;
 		
 		let mut glyph_brush = GlyphBrushBuilder::using_fonts([fontUser,fontUniversel,fontBold].into())
@@ -175,14 +174,12 @@ impl ManagerFont
 	
 	//////////// PRIVATE //////////////
 	
-	fn loadFond(&self, lang: impl Into<String>, file: impl Into<String>) -> anyhow::Result<Vec<u8>>
+	fn loadFond(&self, file: impl Into<String>) -> anyhow::Result<Vec<u8>>
 	{
-		let lang = lang.into();
 		let file = file.into();
-		let fullpath = format!("fonts/{}/{}.ttf", lang, file);
-		let returning = match assetManager::singleton().readFile(fullpath.clone())
+		let returning = match assetManager::singleton().readFile(file.clone())
 		{
-			None => { Err(anyhow!(format!("Cannot read font file {}", fullpath))) },
+			None => { Err(anyhow!(format!("Cannot read font file {}", file))) },
 			Some(result) => {
 				Ok(result.into_inner())
 			}

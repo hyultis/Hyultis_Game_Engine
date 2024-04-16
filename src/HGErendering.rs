@@ -91,11 +91,11 @@ impl HGErendering
 		self._recreatSwapChain = true;
 	}
 	
-	pub fn rendering(&mut self, durationFromLast: Duration)
+	pub fn rendering(&mut self, durationFromLast: Duration) -> bool
 	{
 		if (self._generating)
 		{
-			return;
+			return false;
 		}
 		
 		// Whenever the window resizes we need to recreate everything dependent on the window size.
@@ -112,7 +112,7 @@ impl HGErendering
 		{
 			if (durationFromLast.as_millis() < 1000 / (self._swapChainC.getFpsLimiter() as u128))
 			{
-				return;
+				return false;
 			}
 		}
 		
@@ -120,6 +120,7 @@ impl HGErendering
 		self._generating = true;
 		self.SwapchainGenerateImg();
 		self._generating = false;
+		return true;
 	}
 	
 	pub fn getAllocCmd(&self) -> &StandardCommandBufferAllocator

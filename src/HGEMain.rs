@@ -169,7 +169,10 @@ impl HGEMain
 		}
 		
 		let durationFromLast = Self::singleton()._ManagerInterpolate.read().getNowFromLast();
-		self._rendering.write().rendering(durationFromLast);
+		if(self._rendering.write().rendering(durationFromLast))
+		{
+			Self::singleton()._ManagerInterpolate.write().update();
+		}
 		
 	}
 	
@@ -325,11 +328,6 @@ impl HGEMain
 		let config = HGEconfig::singleton().general_get();
 		
 		let mut threadService = SingletonThread::newFiltered(||{
-			if let Some(mut interpolateur) = Self::singleton()._ManagerInterpolate.try_write()
-			{
-				interpolateur.update();
-			}
-			
 			Self::singleton()._cameraAnimation.write().retain_mut(|anim| {
 				//println!("one cam anim");
 				!anim.ticks()
@@ -456,9 +454,8 @@ impl HGEMain
 		self._rendering.write().window_size_dependent_setup();
 		ManagerTexture::singleton().preload();
 		
-		let lang = "world";
-		//ManagerTranslate::get("font");
-		HTraceError!(ManagerFont::singleton().FontLoad(lang));
+		let tmp = HGEconfig::singleton().general_get();
+		HTraceError!(ManagerFont::singleton().FontLoad(tmp.fonts.path_fileUser.clone(),tmp.fonts.path_fileUniversel.clone(),tmp.fonts.path_fileBold.clone()));
 		
 		HTrace!("Engine load internal end ----");
 		Ok(())

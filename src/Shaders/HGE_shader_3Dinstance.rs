@@ -19,6 +19,7 @@ use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple_def};
 use crate::Shaders::intoVertexed::IntoVertexted;
 use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
 use crate::Textures::Manager::ManagerTexture;
+use dashmap::DashMap;
 
 impl IntoVertexted<HGE_shader_3Dinstance> for HGE_shader_3Dsimple_def
 {
@@ -153,7 +154,7 @@ impl HGE_shader_3Dinstance_subholder
 pub struct HGE_shader_3Dinstance_holder
 {
 	_haveUpdate: bool,
-	_datas: HashMap<String, HGE_shader_3Dinstance_subholder>,
+	_datas: DashMap<String, HGE_shader_3Dinstance_subholder>,
 }
 
 impl HGE_shader_3Dinstance_holder
@@ -161,9 +162,19 @@ impl HGE_shader_3Dinstance_holder
 	pub fn addInstance(&mut self, modelname: impl Into<String>, instancename: impl Into<String>, instance: HGE_shader_3Dinstance_data)
 	{
 		let modelname = modelname.into();
-		if let Some(this) = self._datas.get_mut(&modelname)
+		if let Some(mut this) = self._datas.get_mut(&modelname)
 		{
 			this._instance.insert(instancename.into(), instance);
+			self._haveUpdate = true;
+		}
+	}
+	
+	pub fn removeInstance(&mut self, modelname: impl Into<String>, instancename: impl Into<String>)
+	{
+		let modelname = modelname.into();
+		if let Some(mut this) = self._datas.get_mut(&modelname)
+		{
+			this._instance.remove(&instancename.into());
 			self._haveUpdate = true;
 		}
 	}
@@ -185,7 +196,7 @@ impl HGE_shader_3Dinstance_holder
 			});
 		}
 		
-		if let Some(this) = self._datas.get_mut(&modelname)
+		if let Some(mut this) = self._datas.get_mut(&modelname)
 		{
 			let mut newvertex = Vec::new();
 			
@@ -232,9 +243,9 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 		
 		let mut haveatleastone = false;
 		
-		self._datas.iter_mut().filter(|(_, selfdata)| {
+		self._datas.iter_mut().filter(|selfdata| {
 			selfdata._model.vertex.len() != 0 && selfdata._model.indices.len() != 0
-		}).for_each(|(_, selfdata)|
+		}).for_each(|mut selfdata|
 			{
 				let (vertex, indices, atleastone) = selfdata.compileData();
 				if(atleastone)
@@ -295,9 +306,9 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 			));
 		});
 		
-		self._datas.iter().filter(|(_, selfdata)| {
+		self._datas.iter().filter(|selfdata| {
 			selfdata._cacheDatasMem.is_some() && selfdata._cacheIndicesMem.is_some() && selfdata._cacheInstanceMem.is_some()
-		}).for_each(|(_, selfdata)|
+		}).for_each(|selfdata|
 			{
 				let datamem = selfdata._cacheDatasMem.clone().unwrap();
 				let indicemem = selfdata._cacheIndicesMem.clone().unwrap();

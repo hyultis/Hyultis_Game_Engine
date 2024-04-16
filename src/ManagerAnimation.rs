@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 use dashmap::DashMap;
 use Htrace::HTracer::HTracer;
 use parking_lot::{Mutex, RwLock};
@@ -17,7 +17,7 @@ pub trait AnimationHolder: Send + Sync
 pub struct ManagerAnimation
 {
 	_maxid: RwLock<usize>,
-    _animations: Arc<DashMap<usize,Box<dyn AnimationHolder>>>,
+    _animations: DashMap<usize,Box<dyn AnimationHolder>>,
 	_threadLoading: Mutex<SingletonThread>,
 	_threadDrop: Mutex<SingletonThread>
 }
@@ -33,11 +33,11 @@ impl ManagerAnimation
 	    });
 	    singThread.setDuration_FPS(120);
 	    singThread.setThreadName("animation");
-	    singThread.setLoop(true);
+	    //singThread.setLoop(true);
 	    
 	    let mut singThreadDrop = SingletonThread::new(||{
 		    HTracer::threadSetName("ManagerAnimation");
-		    ManagerAnimation::singleton()._animations.clone().retain(|_,animation|{
+		    ManagerAnimation::singleton()._animations.retain(|_,animation|{
 			    return !animation.checkDrop(); // return true for need to drop, so we need to return false for "no retain it"
 		    });
 	    });
@@ -46,7 +46,7 @@ impl ManagerAnimation
 	    
         return ManagerAnimation {
 	        _maxid: RwLock::new(0),
-	        _animations: Arc::new(DashMap::default()),
+	        _animations: DashMap::default(),
 	        _threadLoading: Mutex::new(singThread),
 	        _threadDrop: Mutex::new(singThreadDrop)
         };
@@ -94,7 +94,7 @@ impl ManagerAnimation
 	
 	fn internal_ticks(&self)
 	{
-		self._animations.clone().retain(|_,animation|{
+		self._animations.retain(|_,animation|{
 			return !animation.ticks();
 		});
 	}

@@ -2,6 +2,17 @@ use std::sync::Arc;
 use vulkano::Version;
 
 #[derive(Clone)]
+pub struct HGEconfig_general_font
+{
+	// font used to draw text to user (in is language) - path relative to static
+	pub path_fileUser: String,
+	// font used to draw universal text (like number, symbol, etc) - path relative to static
+	pub path_fileUniversel: String,
+	// font used to draw bold stuff - path relative to static
+	pub path_fileBold: String,
+}
+
+#[derive(Clone)]
 pub struct HGEconfig_general
 {
 	pub startFullscreen: bool,
@@ -12,7 +23,8 @@ pub struct HGEconfig_general
 	pub isSteamdeck: bool,
 	/// set true if the running device is android
 	pub isAndroid: bool,
-	pub defaultShaderLoader: Option<Arc<dyn Fn() + Sync + Send>>
+	pub defaultShaderLoader: Option<Arc<dyn Fn() + Sync + Send>>,
+	pub fonts: HGEconfig_general_font
 }
 
 impl Default for HGEconfig_general
@@ -29,6 +41,11 @@ impl Default for HGEconfig_general
 			isSteamdeck: false,
 			isAndroid: false,
 			defaultShaderLoader: None,
+			fonts: HGEconfig_general_font {
+				path_fileUser: "".to_string(),
+				path_fileUniversel: "".to_string(),
+				path_fileBold: "".to_string(),
+			},
 		}
 	}
 }

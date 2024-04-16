@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
 use vulkano::pipeline::graphics::vertex_input::Vertex;
 use std::convert::TryInto;
 use std::fmt::Debug;
 use anyhow::anyhow;
+use dashmap::DashMap;
 use Htrace::HTraceError;
 use uuid::Uuid;
 use vulkano::buffer::{BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
@@ -134,7 +134,7 @@ impl ShaderStruct for HGE_shader_2Dsimple {
 
 pub struct HGE_shader_2Dsimple_holder
 {
-	_datas: BTreeMap<Uuid, ShaderDrawerImplStruct<Box<dyn IntoVertexted<HGE_shader_2Dsimple> + Send + Sync>>>,
+	_datas: DashMap<Uuid, ShaderDrawerImplStruct<Box<dyn IntoVertexted<HGE_shader_2Dsimple> + Send + Sync>>>,
 	_haveUpdate: bool,
 	_cacheDatasMem: Option<Subbuffer<[HGE_shader_2Dsimple]>>,
 	_cacheIndicesMem: Option<Subbuffer<[u32]>>,
@@ -181,12 +181,12 @@ impl HGE_shader_2Dsimple_holder
 		let mut indices = Vec::new();
 		let mut atleastone = false;
 		
-		for (_,one) in &self._datas
+		for content in self._datas.iter() // (_,one)
 		{
 			let mut stop = false;
 			let mut tmpvertex = Vec::new();
 			let oldindices = vertex.len() as u32;
-			for x in &one.vertex {
+			for x in &content.vertex {
 				let Some(unwraped) = x.IntoVertexted(false) else {
 					stop = true;
 					break;
@@ -197,7 +197,7 @@ impl HGE_shader_2Dsimple_holder
 			if (!stop)
 			{
 				vertex.append(&mut tmpvertex);
-				for x in &one.indices {
+				for x in &content.indices {
 					indices.push(*x + oldindices);
 				}
 				atleastone = true;
@@ -212,7 +212,7 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 {
 	fn init() -> Self {
 		Self {
-			_datas: BTreeMap::new(),
+			_datas: DashMap::new(),
 			_haveUpdate: false,
 			_cacheDatasMem: None,
 			_cacheIndicesMem: None,
@@ -230,7 +230,7 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 	
 	fn reset(&mut self)
 	{
-		self._datas = BTreeMap::new();
+		self._datas = DashMap::new();
 		self._haveUpdate = false;
 		self._cacheIndicesMem = None;
 		self._cacheDatasMem = None;

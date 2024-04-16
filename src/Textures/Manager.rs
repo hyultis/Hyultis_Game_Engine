@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::{Arc, OnceLock};
 use std::vec;
 use arc_swap::ArcSwap;
@@ -652,12 +652,14 @@ impl ManagerTexture
 				AllocationCreateInfo::default(),
 			).unwrap();
 			
-			cmdbuff
+			if cmdbuff
 				.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
 					upload_buffer,
 					atlas.clone(),
-				))
-				.unwrap();
+				)).is_err()
+			{
+				continue;
+			}
 			
 			let atlas = ImageView::new(atlas, ImageViewCreateInfo{
 				view_type: ImageViewType::Dim2dArray,

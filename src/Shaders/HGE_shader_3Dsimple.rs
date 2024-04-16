@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 use vulkano::pipeline::graphics::vertex_input::Vertex;
 use std::convert::TryInto;
@@ -20,6 +19,7 @@ use crate::Shaders::names;
 use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
 use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder, ShaderStructHolder_utils};
 use crate::Textures::Manager::ManagerTexture;
+use dashmap::DashMap;
 
 
 // struct externe, a changer en HGE_shader_2Dsimple
@@ -158,7 +158,7 @@ impl ShaderStruct for HGE_shader_3Dsimple {
 
 pub struct HGE_shader_3Dsimple_holder
 {
-	_datas: BTreeMap<Uuid, ShaderDrawerImplStruct<Box<dyn IntoVertexted<HGE_shader_3Dsimple> + Send + Sync>>>,
+	_datas: DashMap<Uuid, ShaderDrawerImplStruct<Box<dyn IntoVertexted<HGE_shader_3Dsimple> + Send + Sync>>>,
 	_haveUpdate: bool,
 	_cacheDatasMem: Option<Subbuffer<[HGE_shader_3Dsimple]>>,
 	_cacheIndicesMem: Option<Subbuffer<[u32]>>,
@@ -200,7 +200,7 @@ impl HGE_shader_3Dsimple_holder
 		let mut indices = Vec::new();
 		let mut atleastone = false;
 		
-		for (_,one) in &self._datas
+		for one in self._datas.iter()
 		{
 			let mut stop = false;
 			let mut tmpvertex = Vec::new();
@@ -231,7 +231,7 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 {
 	fn init() -> Self {
 		Self{
-			_datas: BTreeMap::new(),
+			_datas: DashMap::new(),
 			_cacheDatasMem: None,
 			_cacheIndicesMem: None,
 			_haveUpdate: false,
@@ -249,7 +249,7 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 	
 	fn reset(&mut self)
 	{
-		self._datas = BTreeMap::new();
+		self._datas = DashMap::new();
 		self._haveUpdate = false;
 		self._cacheIndicesMem = None;
 		self._cacheDatasMem = None;

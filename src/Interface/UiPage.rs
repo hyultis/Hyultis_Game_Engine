@@ -6,6 +6,10 @@ use HArcMut::HArcMut;
 use crate::components::event::{event, event_trait, event_type};
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImpl;
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone, Debug)]
 pub enum UiPageContent_type
@@ -91,44 +95,57 @@ impl UiPage
 	
 	pub fn eventMouse(&self, x: u16, y: u16, clicked: bool) -> bool
 	{
-		let mut haveClicked = false;
-		self._content.iter()
-			.filter(|(_, elem)| elem.get().getType() == UiPageContent_type::INTERACTIVE)
+		let haveClicked = Arc::new(AtomicBool::new(false));
+		self._content.par_iter()
+			.filter(|(_, elem)| {
+				let tmp = elem.get();
+				tmp.getType() == UiPageContent_type::INTERACTIVE && (tmp.event_have(event_type::IDLE) || tmp.event_have(event_type::CLICKED) || tmp.event_have(event_type::HOVER))
+			})
 			.for_each(|(_, elem)| {
-				let mut eventtype = event_type::IDLE;
-				if (elem.get().getHitbox().isInside(x, y))
+				let sub_haveClicked = haveClicked.clone();
+				elem.updateIf(move |i|
 				{
-					if (clicked)
+					let mut eventtype = event_type::IDLE;
+					if (i.getHitbox().isInside(x, y))
 					{
-						eventtype = event_type::CLICKED;
-					} else {
-						eventtype = event_type::HOVER;
+						if (clicked)
+						{
+							eventtype = event_type::CLICKED;
+						} else {
+							eventtype = event_type::HOVER;
+						}
 					}
-				}
-				elem.updateIf(|i|{
-					if(eventtype==event_type::CLICKED && i.event_have(eventtype))
+					
+					let eventok = i.event_trigger(eventtype);
+					if(eventtype==event_type::CLICKED && eventok)
 					{
-						haveClicked = true;
+						sub_haveClicked.clone().store(true,Ordering::Relaxed);
 					}
-					i.event_trigger(eventtype)
+					eventok
 				});
 			});
 		
-		return haveClicked;
+		return haveClicked.load(Ordering::Relaxed);
 	}
 	
 	pub fn subevent_trigger(&self, eventtype: event_type)
 	{
-		for (_,content) in self._content.iter()
+		for (_,content) in self._content.iter().filter(|(_,elem)|{
+			let tmp = elem.get();
+			tmp.event_have(eventtype)
+		})
 		{
-			content.updateIf(|i|i.event_trigger(eventtype));
+			content.updateIf(|i|{i.event_trigger(eventtype)});
 		}
 	}
 	
 	pub fn eventWinRefresh(&self)
 	{
 		self._content.iter()
-			.filter(|(_, elem)| elem.get().getType() == UiPageContent_type::INTERACTIVE)
+			.filter(|(_, elem)| {
+				let tmp = elem.get();
+				tmp.getType() == UiPageContent_type::INTERACTIVE && tmp.event_have(event_type::WINREFRESH)
+			})
 			.for_each(|(_, elem)| {
 				elem.updateIf(|i|i.event_trigger(event_type::WINREFRESH));
 			});
@@ -136,13 +153,11 @@ impl UiPage
 	
 	pub fn cache_clear(&self)
 	{
-		println!("page clear");
 		self._content.iter().for_each(|(_, elem)| {
 			elem.update(|i| {
 				i.cache_remove();
 			});
 		});
-		println!("page clear end");
 	}
 	
 	pub fn cache_check(&mut self)
