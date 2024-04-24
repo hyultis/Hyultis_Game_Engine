@@ -1,4 +1,4 @@
-use uuid::Uuid;
+use crate::components::cacheInfos::cacheInfos;
 use crate::components::event::{event, event_trait, event_trait_add, event_type};
 use crate::components::hideable::hideable;
 use crate::Interface::UiHitbox::UiHitbox;
@@ -18,7 +18,7 @@ pub struct UiHidable
 	_hide: bool,
 	_cacheUpdated: bool,
 	_event: event<Self>,
-	_uuidStorage: Option<Uuid>
+	_cacheinfos: cacheInfos
 }
 
 impl UiHidable
@@ -32,7 +32,7 @@ impl UiHidable
 			_hide: false,
 			_cacheUpdated: true,
 			_event: event::new(),
-			_uuidStorage: None,
+			_cacheinfos: cacheInfos::default(),
 		}
 	}
 	
@@ -81,7 +81,7 @@ impl event_trait for UiHidable {
 			}
 		});
 		
-		if(self._uuidStorage.is_some() && returned)
+		if(self._cacheinfos.isPresent() && returned)
 		{
 			self.cache_submit();
 		}
@@ -122,11 +122,12 @@ impl ShaderDrawerImpl for UiHidable {
 	{
 		if(self._hide)
 		{
-			if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-				holder.remove(&mut self._uuidStorage);
-			})){
-				self._cacheUpdated = false;
-			}
+			let tmp = self._cacheinfos;
+			ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+				holder.remove(tmp);
+			});
+			self._cacheUpdated = false;
+			self._cacheinfos.setAbsent();
 			self._cacheUpdated = false;
 			return;
 		}
@@ -145,15 +146,19 @@ impl ShaderDrawerImpl for UiHidable {
 		self._hitbox = newHitbox;
 		self._cacheUpdated = false;
 		
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+			holder.insert(tmp,structure);
 		});
+		self._cacheinfos.setPresent();
 	}
 	
 	fn cache_remove(&mut self) {
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-			holder.remove(&mut self._uuidStorage);
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+			holder.remove(tmp);
 		});
+		self._cacheinfos.setAbsent();
 	}
 }
 

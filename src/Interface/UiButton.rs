@@ -1,6 +1,6 @@
 use std::sync::{Arc};
 use parking_lot::RwLock;
-use uuid::Uuid;
+use crate::components::cacheInfos::cacheInfos;
 use crate::components::event::{event_trait, event_type};
 use crate::components::hideable::hideable;
 use crate::Interface::UiHitbox::UiHitbox;
@@ -30,7 +30,7 @@ pub struct UiButton
 	_state: UiButtonState,
 	_hide: bool,
 	_cacheUpdated: bool,
-	_uuidStorage: Option<Uuid>
+	_cacheinfos: cacheInfos
 }
 
 impl UiButton
@@ -45,7 +45,7 @@ impl UiButton
 			_state: UiButtonState::IDLE,
 			_hide: false,
 			_cacheUpdated: true,
-			_uuidStorage: None
+			_cacheinfos: cacheInfos::default()
 		}
 	}
 	
@@ -116,7 +116,8 @@ impl event_trait for UiButton {
 			event_type::IDLE => {
 				if(self._state != UiButtonState::IDLE)
 				{
-					self._content.iter_mut().for_each(|item|{
+					self._content.iter_mut().filter(|x|x.event_have(eventtype))
+						.for_each(|item|{
 						item.event_trigger(eventtype);
 					});
 					self.setCacheToIdle();
@@ -126,7 +127,8 @@ impl event_trait for UiButton {
 			event_type::HOVER => {
 				if(self._state != UiButtonState::HOVER)
 				{
-					self._content.iter_mut().for_each(|item|{
+					self._content.iter_mut().filter(|x|x.event_have(eventtype))
+						.for_each(|item|{
 						item.event_trigger(eventtype);
 					});
 					self.setCacheToHover();
@@ -136,7 +138,8 @@ impl event_trait for UiButton {
 			event_type::CLICKED => {
 				if(self._state != UiButtonState::PRESSED)
 				{
-					self._content.iter_mut().for_each(|item|{
+					self._content.iter_mut().filter(|x|x.event_have(eventtype))
+						.for_each(|item|{
 						item.event_trigger(eventtype);
 					});
 					self.setCacheToPressed();
@@ -154,8 +157,9 @@ impl event_trait for UiButton {
 			event_type::WINREFRESH => {
 				let mut update = false;
 				for x in self._content.iter_mut()
+					.filter(|x|x.event_have(eventtype))
 				{
-					if(x.event_trigger(eventtype.clone()))
+					if(x.event_trigger(eventtype))
 					{
 						update = true;
 					}
@@ -169,7 +173,7 @@ impl event_trait for UiButton {
 			_ => ()
 		};
 		
-		if(self._uuidStorage.is_some() && returning)
+		if(self._cacheinfos.isPresent() && returning)
 		{
 			self.cache_submit();
 		}
@@ -209,18 +213,19 @@ impl hideable for UiButton
 impl ShaderDrawerImpl for UiButton {
 	fn cache_mustUpdate(&self) -> bool
 	{
-		self._cacheUpdated || self.checkContentUpdate()
+		self._cacheUpdated || self.checkContentUpdate() || self._cacheinfos.isAbsent()
 	}
 	
 	fn cache_submit(&mut self)
 	{
 		if(self._hide)
 		{
-			if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-				holder.remove(&mut self._uuidStorage);
-			})){
-				self._cacheUpdated = false;
-			}
+			let tmp = self._cacheinfos;
+			ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+				holder.remove(tmp);
+			});
+			self._cacheUpdated = false;
+			self._cacheinfos.setAbsent();
 			return;
 		}
 		
@@ -253,15 +258,19 @@ impl ShaderDrawerImpl for UiButton {
 		
 		self._cacheUpdated = false;
 		
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+			holder.insert(tmp,structure);
 		});
+		self._cacheinfos.setPresent();
 	}
 	
 	fn cache_remove(&mut self) {
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-			holder.remove(&mut self._uuidStorage);
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+			holder.remove(tmp);
 		});
+		self._cacheinfos.setAbsent();
 	}
 }
 

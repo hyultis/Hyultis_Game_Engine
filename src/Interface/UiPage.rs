@@ -160,8 +160,16 @@ impl UiPage
 		});
 	}
 	
-	pub fn cache_check(&mut self)
+	pub fn cache_checkupdate(&mut self)
 	{
+		let havedrop = self._content.iter()
+			.any(|(_, elem)| elem.isWantDrop());
+		
+		if(havedrop)
+		{
+			self._content.retain(|_, item| !item.isWantDrop());
+		}
+		
 		self._content.iter()
 			.for_each(|(_, elem)| {
 				elem.updateIf(|i|{
@@ -174,27 +182,6 @@ impl UiPage
 					returning
 				});
 			});
-	}
-	
-	pub fn cache_resubmit(&mut self)
-	{
-		println!("page resubmit");
-		
-		let havedrop = self._content.iter()
-			.any(|(_, elem)| elem.isWantDrop());
-		
-		if(havedrop)
-		{
-			self._content.retain(|_, item| !item.isWantDrop());
-		}
-		println!("page havedrop{}",havedrop);
-		
-		self._content.iter().for_each(|(_, elem)| {
-			elem.update(|i| {
-				i.cache_submit();
-			});
-		});
-		println!("page end resubmit");
 	}
 }
 

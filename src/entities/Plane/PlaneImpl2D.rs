@@ -44,21 +44,26 @@ impl UiPageContent for Plane<interfacePosition>
 
 impl ShaderDrawerImpl for Plane<interfacePosition> {
 	fn cache_mustUpdate(&self) -> bool {
-		self._canUpdate
+		self._canUpdate || self._cacheinfos.isAbsent()
 	}
 	
 	fn cache_submit(&mut self) {
-		let Some(structure) = self.cache_get() else {return};
+		let Some(structure) = self.cache_get() else {self.cache_remove();return};
 		
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+			holder.insert(tmp,structure);
 		});
+		self._canUpdate = false;
+		self._cacheinfos.setPresent();
 	}
 	
 	fn cache_remove(&mut self) {
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-			holder.remove(&mut self._uuidStorage);
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+			holder.remove(tmp);
 		});
+		self._cacheinfos.setAbsent();
 	}
 }
 
@@ -74,13 +79,10 @@ impl ShaderDrawerImplReturn<HGE_shader_2Dsimple_def> for Plane<interfacePosition
 		
 		let color_blend_type = self._components.texture().colorBlend().toU32();
 		let mut texturecolor = color::default();
-		if let Some(texture) = self._components.computeTexture()
-		{
-			texturecolor = texture.color;
-		}
 		let mut textureuvcoord = [[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0]];
 		if let Some(texture) = self._components.computeTexture()
 		{
+			texturecolor = texture.color;
 			textureuvcoord = texture.uvcoord.toArray4();
 		}
 		
@@ -130,7 +132,6 @@ impl ShaderDrawerImplReturn<HGE_shader_2Dsimple_def> for Plane<interfacePosition
 			self._hitbox = UiHitbox::newFrom2D(&hitboxvec);
 		}
 		
-		self._canUpdate = false;
 		return Some(
 			ShaderDrawerImplStruct{
 				vertex: vecstruct,
@@ -151,7 +152,7 @@ impl event_trait for Plane<interfacePosition>
 		{
 			self._canUpdate = true;
 		}
-		if(self._uuidStorage.is_some())
+		if(self._cacheinfos.isPresent() && update)
 		{
 			self.cache_submit();
 		}

@@ -95,7 +95,8 @@ impl ManagerAnimation
 	fn internal_ticks(&self)
 	{
 		self._animations.retain(|_,animation|{
-			return !animation.ticks();
+			let returned= !animation.ticks();
+			return returned;
 		});
 	}
 }

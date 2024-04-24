@@ -1,13 +1,16 @@
 use std::sync::OnceLock;
 use dashmap::DashMap;
-use dashmap::mapref::one::RefMut;
+use dashmap::mapref::one::Ref;
+use Htrace::TSpawner;
+use parking_lot::RwLock;
+use uuid::Uuid;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
 use crate::HGEsubpass::HGEsubpassName;
 use crate::Shaders::ShaderStruct::{ShaderStructHolder};
 
 pub struct ShaderDrawer_Manager
 {
-	_datas: DashMap<String, Box<dyn ShaderStructHolder>>,
+	_datas: DashMap<String, RwLock<Box<dyn ShaderStructHolder>>>,
 	_subpassRegister: DashMap<HGEsubpassName, Vec<String>>
 }
 
@@ -34,33 +37,36 @@ impl ShaderDrawer_Manager
 			Some(mut found) => {found.push(key.clone());}
 		};
 		
-		self._datas.insert(key,Box::new(T::init()));
+		self._datas.insert(key,RwLock::new(Box::new(T::init())));
 	}
 	
-	pub fn inspect<T>(&self,func: impl FnOnce(&mut T)) -> bool
+	pub fn inspect<T>(func: impl FnOnce(&mut T) + Send + 'static)
 		where T: ShaderStructHolder
 	{
-		let Some(mut tmp) = self.get::<T>() else {return false;};
-		if let Some(holder) = tmp.value_mut().downcast_mut::<T>()
-		{
-			func(holder);
-			return true;
-		}
-		return false;
+		let _ = TSpawner!(||{
+			let Some(tmp) = Self::singleton().get::<T>() else {return};
+			if let Some(holder) = tmp.write().downcast_mut::<T>()
+			{
+				func(holder);
+			};
+		});
 	}
 	
-	pub fn get<T>(&self) -> Option<RefMut<String, Box<dyn ShaderStructHolder>>>
+	pub fn get<T>(&self) -> Option<Ref<String, RwLock<Box<dyn ShaderStructHolder>>>>
 		where T: ShaderStructHolder
 	{
-		return self._datas.get_mut(&T::pipelineName());
+		return self._datas.get(&T::pipelineName());
 	}
 	
-	pub fn allholder_Update(&self)
+	pub fn allholder_Update()
 	{
-		for mut thispipeline in self._datas.iter_mut()
+		let _ = TSpawner!(||
 		{
-			thispipeline.update();
-		}
+			for thispipeline in Self::singleton()._datas.iter()
+			{
+				thispipeline.value().write().update();
+			}
+		});
 	}
 	
 	pub fn holder_Draw(&self, subpass: HGEsubpassName, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>)
@@ -74,8 +80,13 @@ impl ShaderDrawer_Manager
 		{
 			if let Some(thisshader) = self._datas.get(&key)
 			{
-				thisshader.draw(cmdBuilder,key);
+				thisshader.read().draw(cmdBuilder,key);
 			}
 		}
+	}
+	
+	pub fn uuid_generate() -> Uuid
+	{
+		return Uuid::new_v4();
 	}
 }

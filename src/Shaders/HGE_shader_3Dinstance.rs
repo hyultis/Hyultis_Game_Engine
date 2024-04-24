@@ -310,9 +310,10 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 			selfdata._cacheDatasMem.is_some() && selfdata._cacheIndicesMem.is_some() && selfdata._cacheInstanceMem.is_some()
 		}).for_each(|selfdata|
 			{
-				let datamem = selfdata._cacheDatasMem.clone().unwrap();
-				let indicemem = selfdata._cacheIndicesMem.clone().unwrap();
-				let instancemem = selfdata._cacheInstanceMem.clone().unwrap();
+				
+				let Some(datamem) = &selfdata._cacheDatasMem else {return};
+				let Some(indicemem) = &selfdata._cacheIndicesMem else {return};
+				let Some(instancemem) = &selfdata._cacheInstanceMem else {return};
 				
 				ManagerBuilder::builderAddPipeline(cmdBuilder, &pipelinename);
 				
@@ -321,12 +322,13 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 					.bind_index_buffer(indicemem.clone()).unwrap()
 					.draw_indexed(selfdata._cacheIndicesLen, selfdata._cacheInstanceLen, 0, 0, 0).unwrap();
 				
-				ManagerBuilder::builderAddPipelineTransparency(cmdBuilder, &pipelinename);
-				
-				cmdBuilder
-					.bind_vertex_buffers(0, (datamem, instancemem)).unwrap()
-					.bind_index_buffer(indicemem).unwrap()
-					.draw_indexed(selfdata._cacheIndicesLen, selfdata._cacheInstanceLen, 0, 0, 0).unwrap();
+				if(ManagerBuilder::builderAddPipelineTransparency(cmdBuilder, &pipelinename))
+				{
+					cmdBuilder
+						.bind_vertex_buffers(0, (datamem.clone(), instancemem.clone())).unwrap()
+						.bind_index_buffer(indicemem.clone()).unwrap()
+						.draw_indexed(selfdata._cacheIndicesLen, selfdata._cacheInstanceLen, 0, 0, 0).unwrap();
+				}
 			});
 	}
 }

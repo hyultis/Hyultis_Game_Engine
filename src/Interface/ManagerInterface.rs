@@ -53,15 +53,13 @@ impl ManagerInterface
 		let name = name.into();
 		let _ = TSpawner!(move ||{
 			
-			println!("changeActivePage");
 			let oldpage = Arc::unwrap_or_clone(Self::singleton()._activePage.load_full());
 			if(name==oldpage) // si on change pas de page, on refresh juste
 			{
 				if let Some(mut page) = Self::singleton()._pageArray.get_mut(&name)
 				{
-					page.cache_resubmit();
+					page.cache_checkupdate();
 				}
-				println!("changeActivePage ok old");
 				return;
 			}
 			
@@ -75,9 +73,8 @@ impl ManagerInterface
 			
 			if let Some(mut page) = Self::singleton()._pageArray.get_mut(&name) {
 				page.event_trigger(event_type::ENTER);
-				page.cache_resubmit();
+				page.cache_checkupdate();
 			}
-			println!("changeActivePage ok");
 		});
 	}
 	
@@ -118,7 +115,7 @@ impl ManagerInterface
 			
 			if let Some(mut page) = self._pageArray.get_mut(&name)
 			{
-				page.cache_resubmit();
+				page.cache_checkupdate();
 			}
 		}
 	}
@@ -128,7 +125,7 @@ impl ManagerInterface
 		if let Some(mut page) = self._pageArray.get_mut(name)
 		{
 			func(page.value_mut());
-			page.cache_resubmit();
+			page.cache_checkupdate();
 		}
 	}
 	
@@ -142,14 +139,14 @@ impl ManagerInterface
 	
 	fn EachTickUpdate(&self)
 	{
-		let Some(page) = self._pageArray.get(self.getActivePage().as_str()) else {return};
+		let Some(mut page) = self._pageArray.get_mut(self.getActivePage().as_str()) else {return};
 		page.subevent_trigger(event_type::EACH_TICK);
+		page.cache_checkupdate();
 	}
 	
 	fn EachSecondUpdate(&self)
 	{
-		let Some(mut page) = self._pageArray.get_mut(self.getActivePage().as_str()) else {return};
+		let Some(page) = self._pageArray.get(self.getActivePage().as_str()) else {return};
 		page.subevent_trigger(event_type::EACH_SECOND);
-		page.cache_check();
 	}
 }

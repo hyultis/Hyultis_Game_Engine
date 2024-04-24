@@ -3,9 +3,9 @@ use std::ops::Index;
 use std::path::Path;
 use Htrace::HTrace;
 use tobj::{load_obj_buf, LoadError, LoadOptions};
-use uuid::Uuid;
 use crate::assetStreamReader::assetManager;
 use crate::components::{Components, HGEC_origin};
+use crate::components::cacheInfos::cacheInfos;
 use crate::components::event::event_trait;
 use crate::components::offset::offset;
 use crate::components::rotations::rotation;
@@ -22,7 +22,7 @@ pub struct loadOBJ
 	_components: Components,
 	_model: Option<tobj::Model>,
 	_canUpdate: bool,
-	_uuidStorage: Option<Uuid>
+	_cacheinfos: cacheInfos
 }
 
 impl loadOBJ
@@ -72,7 +72,7 @@ impl loadOBJ
 			_components: Default::default(),
 			_model: model,
 			_canUpdate: true,
-			_uuidStorage: None,
+			_cacheinfos: cacheInfos::default(),
 		};
 	}
 	
@@ -94,21 +94,25 @@ impl chunk_content for loadOBJ {}
 
 impl ShaderDrawerImpl for loadOBJ {
 	fn cache_mustUpdate(&self) -> bool {
-		self._canUpdate
+		self._canUpdate || self._cacheinfos.isAbsent()
 	}
 	
 	fn cache_submit(&mut self) {
-		let Some(structure) = self.cache_get() else {return};
+		let Some(structure) = self.cache_get() else {self.cache_remove();return};
 		
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
-			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder|{
+			holder.insert(tmp,structure);
 		});
+		self._cacheinfos.setPresent();
 	}
 	
 	fn cache_remove(&mut self) {
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
-			holder.remove(self._uuidStorage);
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder|{
+			holder.remove(tmp);
 		});
+		self._cacheinfos.setAbsent();
 	}
 }
 

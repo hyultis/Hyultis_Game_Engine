@@ -1,9 +1,14 @@
+use dashmap::DashMap;
 use downcast_rs::{Downcast, impl_downcast};
 use dyn_clone::DynClone;
+use uuid::Uuid;
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, Subbuffer};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
 use vulkano::memory::allocator::AllocationCreateInfo;
+use vulkano::pipeline::graphics::vertex_input::Vertex;
 use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
+use crate::Shaders::intoVertexed::IntoVertexted;
+use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
 
 pub trait ShaderStruct: DynClone + Send + Sync + Downcast {
 	fn createPipeline() -> anyhow::Result<()>
@@ -50,14 +55,33 @@ impl ShaderStructHolder_utils
 			return len;
 		}
 		
-		let buffer = Buffer::from_iter(
+		let Ok(buffer) = Buffer::from_iter(
 			ManagerMemoryAllocator::singleton().get(),
 			bufferInfos,
 			allocInfos,
 			vertex,
-		).unwrap();
+		) else {
+			*output = None;
+			return 0;
+		};
 		*output = Some(buffer);
 		
 		return len;
+	}
+	
+	pub fn insert<T: ShaderStruct + Vertex>(uuid: Uuid, mut structure: ShaderDrawerImplStruct<impl IntoVertexted<T> + Send + Sync + 'static>, array: &DashMap<Uuid, ShaderDrawerImplStruct<Box<dyn IntoVertexted<T> + Send + Sync>>>)
+	{
+		let mut vertexconvert = Vec::new();
+		for x in structure.vertex.drain(0..) {
+			let tmp: Box<dyn IntoVertexted<T> + Send + Sync> = Box::new(x);
+			vertexconvert.push(tmp);
+		};
+		
+		let newstruct = ShaderDrawerImplStruct{
+			vertex: vertexconvert,
+			indices: structure.indices.clone(),
+		};
+		
+		array.insert(uuid, newstruct);
 	}
 }

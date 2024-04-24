@@ -1,10 +1,10 @@
-use uuid::Uuid;
+use crate::components::cacheInfos::cacheInfos;
 use crate::components::corners::corner2;
 use crate::components::event::{event, event_trait, event_trait_add, event_type};
 use crate::components::interfacePosition::interfacePosition;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::UiPageContent;
-use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple_def, HGE_shader_2Dsimple_holder};
+use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dline_holder, HGE_shader_2Dsimple_def};
 use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
 use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn, ShaderDrawerImplStruct};
 
@@ -15,7 +15,7 @@ pub struct Line
 	_color: [[f32; 4]; 2],
 	_events: event<Line>,
 	_canUpdate: bool,
-	_uuidStorage: Option<Uuid>
+	_cacheinfos: cacheInfos
 }
 
 impl Line
@@ -50,7 +50,7 @@ impl Default for Line
 			_color: [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
 			_events: event,
 			_canUpdate: true,
-			_uuidStorage: None,
+			_cacheinfos: cacheInfos::default(),
 		};
 	}
 }
@@ -60,7 +60,7 @@ impl event_trait for Line
 	fn event_trigger(&mut self, eventtype: event_type) -> bool
 	{
 		let update = self._events.clone().trigger(eventtype, self);
-		if(self._uuidStorage.is_some() && update)
+		if(self._cacheinfos.isPresent() && update)
 		{
 			self.cache_submit();
 		}
@@ -83,21 +83,25 @@ impl event_trait_add<Line> for Line
 impl ShaderDrawerImpl for Line {
 	fn cache_mustUpdate(&self) -> bool
 	{
-		self._canUpdate
+		self._canUpdate || self._cacheinfos.isAbsent()
 	}
 	
 	fn cache_submit(&mut self)
 	{
-		let Some(structure) = self.cache_get() else {return};
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		let Some(structure) = self.cache_get() else {self.cache_remove();return};
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_2Dline_holder>(move |holder|{
+			holder.insert(tmp,structure);
 		});
+		self._cacheinfos.setPresent();
 	}
 	
 	fn cache_remove(&mut self) {
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-			holder.remove(&mut self._uuidStorage);
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_2Dline_holder>(move |holder|{
+			holder.remove(tmp);
 		});
+		self._cacheinfos.setAbsent();
 	}
 }
 

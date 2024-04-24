@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use anyhow::anyhow;
 use dyn_clone::DynClone;
 use Htrace::HTrace;
@@ -163,7 +164,7 @@ impl textureLoader for textureLoader_fromCopy
 				{
 					if (self.content.is_none())
 					{
-						self.content = Some(texture);
+						self.content = Some(Arc::unwrap_or_clone(texture));
 					}
 					tmpreturn = false;
 				}

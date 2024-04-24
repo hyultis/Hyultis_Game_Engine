@@ -3,8 +3,8 @@ use std::sync::Arc;
 use glyph_brush::{OwnedSection, OwnedText};
 use glyph_brush_layout::{BuiltInLineBreaker, Layout};
 use parking_lot::RwLock;
-use uuid::Uuid;
 use crate::components::{Components, HGEC_offset, HGEC_origin};
+use crate::components::cacheInfos::cacheInfos;
 use crate::HGEMain::HGEMain;
 use crate::components::interfacePosition::interfacePosition;
 use crate::Interface::ManagerFont::ManagerFont;
@@ -134,7 +134,7 @@ pub struct Text
 	_isVisible: bool,
 	_events: event<Text>,
 	_hitbox: UiHitbox,
-	_uuidStorage: Option<Uuid>
+	_cacheinfos: cacheInfos
 }
 
 impl Text
@@ -153,7 +153,7 @@ impl Text
 			_isVisible: false,
 			_events: Self::newWithWinRefreshEvent(),
 			_hitbox: UiHitbox::new(),
-			_uuidStorage: None,
+			_cacheinfos: cacheInfos::default(),
 		}
 	}
 	
@@ -217,6 +217,7 @@ impl Text
 		{
 			return;
 		}
+		
 		let mut tmp = OwnedSection::default();
 		for x in self._texts.iter()
 		{
@@ -284,7 +285,7 @@ impl Text
 			_isVisible: self._isVisible,
 			_events: Self::newWithWinRefreshEvent(),
 			_hitbox: UiHitbox::new(),
-			_uuidStorage: None,
+			_cacheinfos: cacheInfos::default(),
 		};
 		tmpfinal.commit();
 		
@@ -307,9 +308,10 @@ impl event_trait for Text
 		if (eventtype == event_type::WINREFRESH)
 		{
 			update = true;
+			self.commit();
 			self._cacheShared.write().isUpdated = true;
 		}
-		if(self._uuidStorage.is_some() && update)
+		if(self._cacheinfos.isPresent() && update)
 		{
 			self.cache_submit();
 		}
@@ -345,7 +347,7 @@ impl Clone for Text
 			_isVisible: self._isVisible,
 			_events: self._events.clone(),
 			_hitbox: self._hitbox.clone(),
-			_uuidStorage: self._uuidStorage.clone(),
+			_cacheinfos: self._cacheinfos.clone(),
 		};
 		
 		return tmpfinal;
@@ -354,36 +356,39 @@ impl Clone for Text
 
 impl ShaderDrawerImpl for Text {
 	fn cache_mustUpdate(&self) -> bool {
-		self._cacheLocalUpdate || self._cacheShared.read().isUpdated
+		self._cacheLocalUpdate || self._cacheShared.read().isUpdated || self._cacheinfos.isAbsent()
 	}
 	
 	fn cache_submit(&mut self) {
 		if(!self._isVisible)
 		{
-			if(ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-				holder.remove(&mut self._uuidStorage);
-			}))
-			{
-				self._cacheShared.write().isUpdated = false;
-				self._cacheLocalUpdate = false;
-			}
+			let tmp = self._cacheinfos;
+			ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+				holder.remove(tmp);
+			});
+			self._cacheShared.write().isUpdated = false;
+			self._cacheLocalUpdate = false;
+			self._cacheinfos.setAbsent();
 			return;
 		}
 		
-		let Some(structure) = self.cache_get() else {return};
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-			self._uuidStorage = Some(holder.insert(self._uuidStorage,ShaderDrawerImplStruct{
+		let Some(structure) = self.cache_get() else {self.cache_remove();return};
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+			holder.insert(tmp,ShaderDrawerImplStruct{
 				vertex: structure.vertex.clone(),
 				indices: structure.indices.clone(),
-			}));
+			});
 		});
-		
+		self._cacheinfos.setPresent();
 	}
 	
 	fn cache_remove(&mut self) {
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_2Dsimple_holder>(|holder|{
-			holder.remove(&mut self._uuidStorage);
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+			holder.remove(tmp);
 		});
+		self._cacheinfos.setAbsent();
 	}
 }
 

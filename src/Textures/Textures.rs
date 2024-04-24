@@ -9,7 +9,7 @@ use crate::Textures::Orders::Order_reload::Order_reload;
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Texture_atlasType
 {
-	NONE,
+	#[deprecated] NONE,
 	SMALL,
 	LARGE,
 	FONT

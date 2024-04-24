@@ -10,6 +10,7 @@ use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuff
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::graphics::input_assembly::PrimitiveTopology;
 use vulkano::pipeline::PipelineBindPoint;
+use crate::components::cacheInfos::cacheInfos;
 use crate::HGEsubpass::HGEsubpassName;
 use crate::ManagerBuilder::ManagerBuilder;
 use crate::Pipeline::EnginePipelines;
@@ -20,6 +21,7 @@ use crate::Shaders::names;
 use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
 use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder, ShaderStructHolder_utils};
 use crate::Textures::Manager::ManagerTexture;
+use crate::Textures::Types::TextureChannel;
 
 // struct externe, a changer en HGE_shader_2Dsimple
 #[derive(Clone, Debug)]
@@ -118,19 +120,69 @@ impl ShaderStruct for HGE_shader_2Dsimple {
 			)
 		}, PrimitiveTopology::TriangleList, true);
 		
-		ManagerPipeline::singleton().addFunc(format!("{}_line", HGE_shader_2Dsimple_holder::pipelineName()), |renderpass, transparency| {
+		ManagerPipeline::singleton().addFunc(HGE_shader_2Dline_holder::pipelineName(), |renderpass, transparency| {
 			EnginePipelines::singleton().pipelineCreationLine(names::simple2D,
 				transparency,
 				renderpass.clone(),
 				HGEsubpassName::UI.getSubpassID(),
 				HGE_shader_2Dsimple::per_vertex()
 			)
-		}, PrimitiveTopology::TriangleList, true);
+		}, PrimitiveTopology::LineList, true);
 		return Ok(());
 	}
 }
 
 ///////// Holder
+
+pub struct HGE_shader_2Dline_holder
+{
+	_content: HGE_shader_2Dsimple_holder
+}
+
+impl HGE_shader_2Dline_holder
+{
+	pub fn insert(&mut self, uuid: cacheInfos, structure: ShaderDrawerImplStruct<impl IntoVertexted<HGE_shader_2Dsimple> + Send + Sync + 'static>)
+	{
+		self._content.insert(uuid,structure);
+	}
+	
+	pub fn remove(&mut self, uuid: cacheInfos)
+	{
+		self._content.remove(uuid);
+	}
+}
+
+impl ShaderStructHolder for HGE_shader_2Dline_holder
+{
+	fn init() -> Self {
+		Self {
+			_content: HGE_shader_2Dsimple_holder::init(),
+		}
+	}
+	
+	fn pipelineName() -> String {
+		format!("{}_line", HGE_shader_2Dsimple_holder::pipelineName())
+	}
+	
+	fn pipelineNameResolve(&self) -> String {
+		Self::pipelineName()
+	}
+	
+	fn reset(&mut self)
+	{
+		self._content.reset();
+	}
+	
+	fn update(&mut self)
+	{
+		self._content.update();
+	}
+	
+	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
+	{
+		self._content.draw(cmdBuilder,pipelinename);
+	}
+}
 
 pub struct HGE_shader_2Dsimple_holder
 {
@@ -143,36 +195,16 @@ pub struct HGE_shader_2Dsimple_holder
 
 impl HGE_shader_2Dsimple_holder
 {
-	pub fn insert(&mut self, uuid: Option<Uuid>, mut structure: ShaderDrawerImplStruct<impl IntoVertexted<HGE_shader_2Dsimple> + Send + Sync + 'static>) -> Uuid
+	pub fn insert(&mut self, uuid: cacheInfos, structure: ShaderDrawerImplStruct<impl IntoVertexted<HGE_shader_2Dsimple> + Send + Sync + 'static>)
 	{
-		let mut vertexconvert = Vec::new();
-		for x in structure.vertex.drain(0..) {
-			let tmp: Box<dyn IntoVertexted<HGE_shader_2Dsimple> + Send + Sync> = Box::new(x);
-			vertexconvert.push(tmp);
-		};
-		
-		let newstruct = ShaderDrawerImplStruct{
-			vertex: vertexconvert,
-			indices: structure.indices.clone(),
-		};
-		
-		let uuid = uuid.unwrap_or_else(|| Uuid::new_v4());
-		self._datas.insert(uuid, newstruct);
-		
+		ShaderStructHolder_utils::insert(uuid.into(),structure,&self._datas);
 		self._haveUpdate = true;
-		return uuid;
 	}
 	
-	pub fn remove(&mut self,  uuid: &mut Option<Uuid>)
+	pub fn remove(&mut self, uuid: cacheInfos)
 	{
-		if let Some(uuid) = uuid
-		{
-			if(self._datas.remove(&uuid).is_some())
-			{
-				self._haveUpdate = true;
-			}
-		}
-		*uuid = None;
+		self._datas.remove(&uuid.into());
+		self._haveUpdate = true;
 	}
 	
 	fn compileData(&self) -> (Vec<HGE_shader_2Dsimple>, Vec<u32>, bool)

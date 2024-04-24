@@ -40,7 +40,6 @@ impl InterpolateTimer
 pub struct ManagerInterpolate
 {
 	_lastTime: Instant,
-	_lastSecond: Instant,
 	_now: Instant,
 }
 
@@ -50,7 +49,6 @@ impl ManagerInterpolate
 	{
 		return ManagerInterpolate {
 			_lastTime: Instant::now(),
-			_lastSecond: Instant::now(),
 			_now: Instant::now(),
 		};
 	}
@@ -59,7 +57,6 @@ impl ManagerInterpolate
 	{
 		self._lastTime = self._now;
 		self._now = Instant::now();
-		//let nanos = now.duration_since(*last).unwrap().as_nanos();
 	}
 	
 	pub fn getNowFromLast(&self) -> Duration
@@ -78,16 +75,6 @@ impl ManagerInterpolate
 		let durationFromLast = self._now.duration_since(self._lastTime).as_nanos() as f64;
 		let diff = durationFromLast / duration.as_nanos() as f64;
 		return (value as f64*diff) as f32;
-	}
-	
-	pub fn eachSecond(&mut self) -> bool
-	{
-		if(self._now.duration_since(self._lastSecond).as_secs() > 0)
-		{
-			self._lastSecond = self._now;
-			return true;
-		}
-		return false;
 	}
 	
 	pub fn FromTo(&self, start: f32, end: f32, duree: Duration) -> InterpolateTimer

@@ -34,7 +34,7 @@ use crate::InterpolateTimer::ManagerInterpolate;
 use crate::ManagerAnimation::{AnimationHolder, ManagerAnimation};
 use crate::Models3D::ManagerModels::ManagerModels;
 use crate::Shaders::ShaderStruct::ShaderStruct;
-use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
+use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dline_holder, HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
 use crate::Shaders::HGE_shader_3Dinstance::{HGE_shader_3Dinstance, HGE_shader_3Dinstance_holder};
 use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
 use crate::Shaders::HGE_shader_screen::HGE_shader_screen;
@@ -329,7 +329,6 @@ impl HGEMain
 		
 		let mut threadService = SingletonThread::newFiltered(||{
 			Self::singleton()._cameraAnimation.write().retain_mut(|anim| {
-				//println!("one cam anim");
 				!anim.ticks()
 			});
 			
@@ -339,7 +338,7 @@ impl HGEMain
 			ManagerTexture::singleton().launchThreads();
 			ManagerAnimation::singleton().ticksAll();
 			
-			ShaderDrawer_Manager::singleton().allholder_Update();
+			ShaderDrawer_Manager::allholder_Update();
 		},||{
 			!**Self::singleton()._isSuspended.load()
 		});
@@ -443,6 +442,7 @@ impl HGEMain
 		loadingdExternalShader();
 		
 		ShaderDrawer_Manager::singleton().register::<HGE_shader_2Dsimple_holder>(HGEsubpassName::UI);
+		ShaderDrawer_Manager::singleton().register::<HGE_shader_2Dline_holder>(HGEsubpassName::UI);
 		ShaderDrawer_Manager::singleton().register::<HGE_shader_3Dsimple_holder>(HGEsubpassName::WORLDSOLID);
 		ShaderDrawer_Manager::singleton().register::<HGE_shader_3Dinstance_holder>(HGEsubpassName::WORLDSOLID);
 		

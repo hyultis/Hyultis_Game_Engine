@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, OnceLock};
 use std::vec;
+use ahash::AHashMap;
 use arc_swap::ArcSwap;
 use dashmap::DashMap;
 use dashmap::mapref::one::Ref;
@@ -34,6 +35,7 @@ use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use crate::Shaders::HGE_shader_3Dsimple::HGE_shader_3Dsimple_holder;
 use crate::Shaders::ShaderStruct::ShaderStructHolder;
 use HArcMut::HArcMut;
+use crate::Textures::Types::TextureChannel;
 
 pub struct ManagerTexture
 {
@@ -249,21 +251,17 @@ impl ManagerTexture
 			}), sampler);
 	}
 	
-	pub fn get(&self, name: impl Into<String>) -> Option<Texture>
+	pub fn get(&self, name: impl Into<String>) -> Option<Arc<Texture>>
 	{
 		let textureid = {
-			let returning = match self._texturesToId.get(&name.into()) {
-				None => return None,
-				Some(textureid) => textureid.value().clone()
-			};returning
+			let Some(returning) = self._texturesToId.get(&name.into()) else{return None;};
+			*returning.value()
 		};
 		
-		return match self._textures.get(&textureid) {
-			None => None,
-			Some(x) => {
-				Some((&**x.get()).clone())
-			}
-		};
+		let Some(x) = self._textures.get(&textureid) else {return None;};
+		
+		let tmp = (&*x.get()).clone();
+		Some(tmp)
 	}
 	
 	pub fn getState(&self, name: impl Into<String>) -> Option<TextureState>
@@ -316,12 +314,13 @@ impl ManagerTexture
 		match self.get(&name) {
 			None => None,
 			Some(tex) => {
-				match tex.atlasType {
-					Texture_atlasType::NONE => None,
-					Texture_atlasType::SMALL => Some(tex.atlasId.unwrap_or(0)+1),
-					Texture_atlasType::LARGE =>	Some(tex.atlasId.unwrap_or(0)+200+1),
-					Texture_atlasType::FONT => Some(9999+1)
+				if(tex.atlasType==Texture_atlasType::NONE)
+				{
+					return None;
 				}
+				let Some(atlasid) = tex.atlasId else {return None};
+				let tmp = TextureChannel::new(tex.atlasType.getSetId() as u8,atlasid);
+				Some(tmp.into())
 			}
 		}
 	}
@@ -330,7 +329,6 @@ impl ManagerTexture
 	{
 		self._threadLoading.lock().thread_launch();
 		self._threadUpdateVulkan.lock().thread_launch();
-		//return;
 	}
 	
 	pub fn getPersistentDescriptorSet(&self) -> &DashMap<Texture_atlasType, ArcSwap<PersistentDescriptorSet>>

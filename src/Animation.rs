@@ -24,11 +24,12 @@ pub struct Animation<A, B = A>
 {
     _startTime: Instant,
     _duration: Duration,
+	_durationu128: u128,
     _repeat: AnimationRepeat,
     pub source: HArcMut<A>,
     pub startState: B,
     pub endState: B,
-    _fnTick: Arc<dyn Fn(&Animation<A, B>,f32) + Sync + Send>,
+    _fnTick: Box<dyn Fn(&Animation<A, B>,f32) + Sync + Send>,
     _fnEnd: Option<Arc<dyn Fn() + Sync + Send>>,
 	_isEnd: bool
 }
@@ -40,12 +41,13 @@ impl<A, B> Animation<A, B>
     {
         return Animation{
             _startTime: Instant::now(),
+	        _durationu128: duration.as_nanos(),
             _duration: duration,
-            _repeat: AnimationRepeat::NOREPEAT(None),
+	        _repeat: AnimationRepeat::NOREPEAT(None),
             startState,
             source,
             endState,
-            _fnTick: Arc::new(fnTick),
+            _fnTick: Box::new(fnTick),
             _fnEnd: None,
 	        _isEnd: false,
         };
@@ -106,15 +108,14 @@ impl<A, B> Animation<A, B>
 	    
         let now = Instant::now();
         let durationFromStart = now.duration_since(self._startTime).as_nanos();
-        let durationTotal = self._duration.as_nanos();
 	    let mut endcaller = None;
 	    
         let progress = {
-            if(durationTotal==0)
+            if(self._durationu128==0)
             {
                 1.0
             }
-            else if(durationFromStart>durationTotal)
+            else if(durationFromStart>self._durationu128)
             {
                 match &self._repeat {
                     AnimationRepeat::NOREPEAT(func) => {
@@ -126,15 +127,15 @@ impl<A, B> Animation<A, B>
                         1.0
                     }
                     AnimationRepeat::REPEAT => {
-                        let loopremain = durationFromStart%durationTotal;
-                        loopremain as f32 / durationTotal as f32
+                        let loopremain = durationFromStart%self._durationu128;
+                        loopremain as f32 / self._durationu128 as f32
                     }
                     AnimationRepeat::MIRROR => {
-                        let loopremain = durationFromStart%durationTotal;
-                        loopremain as f32 / durationTotal as f32
+                        let loopremain = durationFromStart%self._durationu128;
+                        loopremain as f32 / self._durationu128 as f32
                     }
                     AnimationRepeat::REPEAT_TIME(nb,func) => {
-                        let looped = (durationFromStart/durationTotal) as u32;
+                        let looped = (durationFromStart/self._durationu128) as u32;
                         if(looped > *nb)
                         {
 	                        if(func.is_some())
@@ -146,25 +147,25 @@ impl<A, B> Animation<A, B>
                         }
                         else
                         {
-                            let loopremain = durationFromStart%durationTotal;
-                            loopremain as f32 / durationTotal as f32
+                            let loopremain = durationFromStart%self._durationu128;
+                            loopremain as f32 / self._durationu128 as f32
                         }
                     }
                 }
             }
             else
             {
-                durationFromStart as f32 / durationTotal as f32
+                durationFromStart as f32 / self._durationu128 as f32
             }
         };
 
-        let tmpfn = self._fnTick.clone();
+        let tmpfn = &*self._fnTick;
         tmpfn(&self, progress);
 	    
-	    if(endcaller.is_some())
+	    if let Some(func) = endcaller
 	    {
 		    let _ = TSpawner!(||{
-			    endcaller.unwrap()();
+			   func();
 		    });
 	    }
 	    
@@ -179,13 +180,14 @@ impl<A> Animation<A, A>
 	{
 		return Animation {
 			_startTime: Instant::now(),
+			_durationu128: duration.as_nanos(),
 			_duration: duration,
 			_repeat: AnimationRepeat::NOREPEAT(None),
 			//startState: {let x = source.get().clone();x},
 			startState: {let x: A = (**source.get()).clone();x},
 			source,
 			endState,
-			_fnTick: Arc::new(fnTick),
+			_fnTick: Box::new(fnTick),
 			_fnEnd: None,
 			_isEnd: false,
 		};
@@ -200,16 +202,16 @@ impl<A, B> AnimationHolder for Animation<A, B>
         self.tick()
     }
 	
-	fn as_any(&self) -> &dyn Any {
-		self
-	}
-	fn as_any_mut(&mut self) -> &mut dyn Any {
-		self
-	}
-	
 	fn checkDrop(&mut self) -> bool
 	{
 		self.source.isWantDrop()
+	}
+	fn as_any(&self) -> &dyn Any {
+		self
+	}
+	
+	fn as_any_mut(&mut self) -> &mut dyn Any {
+		self
 	}
 }
 

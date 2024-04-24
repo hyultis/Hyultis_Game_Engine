@@ -6,3 +6,5 @@ pub mod textureLoader;
 pub mod Order;
 pub mod texturePart;
 pub mod Orders;
+pub mod TextureDescriptor;
+pub mod Types;

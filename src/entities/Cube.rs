@@ -1,7 +1,7 @@
-use uuid::Uuid;
 use crate::components::corners::{corner2, corner4};
 use crate::components::event::event_trait;
 use crate::components::{Components, HGEC_origin};
+use crate::components::cacheInfos::cacheInfos;
 use crate::components::color::color;
 use crate::components::offset::offset;
 use crate::components::rotations::rotation;
@@ -19,7 +19,7 @@ struct Cube
 	_corner: [worldPosition; 2],
 	_components: Components,
 	_canUpdate: bool,
-	_uuidStorage: Option<Uuid>
+	_cacheinfos: cacheInfos
 }
 
 impl Cube
@@ -31,7 +31,7 @@ impl Cube
 			_corner: corners.intoArray(),
 			_components: Default::default(),
 			_canUpdate: false,
-			_uuidStorage: None,
+			_cacheinfos: cacheInfos::default(),
 		}
 	}
 }
@@ -131,21 +131,25 @@ impl chunk_content for Cube {}
 
 impl ShaderDrawerImpl for Cube {
 	fn cache_mustUpdate(&self) -> bool {
-		self._canUpdate
+		self._canUpdate || self._cacheinfos.isAbsent()
 	}
 	
 	fn cache_submit(&mut self) {
-		let Some(structure) = self.cache_get() else {return};
+		let Some(structure) = self.cache_get() else {self.cache_remove();return};
 		
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
-			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder|{
+			holder.insert(tmp,structure);
 		});
+		self._cacheinfos.setPresent();
 	}
 	
 	fn cache_remove(&mut self) {
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
-			holder.remove(self._uuidStorage);
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder|{
+			holder.remove(tmp);
 		});
+		self._cacheinfos.setAbsent();
 	}
 }
 

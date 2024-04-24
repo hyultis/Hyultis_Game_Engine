@@ -74,21 +74,26 @@ impl Plane<worldPosition>
 
 impl ShaderDrawerImpl for Plane<worldPosition> {
 	fn cache_mustUpdate(&self) -> bool {
-		self._canUpdate
+		self._canUpdate || self._cacheinfos.isAbsent()
 	}
 	
 	fn cache_submit(&mut self) {
-		let Some(structure) = self.cache_get() else {return};
+		let Some(structure) = self.cache_get() else {self.cache_remove();return};
 		
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
-			self._uuidStorage = Some(holder.insert(self._uuidStorage,structure));
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder|{
+			holder.insert(tmp,structure);
 		});
+		self._cacheinfos.setPresent();
+		self._canUpdate = false;
 	}
 	
 	fn cache_remove(&mut self) {
-		ShaderDrawer_Manager::singleton().inspect::<HGE_shader_3Dsimple_holder>(|holder|{
-			holder.remove(self._uuidStorage);
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder|{
+			holder.remove(tmp);
 		});
+		self._cacheinfos.setAbsent();
 	}
 }
 
@@ -99,20 +104,17 @@ impl ShaderDrawerImplReturn<HGE_shader_3Dsimple_def> for Plane<worldPosition>
 		let texturename = self._components.texture().getName().clone();
 		let color_blend_type = self._components.texture().colorBlend().toU32();
 		let mut texturecolor = color::default();
-		if let Some(texture) = self._components.computeTexture()
-		{
-			texturecolor = texture.color;
-		}
 		let mut textureuvcoord = [[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0]];
 		if let Some(texture) = self._components.computeTexture()
 		{
+			texturecolor = texture.color;
 			textureuvcoord = texture.uvcoord.toArray4();
 		}
 		
 		let mut vecstruct = Vec::new();
 		for i in 0..4
 		{
-			let mut vertex = self._pos[i];
+			let mut vertex = self._pos[i].clone();
 			self._components.computeVertex(&mut vertex);
 			
 			vecstruct.push(HGE_shader_3Dsimple_def {
@@ -127,8 +129,6 @@ impl ShaderDrawerImplReturn<HGE_shader_3Dsimple_def> for Plane<worldPosition>
 		
 		let indice = [0, 1, 2, 1, 3, 2].to_vec();
 		ModelUtils::generateNormal(&mut vecstruct, &indice);
-		
-		self._canUpdate = false;
 		
 		return Some(
 			ShaderDrawerImplStruct{

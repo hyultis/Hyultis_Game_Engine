@@ -57,7 +57,16 @@ impl chunk
 			});
 	}
 	
-	pub fn cacheUpdate(&mut self)
+	pub fn cacheForceUpdate(&mut self)
+	{
+		self._content.iter().for_each(|(_, elem)| {
+			elem.update(|i| {
+				i.cache_submit();
+			});
+		});
+	}
+	
+	pub fn cache_checkupdate(&mut self)
 	{
 		let haveupdate = self._content.iter()
 			.any(|(_, elem)| elem.get().cache_mustUpdate() || elem.isWantDrop());

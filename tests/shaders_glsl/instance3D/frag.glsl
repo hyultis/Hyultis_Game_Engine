@@ -20,7 +20,7 @@ void main()
 
 	if (v_nbtexture>0)
 	{
-		lowp vec4 textureColor = getTextureSC(v_nbtexture-1, v_texcoord);
+		lowp vec4 textureColor = getTextureSC(v_nbtexture, v_texcoord);
 		tmp_color = textureColor * v_color;
 	}
 

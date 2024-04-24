@@ -26,7 +26,7 @@ void main()
 	}
 	else
 	{
-		vec4 textureColor = getTextureSC(v_nbtexture-1, v_texcoord);
+		vec4 textureColor = getTextureSC(v_nbtexture, v_texcoord);
 		if(v_color_blend_type==0)
 		{
 			tmp_color = textureColor*v_color;

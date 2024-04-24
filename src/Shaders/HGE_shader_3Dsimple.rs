@@ -20,6 +20,7 @@ use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
 use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder, ShaderStructHolder_utils};
 use crate::Textures::Manager::ManagerTexture;
 use dashmap::DashMap;
+use crate::components::cacheInfos::cacheInfos;
 
 
 // struct externe, a changer en HGE_shader_2Dsimple
@@ -52,9 +53,9 @@ impl IntoVertexted<HGE_shader_3Dsimple> for HGE_shader_3Dsimple_def
 	fn IntoVertexted(&self, _: bool) -> Option<HGE_shader_3Dsimple> {
 		let mut textureid = 0;
 		
-		if let Some(texture) = self.texture.clone()
+		if let Some(texture) = &self.texture
 		{
-			let Some(id) = ManagerTexture::singleton().getTextureToId(texture) else { return None; };
+			let Some(id) = ManagerTexture::singleton().getTextureToId(texture.clone()) else { return None; };
 			textureid = id;
 		}
 		
@@ -167,30 +168,15 @@ pub struct HGE_shader_3Dsimple_holder
 
 impl HGE_shader_3Dsimple_holder
 {
-	pub fn insert(&mut self, uuid: Option<Uuid>, mut structure: ShaderDrawerImplStruct<impl IntoVertexted<HGE_shader_3Dsimple> + Send + Sync + 'static>) -> Uuid
+	pub fn insert(&mut self, uuid: cacheInfos, structure: ShaderDrawerImplStruct<impl IntoVertexted<HGE_shader_3Dsimple> + Send + Sync + 'static>)
 	{
-		let mut vertexconvert = Vec::new();
-		for x in structure.vertex.drain(0..) {
-			let tmp: Box<dyn IntoVertexted<HGE_shader_3Dsimple> + Send + Sync> = Box::new(x);
-			vertexconvert.push(tmp);
-		};
-		
-		let newstruct = ShaderDrawerImplStruct{
-			vertex: vertexconvert,
-			indices: structure.indices.clone(),
-		};
-		
-		let uuid = uuid.unwrap_or_else(|| Uuid::new_v4());
-		self._datas.insert(uuid, newstruct);
-		
+		ShaderStructHolder_utils::insert(uuid.into(),structure,&self._datas);
 		self._haveUpdate = true;
-		return uuid;
 	}
 	
-	pub fn remove(&mut self,  uuid: Option<Uuid>)
+	pub fn remove(&mut self, uuid: cacheInfos)
 	{
-		let Some(uuid) = uuid else {return};
-		self._datas.remove(&uuid);
+		self._datas.remove(&uuid.into());
 		self._haveUpdate = true;
 	}
 	

@@ -11,7 +11,6 @@ pub struct ManagerModels
 {
 	_chunks: DashMap<[i32; 3], chunk>,
 	_active: ArcSwap<Vec<[i32; 3]>>,
-	_activeChanged: ArcSwap<bool>,
 	_threadUpdate: RwLock<SingletonThread>,
 }
 
@@ -30,7 +29,6 @@ impl ManagerModels
 		{
 			_chunks: DashMap::new(),
 			_active: ArcSwap::new(Arc::new(Vec::new())),
-			_activeChanged: ArcSwap::new(Arc::new(false)),
 			_threadUpdate: RwLock::new(thread),
 		}
 	}
@@ -42,7 +40,7 @@ impl ManagerModels
 		});
 	}
 	
-	pub fn get<'a>(&'a self, pos: [i32; 3]) -> RefMut<'a, [i32; 3], chunk>
+	pub fn get(&self, pos: [i32; 3]) -> RefMut<[i32; 3], chunk>
 	{
 		if (!self._chunks.contains_key(&pos))
 		{
@@ -56,21 +54,35 @@ impl ManagerModels
 		let mut old = self._active.load_full().to_vec();
 		old.append(&mut add);
 		self._active.swap(Arc::new(old));
-		self._activeChanged.swap(Arc::new(true));
 	}
 	
 	pub fn active_chunk_resetAndAdd(&self, add: Vec<[i32; 3]>)
 	{
-		let old = self._active.swap(Arc::new(add));
-		self._activeChanged.swap(Arc::new(true));
+		let old = self._active.swap(Arc::new(add.clone()));
+		let old = Arc::unwrap_or_clone(old);
 		
-		for x in Arc::unwrap_or_clone(old)
+		
+		for x in &old
 		{
-			if let Some(mut chunk) = self._chunks.get_mut(&x)
+			if(!add.contains(&x))
 			{
-				chunk.cache_remove();
+				if let Some(mut chunk) = self._chunks.get_mut(x)
+				{
+					chunk.cache_remove();
+				}
 			}
 		}
+		
+		/*for x in &add
+		{
+			if(!old.contains(&x))
+			{
+				if let Some(mut chunk) = self._chunks.get_mut(x)
+				{
+					chunk.cacheForceUpdate();
+				}
+			}
+		}*/
 	}
 	
 	pub fn active_chunk_get(&self) -> Arc<Vec<[i32; 3]>>
@@ -82,7 +94,6 @@ impl ManagerModels
 	{
 		self.active_chunk_resetAndAdd(vec![]);
 		self._chunks.retain(|_,_|{false});
-		self._activeChanged.swap(Arc::new(true));
 	}
 	
 	pub fn tickUpdate(&self)
@@ -94,20 +105,12 @@ impl ManagerModels
 	
 	pub fn ModelsUpdate(&self)
 	{
-		if !**self._activeChanged.load()
-		{
-			return;
-		}
-		
 		for pos in self._active.load().iter()
 		{
 			if let Some(mut chunk) = self._chunks.get_mut(pos)
 			{
-				chunk.cacheUpdate();
+				chunk.cache_checkupdate();
 			}
 		}
-		
-		
-		self._activeChanged.swap(Arc::new(false));
 	}
 }
