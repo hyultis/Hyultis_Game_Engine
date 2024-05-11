@@ -25,6 +25,11 @@ layout(set = 2, binding = 0) uniform sampler2DArray texture_large;
 
 vec4 getTextureSC(uint idTexture, vec2 uvcoord)
 {
+	if(idTexture==0)
+	{
+		return vec4(0.0,0.0,0.0,0.0);
+	}
+
 	uint[2] unpacked = getChannelTextureId(idTexture-1);
 	if(unpacked[0]==0)
 	{
