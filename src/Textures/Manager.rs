@@ -629,21 +629,26 @@ impl ManagerTexture
 		
 		if let Some(texture) = self._textures.get(&name)
 		{
-			texture.update(|bind|{
-				for oneorder in orders.get().iter()
-				{
-					oneorder.exec(bind);
-				}
-				
-				for x in self._descriptorSets.iter()
-				{
-					if(x.texture_isUpdated(&*bind))
-					{
-						break;
-					}
-				};
+			texture.update(|bind| {
+				self.order_execute_texture_exec(&*orders.get(), bind);
 			});
 		}
+	}
+	
+	fn order_execute_texture_exec(&self,orders: &Vec<Box<dyn Order + Sync + Send>>,texture: &mut Texture)
+	{
+		for oneorder in orders.iter()
+		{
+			oneorder.exec(texture);
+		}
+		
+		for x in self._descriptorSets.iter()
+		{
+			if(x.texture_isUpdated(&*texture))
+			{
+				break;
+			}
+		};
 	}
 	
 	fn executeCallback(&self)

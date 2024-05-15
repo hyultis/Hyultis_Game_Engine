@@ -50,12 +50,10 @@ pub struct Texture
 	pub sampler: String,
 	pub mipmap: u32,
 	pub format: Format,
-	pub cache: Option<Arc<ImageView>>,
 	pub partUVCoord: HashMap<String,Texture_part>,
 	pub reloadLoader: Option<Order_reload>,
-	
 	pub state: TextureState,
-	pub contentClearable: bool,
+	pub clearable: bool
 }
 
 impl Default for Texture
@@ -69,12 +67,11 @@ impl Default for Texture
 			sampler: "default".to_string(),
 			mipmap: 1,
 			format: Format::R8G8B8A8_UNORM,
-			cache: None,
 			partUVCoord: Default::default(),
 			reloadLoader: None,
 			
 			state: TextureState::CREATED,
-			contentClearable: true,
+			clearable: false,
 		}
 	}
 }
@@ -100,18 +97,12 @@ impl Texture
 		return self.height.unwrap_or(1) as f32/self.width.unwrap_or(1) as f32;
 	}
 	
-	
+	/// TODO put this somewhere
 	pub fn clearContent(&mut self)
 	{
-		if(self.contentClearable)
+		if(self.clearable)
 		{
-			//self.content = None;
+			self.content = None;
 		}
-	}
-	
-	pub fn discharge(&mut self)
-	{
-		self.cache = None;
-		self.state = TextureState::BLOCKED;
 	}
 }

@@ -30,7 +30,7 @@ pub struct textureLoader_normalized
 	pub raw: Vec<u8>,
 	pub width: u32,
 	pub height: u32,
-	pub clearable: bool,
+	pub clearable: bool
 }
 
 impl textureLoader_normalized
@@ -44,12 +44,12 @@ impl textureLoader_normalized
 				height: 1,
 				clearable: true,
 			},
-			Some(texture) =>
+			Some(textureContent) =>
 				textureLoader_normalized {
-					raw: texture.to_vec(),
-					width: texture.width(),
-					height: texture.height(),
-					clearable: true,
+					raw: textureContent.to_vec(),
+					width: textureContent.width(),
+					height: textureContent.height(),
+					clearable: texture.clearable,
 				}
 		}
 	}

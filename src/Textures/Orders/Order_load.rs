@@ -81,8 +81,7 @@ impl Order for Order_load
 		texture.mipmap = self.mipmap;
 		texture.format = self.format;
 		texture.reloadLoader = None;
-		
-		texture.contentClearable = data.clearable;
+		texture.clearable = data.clearable;
 		if (self.from.canReload())
 		{
 			texture.reloadLoader = Some(Order_reload {

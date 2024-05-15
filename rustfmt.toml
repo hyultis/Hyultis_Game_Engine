@@ -1,0 +1,6 @@
+hard_tabs = true
+brace_style = "AlwaysNextLine"
+control_brace_style = "AlwaysNextLine"
+empty_item_single_line = true
+fn_single_line = false
+normalize_comments = false
