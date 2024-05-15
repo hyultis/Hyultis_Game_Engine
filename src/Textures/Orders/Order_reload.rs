@@ -32,7 +32,7 @@ impl Order_reload
 
 impl Order for Order_reload
 {
-	fn exec(&self, _: u32, texture: &mut Texture)
+	fn exec(&self, texture: &mut Texture)
 	{
 		let resultLoad = self.from.load();
 		if (resultLoad.is_err())

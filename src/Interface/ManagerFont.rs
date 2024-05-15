@@ -22,7 +22,6 @@ use crate::Textures::textureLoader::textureLoader_fromRaw;
 use singletonThread::SingletonThread;
 use crate::assetStreamReader::assetManager;
 use crate::Textures::Order::Order;
-use crate::Textures::Orders::Order_computeCache::Order_computeCache;
 
 #[derive(Clone)]
 pub struct ManagerFont_verticestmp
@@ -130,8 +129,9 @@ impl ManagerFont
 		let fontBold = FontArc::try_from_vec(fontBold)?;
 		
 		let mut glyph_brush = GlyphBrushBuilder::using_fonts([fontUser,fontUniversel,fontBold].into())
-			.draw_cache_position_tolerance(1.0)
-			.draw_cache_scale_tolerance(1.0)
+			.cache_redraws(false)
+			.draw_cache_position_tolerance(2.0) // ignore subpixel differences totally
+			.draw_cache_scale_tolerance(3.0) // ignore scale differences
 			.build();
 		self._storeFontId.insert("user".to_string(),FontId(0));
 		self._storeFontId.insert("normal".to_string(),FontId(1));
@@ -194,22 +194,15 @@ impl ManagerFont
 		HTracer::threadSetName("FontEngine");
 		if let Some(FontEngine) = self._fontEngine.write().as_mut()
 		{
-			let fontidtexture = ManagerTexture::singleton().getTextureToId("font");
-			if fontidtexture.is_none()
+			if ManagerTexture::singleton().descriptorSet_getIdTexture(["HGE_set0"],"font").is_none()
 			{
 				return;
 			}
-			let _TextureSize = *self._fontEngineTextureSize.load_full();
 			
 			self._storeText.iter().for_each(|item| {
 				let tmp = item.value().clone();
 				FontEngine.queue(tmp.to_borrowed());
 			});
-			
-			{
-				//FontEngine.resize_texture(1, 1); // need to reset cache to clear desync cache bug (?!)
-				//FontEngine.resize_texture(TextureSize[0], TextureSize[1]);
-			}
 			
 			let mut textureUpdate: Vec<Box<dyn Order + Send + Sync>> = Vec::new();
 			
@@ -264,16 +257,12 @@ impl ManagerFont
 								}
 							});
 							
-							
-							textureUpdate.push(Box::new(Order_computeCache::newPrioritize()));
 							ManagerTexture::singleton().texture_update("font", textureUpdate);
-							storageToCache.clone().into_iter().for_each(|(_, func)|
+							storageToCache.into_iter().for_each(|(_, func)|
 							{
 								func();
 							});
 							*ManagerFont::singleton()._updateNeed.write() = false;
-							/*ManagerTexture::singleton().texture_setCallback("font", move |_| {
-							});*/
 						}
 					}
 				Err(BrushError::TextureTooSmall { suggested }) =>
@@ -288,7 +277,7 @@ impl ManagerFont
 							sameThread: true,
 						})]);
 					}
-				_ => {}
+				Ok(BrushAction::ReDraw) => {}
 			}
 		}
 	}

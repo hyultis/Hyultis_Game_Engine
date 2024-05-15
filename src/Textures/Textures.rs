@@ -5,45 +5,6 @@ use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use crate::Textures::Orders::Order_reload::Order_reload;
 
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum Texture_atlasType
-{
-	#[deprecated] NONE,
-	SMALL,
-	LARGE,
-	FONT
-}
-
-impl Texture_atlasType
-{
-	pub fn getSetId(&self) -> usize
-	{
-		match self {
-			Texture_atlasType::NONE => 0,
-			Texture_atlasType::SMALL => 1,
-			Texture_atlasType::LARGE => 2,
-			Texture_atlasType::FONT => 0
-		}
-	}
-	
-	pub fn getSize(&self) -> u32
-	{
-		match self {
-			Texture_atlasType::NONE => 0,
-			#[cfg(target_os = "android")]
-			Texture_atlasType::SMALL => 96,
-			#[cfg(not(target_os = "android"))]
-			Texture_atlasType::SMALL => 128,
-			#[cfg(target_os = "android")]
-			Texture_atlasType::LARGE => 256,
-			#[cfg(not(target_os = "android"))]
-			Texture_atlasType::LARGE => 2048,
-			Texture_atlasType::FONT => 0
-		}
-	}
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct Texture_part
 {
@@ -93,12 +54,7 @@ pub struct Texture
 	pub partUVCoord: HashMap<String,Texture_part>,
 	pub reloadLoader: Option<Order_reload>,
 	
-	pub contentSizeAtlas: Option<Vec<u8>>,
-	pub atlasType: Texture_atlasType,
-	pub atlasId: Option<u32>,
-	
 	pub state: TextureState,
-	pub sendToGpu: TextureStateGPU,
 	pub contentClearable: bool,
 }
 
@@ -117,12 +73,7 @@ impl Default for Texture
 			partUVCoord: Default::default(),
 			reloadLoader: None,
 			
-			contentSizeAtlas: None,
-			atlasType: Texture_atlasType::NONE,
-			atlasId: None,
-			
 			state: TextureState::CREATED,
-			sendToGpu: TextureStateGPU::NOTSEND,
 			contentClearable: true,
 		}
 	}
@@ -154,7 +105,7 @@ impl Texture
 	{
 		if(self.contentClearable)
 		{
-			self.content = None;
+			//self.content = None;
 		}
 	}
 	
@@ -162,6 +113,5 @@ impl Texture
 	{
 		self.cache = None;
 		self.state = TextureState::BLOCKED;
-		self.sendToGpu = TextureStateGPU::NOTSEND;
 	}
 }

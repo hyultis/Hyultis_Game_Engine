@@ -10,7 +10,7 @@ pub struct Order_loadPart
 
 impl Order for Order_loadPart
 {
-	fn exec(&self, _: u32, texture: &mut Texture) {
+	fn exec(&self, texture: &mut Texture) {
 		if let Ok(result) = self.from.load(texture)
 		{
 			texture.partUVCoord = result;

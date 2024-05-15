@@ -47,3 +47,13 @@ impl From<u32> for TextureChannel
 		}
 	}
 }
+
+impl Default for TextureChannel
+{
+	fn default() -> Self {
+		Self{
+			channel_id: 0,
+			texture_id: [0,0,0],
+		}
+	}
+}

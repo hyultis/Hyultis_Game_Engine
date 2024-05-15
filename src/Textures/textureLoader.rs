@@ -129,7 +129,6 @@ impl textureLoader for textureLoader_fromRaw
 	
 	fn canReload(&self) -> bool
 	{
-		println!("can reload on textureLoader_fromRaw : {}",self.canReload);
 		return self.canReload;
 	}
 }

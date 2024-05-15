@@ -2,11 +2,10 @@ use Htrace::HTrace;
 use image::RgbaImage;
 use vulkano::format::Format;
 use crate::Textures::Filter::Filter;
-use crate::Textures::Manager::ManagerTexture;
 use crate::Textures::Order::Order;
 use crate::Textures::Orders::Order_reload::Order_reload;
 use crate::Textures::textureLoader::textureLoader;
-use crate::Textures::Textures::{Texture, Texture_atlasType, TextureState};
+use crate::Textures::Textures::{Texture, TextureState};
 
 #[derive(Clone)]
 pub struct Order_load
@@ -52,7 +51,7 @@ impl Order_load
 
 impl Order for Order_load
 {
-	fn exec(&self, _: u32, texture: &mut Texture)
+	fn exec(&self, texture: &mut Texture)
 	{
 		let resultLoad = self.from.load();
 		if (resultLoad.is_err())
@@ -82,24 +81,6 @@ impl Order for Order_load
 		texture.mipmap = self.mipmap;
 		texture.format = self.format;
 		texture.reloadLoader = None;
-		
-		if(loadedInBuffer.width()>512 || loadedInBuffer.height() > 512)
-		{
-			texture.atlasType = Texture_atlasType::LARGE
-		}
-		else
-		{
-			texture.atlasType = Texture_atlasType::SMALL
-		}
-		if(texture.name=="font")
-		{
-			texture.atlasType = Texture_atlasType::FONT;
-		}
-		if(texture.atlasId.is_none())
-		{
-			texture.atlasId = Some(ManagerTexture::singleton().getNewAtlasId(texture.atlasType));
-		}
-		
 		
 		texture.contentClearable = data.clearable;
 		if (self.from.canReload())

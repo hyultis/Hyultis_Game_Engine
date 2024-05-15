@@ -22,7 +22,7 @@ rayon = "1.10.0"
 arc-swap = "1.7.1"
 rand_chacha = "0.3.1"
 rand_seeder = "0.2.3"
-HArcMut = { path = "../../rust/HArcMut" }#"1.1.0"
+HArcMut = "1.1.1"
 singletonThread = "1.0.0"
 bytemuck = "1.15.0"
 derive_more = { version = "1.0.0-beta.6", features = ["full"] }

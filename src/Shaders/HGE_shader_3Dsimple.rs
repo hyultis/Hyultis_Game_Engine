@@ -55,8 +55,8 @@ impl IntoVertexted<HGE_shader_3Dsimple> for HGE_shader_3Dsimple_def
 		
 		if let Some(texture) = &self.texture
 		{
-			let Some(id) = ManagerTexture::singleton().getTextureToId(texture.clone()) else { return None; };
-			textureid = id;
+			let Some(id) = ManagerTexture::singleton().descriptorSet_getIdTexture(["HGE_set0","HGE_set1","HGE_set2"],texture.clone()) else { return None; };
+			textureid = id.into();
 		}
 		
 		return Some(HGE_shader_3Dsimple {
@@ -287,16 +287,16 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 			return;
 		}
 		
-		let descriptors = ManagerTexture::singleton().getPersistentDescriptorSet();
-		descriptors.iter().for_each(|descriptor| {
-			let setid = descriptor.key().getSetId() as u32;
+		for setid in 0..3
+		{
+			let Some(descriptorCache) = ManagerTexture::singleton().descriptorSet_getVulkanCache(format!("HGE_set{}",setid)) else { return; };
 			HTraceError!(cmdBuilder.bind_descriptor_sets(
 				PipelineBindPoint::Graphics,
 				pipelineLayout.clone(),
 				setid,
-				descriptor.value().load_full(),
+				descriptorCache,
 			));
-		});
+		}
 		
 		let lenIndice = self._cacheIndicesLen;
 		

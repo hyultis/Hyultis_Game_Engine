@@ -14,7 +14,7 @@ pub struct Order_partialTextureUpdate
 
 impl Order for Order_partialTextureUpdate
 {
-	fn exec(&self, _: u32, texture: &mut Texture)
+	fn exec(&self, texture: &mut Texture)
 	{
 		if let Some(originTextureBuffer) = &mut texture.content
 		{

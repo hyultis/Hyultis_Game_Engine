@@ -33,13 +33,14 @@ use crate::Interface::ManagerFont::ManagerFont;
 use crate::InterpolateTimer::ManagerInterpolate;
 use crate::ManagerAnimation::{AnimationHolder, ManagerAnimation};
 use crate::Models3D::ManagerModels::ManagerModels;
-use crate::Shaders::ShaderStruct::ShaderStruct;
+use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder};
 use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dline_holder, HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
 use crate::Shaders::HGE_shader_3Dinstance::{HGE_shader_3Dinstance, HGE_shader_3Dinstance_holder};
 use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
 use crate::Shaders::HGE_shader_screen::HGE_shader_screen;
 use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
 use crate::Textures::Manager::ManagerTexture;
+use crate::Textures::TextureDescriptor::{TextureDescriptor, TextureDescriptor_exclude, TextureDescriptor_process, TextureDescriptor_type};
 
 const HGE_STRING: &str = "HGE";
 const HGE_VERSION: Version = Version {
@@ -425,7 +426,7 @@ impl HGEMain
 	fn engineLoad(&self) -> anyhow::Result<()>
 	{
 		HTrace!("Engine load internal ----");
-		self._cameraC.get_mut().setPositionXYZ(1.0, 1.0, 100.0);
+		
 		
 		/*let vs = {
 			let mut f = File::open("./static/shaders/vert3D.glsl")
@@ -452,7 +453,17 @@ impl HGEMain
 		HGE_shader_screen::createPipeline()?;
 		
 		self._rendering.write().window_size_dependent_setup();
+		
 		ManagerTexture::singleton().preload();
+		ManagerTexture::singleton().descriptorSet_create("HGE_set0",TextureDescriptor::new(TextureDescriptor_type::ONE("font".to_string()),
+			TextureDescriptor_exclude::NONE,
+			HGE_shader_2Dsimple_holder::pipelineName(), 0, "default"));
+		ManagerTexture::singleton().descriptorSet_create("HGE_set1",TextureDescriptor::new(TextureDescriptor_type::SIZE_DEPENDENT(0..512,TextureDescriptor_process::RESIZE(256,256)),
+			TextureDescriptor_exclude::ARRAY(vec!["font".to_string()]),
+			HGE_shader_2Dsimple_holder::pipelineName(), 1, "default"));
+		ManagerTexture::singleton().descriptorSet_create("HGE_set2",TextureDescriptor::new(TextureDescriptor_type::SIZE_DEPENDENT(512..u16::MAX,TextureDescriptor_process::RESIZE(1024,1024)),
+			TextureDescriptor_exclude::ARRAY(vec!["font".to_string()]),
+			HGE_shader_2Dsimple_holder::pipelineName(), 2, "default"));
 		
 		let tmp = HGEconfig::singleton().general_get();
 		HTraceError!(ManagerFont::singleton().FontLoad(tmp.fonts.path_fileUser.clone(),tmp.fonts.path_fileUniversel.clone(),tmp.fonts.path_fileBold.clone()));

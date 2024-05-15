@@ -15,7 +15,7 @@ pub struct Order_resize
 
 impl Order for Order_resize
 {
-	fn exec(&self, _: u32, texture: &mut Texture)
+	fn exec(&self, texture: &mut Texture)
 	{
 		let textureWidth = texture.width.unwrap_or(0);
 		let textureHeight = texture.width.unwrap_or(0);

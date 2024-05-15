@@ -295,16 +295,16 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 			return;
 		}
 		
-		let descriptors = ManagerTexture::singleton().getPersistentDescriptorSet();
-		descriptors.iter().for_each(|descriptor| {
-			let setid = descriptor.key().getSetId() as u32;
+		for setid in 0..3
+		{
+			let Some(descriptorCache) = ManagerTexture::singleton().descriptorSet_getVulkanCache(format!("HGE_set{}",setid)) else { return; };
 			HTraceError!(cmdBuilder.bind_descriptor_sets(
 				PipelineBindPoint::Graphics,
 				pipelineLayout.clone(),
 				setid,
-				descriptor.value().load_full(),
+				descriptorCache,
 			));
-		});
+		}
 		
 		self._datas.iter().filter(|selfdata| {
 			selfdata._cacheDatasMem.is_some() && selfdata._cacheIndicesMem.is_some() && selfdata._cacheInstanceMem.is_some()

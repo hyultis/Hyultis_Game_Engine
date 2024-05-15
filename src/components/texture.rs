@@ -8,7 +8,6 @@ use crate::Textures::Textures::TextureState;
 #[derive(Clone, Debug, Default)]
 pub struct texture
 {
-	pub id: u32,
 	pub uvcoord: uvcoord,
 	pub color: color,
 	pub colorBlend: colorBlend
@@ -20,7 +19,6 @@ pub struct textureAsset
 	isok: bool,
 	name: Option<String>,
 	part: Option<String>,
-	id: Option<u32>,
 	uvcoord: Option<uvcoord>,
 	color: color,
 	colorBlend: colorBlend
@@ -33,9 +31,6 @@ impl textureAsset
 	}
 	pub fn getPart(&self) -> Option<String> {
 		self.part.clone()
-	}
-	pub fn getId(&self) -> u32 {
-		self.id.unwrap_or(0)
 	}
 	
 	pub fn getUvcoord(&self) -> uvcoord {
@@ -72,7 +67,6 @@ impl textureAsset
 	{
 		self.name = None;
 		self.part = None;
-		self.id = None;
 	}
 	
 	pub fn color(&self) -> &color
@@ -103,7 +97,6 @@ impl Default for textureAsset
 			isok: true,
 			name: None,
 			part: None,
-			id: Some(0),
 			uvcoord: Some(uvcoord::default()),
 			color: color::default(),
 			colorBlend: colorBlend::MUL,
@@ -118,7 +111,6 @@ impl HGEC_base<Option<texture>> for textureAsset
 		if(self.isok)
 		{
 			*texture = Some(texture {
-				id: self.id.unwrap_or_default(),
 				uvcoord: self.uvcoord.unwrap_or_default(),
 				color: self.color,
 				colorBlend: self.colorBlend,
@@ -142,44 +134,24 @@ impl HGEC_texture for textureAsset
 		
 		let Some(texturename) = &self.name else {return};
 		
-		let textureok = match ManagerTexture::singleton().get(texturename) {
-			None => false,
-			Some(texture) => {
-				texture.state != TextureState::CREATED
+		if let Some(texture) = ManagerTexture::singleton().get(texturename)
+		{
+			if(texture.state == TextureState::CREATED)
+			{
+				return;
 			}
-		};
-		
-		if(!textureok)
-		{
-			return;
 		}
 		
-		self.id = ManagerTexture::singleton().getTextureToId(texturename);
-		//println!("resolved vertex texture : {} -> {:?}",&self.name,&self.id);
-		if(self.id.is_none())
-		{
-			return;
-		}
-		
+		self.isok = true;
 		if let Some(namepart) = &self.part
 		{
-			let uvcoordok = match ManagerTexture::singleton().getPart(texturename, namepart) {
-				None => false,
+			match ManagerTexture::singleton().getPart(texturename, namepart) {
+				None => {self.isok = false},
 				Some(part) => {
 					self.uvcoord = Some(uvcoord::from(part));
-					true
 				}
 			};
-			if(uvcoordok)
-			{
-				self.isok = true;
-			}
 		}
-		else
-		{
-			self.isok = true;
-		}
-		
 	}
 }
 

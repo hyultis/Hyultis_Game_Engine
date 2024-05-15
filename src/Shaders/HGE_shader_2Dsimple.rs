@@ -21,7 +21,6 @@ use crate::Shaders::names;
 use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
 use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder, ShaderStructHolder_utils};
 use crate::Textures::Manager::ManagerTexture;
-use crate::Textures::Types::TextureChannel;
 
 // struct externe, a changer en HGE_shader_2Dsimple
 #[derive(Clone, Debug)]
@@ -55,8 +54,8 @@ impl IntoVertexted<HGE_shader_2Dsimple> for HGE_shader_2Dsimple_def
 		
 		if let Some(texture) = &self.texture
 		{
-			let Some(id) = ManagerTexture::singleton().getTextureToId(texture.clone()) else { return None; };
-			textureid = id;
+			let Some(id) = ManagerTexture::singleton().descriptorSet_getIdTexture(["HGE_set0","HGE_set1","HGE_set2"],texture.clone()) else { return None; };
+			textureid = id.into();
 		}
 		
 		return Some(HGE_shader_2Dsimple {
@@ -128,6 +127,7 @@ impl ShaderStruct for HGE_shader_2Dsimple {
 				HGE_shader_2Dsimple::per_vertex()
 			)
 		}, PrimitiveTopology::LineList, true);
+		
 		return Ok(());
 	}
 }
@@ -314,16 +314,16 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 			return;
 		}
 		
-		let descriptors = ManagerTexture::singleton().getPersistentDescriptorSet();
-		descriptors.iter().for_each(|descriptor| {
-			let setid = descriptor.key().getSetId() as u32;
+		for setid in 0..3
+		{
+			let Some(descriptorCache) = ManagerTexture::singleton().descriptorSet_getVulkanCache(format!("HGE_set{}",setid)) else { return; };
 			HTraceError!(cmdBuilder.bind_descriptor_sets(
 				PipelineBindPoint::Graphics,
 				pipelineLayout.clone(),
 				setid,
-				descriptor.value().load_full(),
+				descriptorCache,
 			));
-		});
+		}
 		
 		let lenIndice = self._cacheIndicesLen;
 		
