@@ -1,0 +1,28 @@
+{
+    "minlvl": 4,
+    "module": {
+        "cli": {
+            "colors": {
+                "DEBUG": "0",
+                "DEBUGERR": "1",
+                "ERROR": "1;97;41",
+                "FATAL": "1;97;45",
+                "NOTICE": "1;32",
+                "NOTICEDERR": "35",
+                "WARNING": "1;97;43",
+                "NORMAL": "0"
+            },
+            "lineReturn": "|",
+            "lineFormat": "\u001b[3m{time}\u001b[0m {lvl} ({file}:l{line}) : \u001b[{color}m{msg}\u001b[0m"
+        },
+        "file": {
+            "path": "./dynamic/traces",
+            "lineReturn": "|",
+            "lineFormat": "{time} {lvl} ({file}:l{line}) : {msg}",
+            "forceInOneFile": "",
+            "byHour": true,
+            "bySrc": false,
+            "byThreadId": true
+        }
+    }
+}

@@ -99,6 +99,17 @@ impl ManagerInterface
 	{
 		let Some(page) = self._pageArray.get(self.getActivePage().as_str()) else {return};
 		page.eventWinRefresh();
+		
+		let otherpage = self._pageArray.iter().filter(|x|x.key().ne(&self.getActivePage())).map(|x|x.key().clone()).collect::<Vec<String>>();
+		let _ = TSpawner!(||{
+			for x in otherpage
+			{
+				if let Some(page) = ManagerInterface::singleton()._pageArray.get(&x)
+				{
+					page.eventWinRefresh();
+				}
+			}
+		});
 	}
 	
 	pub fn UiPageAppend(&self, name: impl Into<String>, page: UiPage)

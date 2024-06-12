@@ -1,0 +1,12 @@
+{
+	"nodes":[
+		{"id":"85745fda26b87cb2","x":-80,"y":-280,"width":746,"height":384,"color":"5","type":"group","label":"Drawing"},
+		{"id":"15fc051bd9483b1e","x":-12,"y":-4,"width":250,"height":60,"type":"text","text":"ShaderManager"},
+		{"id":"6ca2caec864bbb72","x":396,"y":24,"width":250,"height":60,"type":"text","text":"ShaderHolder corresponding"},
+		{"id":"3a1dbffaff442b59","x":-60,"y":-260,"width":298,"height":50,"type":"text","text":"Any ENTITY"}
+	],
+	"edges":[
+		{"id":"2d5ce8447889f84c","fromNode":"3a1dbffaff442b59","fromSide":"bottom","toNode":"15fc051bd9483b1e","toSide":"top","label":"using cacheUpdate()"},
+		{"id":"fd8c9b6c4df9dfa6","fromNode":"15fc051bd9483b1e","fromSide":"right","toNode":"6ca2caec864bbb72","toSide":"left"}
+	]
+}

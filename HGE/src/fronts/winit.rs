@@ -1,5 +1,8 @@
+pub extern crate winit;
+
 use std::any::Any;
 use std::sync::OnceLock;
+use anyhow::anyhow;
 use Hconfig::HConfigManager::HConfigManager;
 use Htrace::{HTrace, HTraceError};
 use json::JsonValue;
@@ -7,14 +10,15 @@ use parking_lot::{RawRwLock, RwLock};
 use parking_lot::lock_api::{RwLockReadGuard, RwLockWriteGuard};
 use vulkano::swapchain::Surface;
 use winit::event::{ElementState, Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
+use winit::event_loop::{ControlFlow, EventLoop, ActiveEventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
-use winit::window::{Fullscreen, Window, WindowBuilder};
+use winit::window::{Fullscreen, Window};
 use crate::configs::general::HGEconfig_general;
 use crate::configs::HGEconfig::HGEconfig;
 use crate::fronts::Inputs::Inputs;
 use crate::HGEMain::HGEMain;
+
 
 pub struct HGEwinit
 {
@@ -58,7 +62,7 @@ impl HGEwinit
 	
 	/// run winit event, HGE engine, and connect logic of your system
 	/// postEngineEvent is run between engine event and rendering
-	pub fn run(eventloop: EventLoop<()>, generalConf: HGEconfig_general, postEngineEvent: &mut impl FnMut(&Event<()>,&EventLoopWindowTarget<()>))
+	pub fn run(eventloop: EventLoop<()>, generalConf: HGEconfig_general, postEngineEvent: &mut impl FnMut(&Event<()>,&ActiveEventLoop))
 	{
 		let mut initialized = false;
 		
@@ -206,7 +210,7 @@ impl HGEwinit
 		}
 	}
 	
-	fn buildAgnosticWindow(eventloop: &EventLoopWindowTarget<()>) -> anyhow::Result<impl HasRawWindowHandle + HasRawDisplayHandle + Any + Send + Sync>
+	fn buildAgnosticWindow(eventloop: &ActiveEventLoop) -> anyhow::Result<impl HasRawWindowHandle + HasRawDisplayHandle + Any + Send + Sync>
 	{
 		let configBind = HGEconfig::singleton().general_get();
 		
@@ -252,14 +256,20 @@ impl HGEwinit
 			fullscreenmode = Some(Fullscreen::Borderless(None));
 		}
 		
-		let window = WindowBuilder::new()
+		let windowattr = Window::default_attributes()
 			//.with_min_inner_size(LogicalSize{ width: 640, height: 480 })
 			//.with_name("Truc much", "yolo")
 			.with_title(&configBind.windowTitle)
-			.with_fullscreen(fullscreenmode)
-			.build(eventloop)?;
+			.with_fullscreen(fullscreenmode);
+		
+		let window = match eventloop.create_window(windowattr)
+		{
+			Ok(x) => x,
+			Err(err) => {return Err(anyhow!("winit create window error : {}",err));}
+		};
 		
 		let _ = config.save();
+		
 		
 		return Ok(window);
 	}

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use crate::components::cacheInfos::cacheInfos;
 use crate::components::color::color;
 use crate::components::Components;
 use crate::components::corners::corner4;
@@ -39,7 +40,8 @@ pub struct Bar
 	_orientation : Bar_orientation,
 	_canUpdate: bool,
 	_events: event<Bar>,
-	_hitbox: UiHitbox
+	_hitbox: UiHitbox,
+	_cacheinfos: cacheInfos
 }
 
 impl Bar
@@ -64,6 +66,7 @@ impl Bar
 			_canUpdate: true,
 			_events: event::new(),
 			_hitbox: UiHitbox::new(),
+			_cacheinfos: cacheInfos::default(),
 		};
 		tmp._events.add(event_type::WINREFRESH, event_type::emptyRefresh());
 		tmp.setSquare(leftTop,bottomRight);
@@ -276,6 +279,7 @@ impl ShaderDrawerImpl for Bar {
 		for mut x in self._planes.drain(0..) {
 			x.cache_remove();
 		}
+		self._cacheinfos.setAbsent();
 	}
 }
 

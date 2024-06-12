@@ -30,7 +30,8 @@ pub enum TextureDescriptor_type
 	ONE(String), // only the texture is used
 	ARRAY(Vec<String>,TextureDescriptor_process),
 	SIZE_DEPENDENT(Range<u16>,TextureDescriptor_process),
-	SIZE_DEPENDENT_XY(Range<u16>, Range<u16>,TextureDescriptor_process)
+	SIZE_DEPENDENT_XY(Range<u16>, Range<u16>,TextureDescriptor_process),
+	SIZE_MIN(Range<u16>,TextureDescriptor_process)
 }
 
 #[derive(Debug)]
@@ -147,6 +148,17 @@ impl TextureDescriptor
 				}
 				returned
 			}
+			TextureDescriptor_type::SIZE_MIN(xy,_) => {
+				let mut returned = false;
+				if let Some(width) = texture.width
+				{
+					if let Some(height) = texture.height
+					{
+						returned = xy.contains(&(width as u16)) || xy.contains(&(height as u16))
+					}
+				}
+				returned
+			}
 		};
 		
 		match &self._exclude {
@@ -222,6 +234,7 @@ impl TextureDescriptor
 			TextureDescriptor_type::ARRAY(_, x) => x,
 			TextureDescriptor_type::SIZE_DEPENDENT(_, x) => x,
 			TextureDescriptor_type::SIZE_DEPENDENT_XY(_, _, x) => x,
+			TextureDescriptor_type::SIZE_MIN(_, x) => x,
 		}
 	}
 	

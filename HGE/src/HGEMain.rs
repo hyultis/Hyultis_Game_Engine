@@ -461,7 +461,7 @@ impl HGEMain
 		ManagerTexture::singleton().descriptorSet_create("HGE_set1",TextureDescriptor::new(TextureDescriptor_type::SIZE_DEPENDENT(0..512,TextureDescriptor_process::RESIZE(256,256)),
 			TextureDescriptor_exclude::ARRAY(vec!["font".to_string()]),
 			HGE_shader_2Dsimple_holder::pipelineName(), 1, "default"));
-		ManagerTexture::singleton().descriptorSet_create("HGE_set2",TextureDescriptor::new(TextureDescriptor_type::SIZE_DEPENDENT(512..u16::MAX,TextureDescriptor_process::RESIZE(1024,1024)),
+		ManagerTexture::singleton().descriptorSet_create("HGE_set2",TextureDescriptor::new(TextureDescriptor_type::SIZE_MIN(512..u16::MAX,TextureDescriptor_process::RESIZE(1024,1024)),
 			TextureDescriptor_exclude::ARRAY(vec!["font".to_string()]),
 			HGE_shader_2Dsimple_holder::pipelineName(), 2, "default"));
 		

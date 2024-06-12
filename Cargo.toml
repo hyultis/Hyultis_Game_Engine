@@ -1,66 +1,15 @@
-[package]
-name = "HGE"
-version = "0.1.0"
+[workspace]
+members = [
+	"HGE",
+	"examples/*",
+]
+resolver = "2"
+
+[workspace.package]
 edition = "2021"
+version = "1.0.0"
+license = "MIT OR Apache-2.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[features]
-#default = []
-default = ["dynamicresolution"]
-dynamicresolution = []
-
-[dependencies]
-#base stuff
-rand = "0.8.5"
-ahash = "0.8.11"
-dashmap = {version = "5.5.3", features = ["rayon"]}
-dyn-clone = "1.0.17"
-parking_lot = "0.12.1"
-anyhow = "1.0.79"
-rayon = "1.10.0"
-arc-swap = "1.7.1"
-rand_chacha = "0.3.1"
-rand_seeder = "0.2.3"
-HArcMut = "1.1.1"
-singletonThread = "1.0.0"
-bytemuck = "1.15.0"
-derive_more = { version = "1.0.0-beta.6", features = ["full"] }
-sys-locale = "0.3.1"
-webbrowser = "0.8.12"
-downcast-rs = "1.2.1"
-
-#data
-#vergen = "8.2.4"
-csv = "1.3.0"
-Hconfig = { path = "../Hconfig" }
-Htrace = { path = "../Htrace" }
-base64 = "0.22.0"
-json = "0.12.4"
-rsa = { version = "0.9.6", features = ["sha2"]}
-uuid = { version = "1.8.0" , features = [ "v4","v7", "fast-rng"]}
-
-#graphic
-#sdl2 = "0.35.2"
-vulkano = "0.34.1"
-vulkano-shaders = "0.34.0"
-raw-window-handle = "0.5.2"
-image = "0.25.1"
-palette = "0.7.5"
-ab_glyph = "0.2.25"
-glyph_brush = "0.7.8"
-glyph_brush_layout = "0.2.3"
-
-#3D
-tobj = "4.0.2"
-cgmath = "0.18.0"
-
-#audio
-rodio = "0.17.3"
-
-[target.'cfg(not(target_os = "android"))'.dependencies]
-winit = { version = "0.29.10", features = ["rwh_05"] }
-
-[target.'cfg(target_os = "android")'.dependencies]
-winit = {version="0.29.10", features = ["rwh_05", "android-game-activity"]}
-android-activity = { version = "0.5.2", features = ["game-activity"]}
+[workspace.dependencies]
+Hconfig = { path = "../../rust/Hconfig" }
+Htrace = { path = "../../rust/Htrace" }
