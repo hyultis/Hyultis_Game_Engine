@@ -8,6 +8,7 @@ use crate::components::color::color;
 use crate::components::offset::offset;
 use crate::components::rotations::rotation;
 use crate::components::scale::scale;
+use crate::entities::utils::entities_utils;
 
 pub mod PlaneImpl2D;
 pub mod PlaneImpl3D;
@@ -132,5 +133,25 @@ impl<A> Plane<A>
 	{
 		self._posHitbox = Some(newpos.intoArray());
 		self._canUpdate = true;
+	}
+}
+
+impl<A> entities_utils for Plane<A>
+where A: HGEC_origin,
+      rotation: HGEC_rotation<A>, scale: HGEC_scale<A>
+{
+	fn cloneAsNew(&self) -> Self {
+		return Plane
+		{
+			_components: self._components.clone(),
+			_pos: self._pos.clone(),
+			_posHitbox: self._posHitbox.clone(),
+			_uvcoord: self._uvcoord.clone(),
+			_color: self._color.clone(),
+			_canUpdate: self._canUpdate.clone(),
+			_hitbox: self._hitbox.clone(),
+			_events: self._events.clone(),
+			_cacheinfos: cacheInfos::default(),
+		};
 	}
 }
