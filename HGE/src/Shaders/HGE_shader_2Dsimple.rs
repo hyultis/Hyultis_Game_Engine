@@ -279,6 +279,9 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 		let (vertex, indices, atleastone) = self.compileData();
 		if(!atleastone)
 		{
+			self._cacheDatasMem = None;
+			self._cacheIndicesMem = None;
+			self._cacheIndicesLen = 0;
 			return;
 		}
 		

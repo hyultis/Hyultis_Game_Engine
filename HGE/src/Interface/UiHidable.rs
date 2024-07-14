@@ -1,11 +1,9 @@
-use crate::components::cacheInfos::cacheInfos;
 use crate::components::event::{event, event_trait, event_trait_add, event_type};
 use crate::components::hideable::hideable;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::{UiPageContent, UiPageContent_type};
-use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple_def, HGE_shader_2Dsimple_holder};
-use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
-use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn, ShaderDrawerImplStruct};
+use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple_def};
+use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn};
 
 pub trait UiHidable_content: UiPageContent + ShaderDrawerImplReturn<HGE_shader_2Dsimple_def>{}
 dyn_clone::clone_trait_object!(UiHidable_content);
@@ -18,7 +16,6 @@ pub struct UiHidable
 	_hide: bool,
 	_cacheUpdated: bool,
 	_event: event<Self>,
-	_cacheinfos: cacheInfos
 }
 
 impl UiHidable
@@ -32,7 +29,6 @@ impl UiHidable
 			_hide: false,
 			_cacheUpdated: true,
 			_event: event::new(),
-			_cacheinfos: cacheInfos::default(),
 		}
 	}
 	
@@ -81,11 +77,6 @@ impl event_trait for UiHidable {
 			}
 		});
 		
-		if(self._cacheinfos.isPresent() && returned)
-		{
-			self.cache_submit();
-		}
-		
 		return returned;
 	}
 	
@@ -122,43 +113,19 @@ impl ShaderDrawerImpl for UiHidable {
 	{
 		if(self._hide)
 		{
-			let tmp = self._cacheinfos;
-			ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
-				holder.remove(tmp);
-			});
-			self._cacheUpdated = false;
-			self._cacheinfos.setAbsent();
-			self._cacheUpdated = false;
+			self._content.iter_mut().for_each(|x|x.cache_remove());
 			return;
 		}
 		
-		let mut structure = ShaderDrawerImplStruct::default();
 		let mut newHitbox = UiHitbox::new();
-		for x in self._content.iter_mut()
-		{
-			if let Some(mut subcontent) = x.cache_get()
-			{
-				structure.combine(&mut subcontent);
-				newHitbox.updateFromHitbox(x.getHitbox());
-			}
-		}
-		
+		self._content.iter_mut().for_each(|x|newHitbox.updateFromHitbox(x.getHitbox()));
 		self._hitbox = newHitbox;
 		self._cacheUpdated = false;
-		
-		let tmp = self._cacheinfos;
-		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
-			holder.insert(tmp,structure);
-		});
-		self._cacheinfos.setPresent();
+		self._content.iter_mut().for_each(|x|x.cache_submit());
 	}
 	
 	fn cache_remove(&mut self) {
-		let tmp = self._cacheinfos;
-		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
-			holder.remove(tmp);
-		});
-		self._cacheinfos.setAbsent();
+		self._content.iter_mut().for_each(|x|x.cache_remove());
 	}
 }
 

@@ -1,4 +1,3 @@
-use std::cmp::max;
 #[warn(unused_parens)]
 
 use std::fs;
@@ -32,7 +31,6 @@ use HArcMut::HArcMut;
 use HGE::components::event::{event_trait_add, event_type};
 use HGE::Interface::Text::Text;
 use HGE::Interface::UiButton::UiButton;
-use HGE::Shaders::ShaderDrawerImpl::ShaderDrawerImpl;
 
 mod shaders;
 

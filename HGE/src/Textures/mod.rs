@@ -8,3 +8,4 @@ pub mod texturePart;
 pub mod Orders;
 pub mod TextureDescriptor;
 pub mod Types;
+pub mod TextureDescriptor_type;

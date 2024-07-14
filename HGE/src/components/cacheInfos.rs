@@ -1,7 +1,8 @@
+use std::fmt::{Debug, Formatter};
 use uuid::Uuid;
 use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
 
-#[derive(Copy, Clone, Eq, PartialOrd, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialOrd, PartialEq)]
 pub enum cacheInfos_state
 {
 	PRESENT,
@@ -49,6 +50,16 @@ impl Into<cacheInfos_state> for cacheInfos
 {
 	fn into(self) -> cacheInfos_state {
 		self.state
+	}
+}
+
+impl Debug for cacheInfos
+{
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("cacheInfos")
+			.field("state", &self.state)
+			.field("uuid", &self.uuid)
+			.finish()
 	}
 }
 

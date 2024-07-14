@@ -1,6 +1,7 @@
 extern crate vulkano;
 
 use std::any::Any;
+use std::ops::Range;
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 use anyhow::anyhow;
@@ -40,7 +41,8 @@ use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple, HGE_shader_3Dsimp
 use crate::Shaders::HGE_shader_screen::HGE_shader_screen;
 use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
 use crate::Textures::Manager::ManagerTexture;
-use crate::Textures::TextureDescriptor::{TextureDescriptor, TextureDescriptor_exclude, TextureDescriptor_process, TextureDescriptor_type};
+use crate::Textures::TextureDescriptor::TextureDescriptor;
+use crate::Textures::TextureDescriptor_type::{TextureDescriptor_exclude, TextureDescriptor_process, TextureDescriptor_type};
 
 const HGE_STRING: &str = "HGE";
 const HGE_VERSION: Version = Version {
@@ -454,14 +456,23 @@ impl HGEMain
 		
 		self._rendering.write().window_size_dependent_setup();
 		
+		
+		let mut texturesize = 256;
+		let mut texturesizebig = 1024;
+		if(cfg!(target_os = "android"))
+		{
+			texturesize = 128;
+			texturesizebig = 256;
+		}
+		
 		ManagerTexture::singleton().preload();
-		ManagerTexture::singleton().descriptorSet_create("HGE_set0",TextureDescriptor::new(TextureDescriptor_type::ONE("font".to_string()),
+		ManagerTexture::singleton().descriptorSet_create("HGE_set0",TextureDescriptor::new(TextureDescriptor_type::<Range<u16>>::ONE("font".to_string()),
 			TextureDescriptor_exclude::NONE,
 			HGE_shader_2Dsimple_holder::pipelineName(), 0, "default"));
-		ManagerTexture::singleton().descriptorSet_create("HGE_set1",TextureDescriptor::new(TextureDescriptor_type::SIZE_DEPENDENT(0..512,TextureDescriptor_process::RESIZE(256,256)),
+		ManagerTexture::singleton().descriptorSet_create("HGE_set1",TextureDescriptor::new(TextureDescriptor_type::SIZE_DEPENDENT(0..512,TextureDescriptor_process::RESIZE(texturesize,texturesize)),
 			TextureDescriptor_exclude::ARRAY(vec!["font".to_string()]),
 			HGE_shader_2Dsimple_holder::pipelineName(), 1, "default"));
-		ManagerTexture::singleton().descriptorSet_create("HGE_set2",TextureDescriptor::new(TextureDescriptor_type::SIZE_MIN(512..u16::MAX,TextureDescriptor_process::RESIZE(1024,1024)),
+		ManagerTexture::singleton().descriptorSet_create("HGE_set2",TextureDescriptor::new(TextureDescriptor_type::SIZE_MIN(512..,TextureDescriptor_process::RESIZE(texturesizebig,texturesizebig)),
 			TextureDescriptor_exclude::ARRAY(vec!["font".to_string()]),
 			HGE_shader_2Dsimple_holder::pipelineName(), 2, "default"));
 		

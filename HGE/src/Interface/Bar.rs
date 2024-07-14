@@ -91,8 +91,8 @@ impl Bar
 		self._canUpdate = true;
 	}
 	
-	// add a changing state a this percent progress
-	// progress is a percent where 10000 = 100% ( 5675 = 56,75% )
+	// add a changing state at specific percent progress.
+	// progress is a percent where 10000 = 100,00% ( 5675 = 56,75% )
 	pub fn addState(&mut self, progress: u16,state: Bar_state)
 	{
 		self._progressState.insert(progress,state);
@@ -124,7 +124,7 @@ impl event_trait for Bar
 	fn event_trigger(&mut self, eventtype: event_type) -> bool
 	{
 		let update = self._events.clone().trigger(eventtype, self);
-		if(update)
+		if(self._cacheinfos.isPresent() && update)
 		{
 			self.cache_submit();
 		}
@@ -273,6 +273,7 @@ impl ShaderDrawerImpl for Bar {
 		
 		self._canUpdate = false;
 		self._planes = newplanes;
+		self._cacheinfos.setPresent();
 	}
 	
 	fn cache_remove(&mut self) {

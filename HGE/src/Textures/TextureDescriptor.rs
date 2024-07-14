@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::ops::{Range, RangeBounds};
 use std::sync::Arc;
 use anyhow::anyhow;
 use arc_swap::{ArcSwap, Guard};
@@ -20,44 +20,14 @@ use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Pipeline::ManagerPipeline::ManagerPipeline;
 use crate::Textures::generate;
 use crate::Textures::Manager::ManagerTexture;
+use crate::Textures::TextureDescriptor_type::{TextureDescriptor_adaptedTexture, TextureDescriptor_exclude, TextureDescriptor_process, TextureDescriptor_type};
 use crate::Textures::Textures::Texture;
 use crate::Textures::Types::TextureChannel;
-
-#[derive(Debug)]
-pub enum TextureDescriptor_type
-{
-	ALL(TextureDescriptor_process), // use all texture in ManagerTexture
-	ONE(String), // only the texture is used
-	ARRAY(Vec<String>,TextureDescriptor_process),
-	SIZE_DEPENDENT(Range<u16>,TextureDescriptor_process),
-	SIZE_DEPENDENT_XY(Range<u16>, Range<u16>,TextureDescriptor_process),
-	SIZE_MIN(Range<u16>,TextureDescriptor_process)
-}
-
-#[derive(Debug)]
-pub enum TextureDescriptor_process
-{
-	RAW,
-	RESIZE(u16, u16)
-}
-
-pub enum TextureDescriptor_exclude
-{
-	NONE,
-	ARRAY(Vec<String>)
-}
-
-struct TextureDescriptor_adaptedTexture
-{
-	x: u16,
-	y: u16,
-	content: Vec<u8>
-}
 
 pub struct TextureDescriptor
 {
 	// define
-	_type: TextureDescriptor_type,
+	_type: TextureDescriptor_type<Range<u16>>,
 	_exclude: TextureDescriptor_exclude,
 	_shaderName: String,
 	_shaderSetid: usize,
@@ -77,22 +47,22 @@ pub struct TextureDescriptor
 
 impl TextureDescriptor
 {
-	pub fn new(ttype: TextureDescriptor_type, exclude: TextureDescriptor_exclude, shaderName: impl Into<String>, shaderSetId: usize, samplerName: impl Into<String>) -> Self
+	pub fn new<T: RangeBounds<u16>>(ttype: TextureDescriptor_type<T>, exclude: TextureDescriptor_exclude, shaderName: impl Into<String>, shaderSetId: usize, samplerName: impl Into<String>) -> Self
 	{
 		let mut defaultTexture = DynamicImage::from(generate::defaultTexture());
-		match Self::getProcess(&ttype){
+		match Self::getProcess(&ttype) {
 			TextureDescriptor_process::RAW => {}
 			TextureDescriptor_process::RESIZE(x, y) => {
-				defaultTexture = defaultTexture.resize_exact(*x as u32,*y as u32, FilterType::Gaussian);
+				defaultTexture = defaultTexture.resize_exact(*x as u32, *y as u32, FilterType::Gaussian);
 			}
 		};
 		
 		let shaderName = shaderName.into();
 		let samplerName = samplerName.into();
-		let empty_cache = Self::generate_empty_descriptorCache(&ttype,&shaderName,shaderSetId,&samplerName);
+		let empty_cache = Self::generate_empty_descriptorCache(&ttype, &shaderName, shaderSetId, &samplerName);
 		
 		return Self {
-			_type: ttype,
+			_type: ttype.normalize(),
 			_exclude: exclude,
 			_shaderName: shaderName.into(),
 			_shaderSetid: shaderSetId,
@@ -110,8 +80,8 @@ impl TextureDescriptor
 	pub fn texture_getId(&self, texture_name: impl Into<String>) -> Option<TextureChannel>
 	{
 		let texture_name = texture_name.into();
-		self._texturelink.get(&texture_name).map(|x|{
-			TextureChannel::new(self._shaderSetid as u8,*x.value())
+		self._texturelink.get(&texture_name).map(|x| {
+			TextureChannel::new(self._shaderSetid as u8, *x.value())
 		})
 	}
 	
@@ -124,9 +94,9 @@ impl TextureDescriptor
 	{
 		let mut isok = match &self._type {
 			TextureDescriptor_type::ALL(_) => true,
-			TextureDescriptor_type::ONE(name) => *name==texture.name,
-			TextureDescriptor_type::ARRAY(names,_) => names.contains(&texture.name),
-			TextureDescriptor_type::SIZE_DEPENDENT(xy,_) => {
+			TextureDescriptor_type::ONE(name) => *name == texture.name,
+			TextureDescriptor_type::ARRAY(names, _) => names.contains(&texture.name),
+			TextureDescriptor_type::SIZE_DEPENDENT(xy, _) => {
 				let mut returned = false;
 				if let Some(width) = texture.width
 				{
@@ -137,7 +107,7 @@ impl TextureDescriptor
 				}
 				returned
 			}
-			TextureDescriptor_type::SIZE_DEPENDENT_XY(x, y,_) => {
+			TextureDescriptor_type::SIZE_DEPENDENT_XY(x, y, _) => {
 				let mut returned = false;
 				if let Some(width) = texture.width
 				{
@@ -148,7 +118,7 @@ impl TextureDescriptor
 				}
 				returned
 			}
-			TextureDescriptor_type::SIZE_MIN(xy,_) => {
+			TextureDescriptor_type::SIZE_MIN(xy, _) => {
 				let mut returned = false;
 				if let Some(width) = texture.width
 				{
@@ -164,29 +134,29 @@ impl TextureDescriptor
 		match &self._exclude {
 			TextureDescriptor_exclude::NONE => {}
 			TextureDescriptor_exclude::ARRAY(names) => {
-				if(names.contains(&texture.name))
+				if (names.contains(&texture.name))
 				{
 					isok = false;
 				}
 			}
 		}
 		
-		if(!isok)
+		if (!isok)
 		{
 			return false;
 		}
 		
 		let id = self.texture_getOrAddId(texture.name.clone());
-		self.texture_updateData(texture,id);
+		self.texture_updateData(texture, id);
 		let val = **self._mustUpdate.load();
-		self._mustUpdate.swap(Arc::new(val+1));
+		self._mustUpdate.swap(Arc::new(val + 1));
 		return true;
 	}
 	
 	pub fn update(&self)
 	{
 		let mustupdate = **self._mustUpdate.load();
-		if(mustupdate==**self._lastUpdate.load() || *self._textureLinkMax.read()==0)
+		if (mustupdate == **self._lastUpdate.load() || *self._textureLinkMax.read() == 0)
 		{
 			return;
 		}
@@ -195,7 +165,7 @@ impl TextureDescriptor
 		let mut cmdbuff = HGEMain::singleton().SecondaryCmdBuffer_generate();
 		let result = match Self::getProcess(&self._type) {
 			TextureDescriptor_process::RAW => self.update_all(&mut cmdbuff),
-			TextureDescriptor_process::RESIZE(x, y) => self.update_resize(*x,*y,&mut cmdbuff)
+			TextureDescriptor_process::RESIZE(x, y) => self.update_resize(*x, *y, &mut cmdbuff)
 		};
 		
 		let atlas = match result
@@ -221,12 +191,12 @@ impl TextureDescriptor
 		
 		self._lastUpdate.swap(Arc::new(mustupdate));
 		
-		HGEMain::SecondaryCmdBuffer_add(HGEMain_secondarybuffer_type::TEXTURE, cmdbuff.build().unwrap(), ||{});
+		HGEMain::SecondaryCmdBuffer_add(HGEMain_secondarybuffer_type::TEXTURE, cmdbuff.build().unwrap(), || {});
 	}
 	
 	//////////////// PRIVATE ///////////////
 	
-	fn getProcess(ttype: &TextureDescriptor_type) -> &TextureDescriptor_process
+	fn getProcess<T: RangeBounds<u16>>(ttype: &TextureDescriptor_type<T>) -> &TextureDescriptor_process
 	{
 		match ttype {
 			TextureDescriptor_type::ALL(x) => x,
@@ -259,20 +229,20 @@ impl TextureDescriptor
 		let contentorigin = texture.content.clone().unwrap();
 		
 		let contentadapted = match Self::getProcess(&self._type) {
-			TextureDescriptor_process::RAW => TextureDescriptor_adaptedTexture{
+			TextureDescriptor_process::RAW => TextureDescriptor_adaptedTexture {
 				x: contentorigin.width() as u16,
 				y: contentorigin.height() as u16,
 				content: contentorigin.as_raw().clone(),
 			},
-			TextureDescriptor_process::RESIZE(x, y) => self.texture_resize(contentorigin,*x,*y)
+			TextureDescriptor_process::RESIZE(x, y) => self.texture_resize(contentorigin, *x, *y)
 		};
 		
-		self._contentAdapted.insert(id,contentadapted);
+		self._contentAdapted.insert(id, contentadapted);
 	}
 	
 	fn texture_resize(&self, origin: RgbaImage, x: u16, y: u16) -> TextureDescriptor_adaptedTexture
 	{
-		let mut returned = TextureDescriptor_adaptedTexture{
+		let mut returned = TextureDescriptor_adaptedTexture {
 			x: origin.width() as u16,
 			y: origin.height() as u16,
 			content: Vec::new(),
@@ -296,15 +266,15 @@ impl TextureDescriptor
 			}
 		}
 		
-		let Some(texture) = self._contentAdapted.get(&0) else {return Err(anyhow!("Image not adapted"));};
+		let Some(texture) = self._contentAdapted.get(&0) else { return Err(anyhow!("Image not adapted")); };
 		
-		return Self::generate_atlas_imageview(&self._type, texture.content.clone(), texture.x as u32,texture.y as u32,1,cmdbuff);
+		return Self::generate_atlas_imageview(&self._type, texture.content.clone(), texture.x as u32, texture.y as u32, 1, cmdbuff);
 	}
 	
-	fn update_resize(&self, x:u16, y:u16, cmdbuff: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>) -> anyhow::Result<Arc<ImageView>>
+	fn update_resize(&self, x: u16, y: u16, cmdbuff: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>) -> anyhow::Result<Arc<ImageView>>
 	{
 		let nbmax = *self._textureLinkMax.read();
-		if(nbmax==0)
+		if (nbmax == 0)
 		{
 			return Err(anyhow!("no texture link"));
 		}
@@ -314,17 +284,15 @@ impl TextureDescriptor
 			if let Some(content) = self._contentAdapted.get(&x)
 			{
 				finalData.extend_from_slice(content.content.as_slice());
-			}
-			else
-			{
+			} else {
 				finalData.extend_from_slice(self._defaultTexture.as_slice());
 			}
 		}
 		
-		return Self::generate_atlas_imageview(&self._type, finalData, x as u32, y as u32,nbmax,cmdbuff);
+		return Self::generate_atlas_imageview(&self._type, finalData, x as u32, y as u32, nbmax, cmdbuff);
 	}
 	
-	fn generate_atlas_imageview(ttype: &TextureDescriptor_type, finalData: Vec<u8>, x: u32, y:u32, mut nblayer: u32, cmdbuff: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>) -> anyhow::Result<Arc<ImageView>>
+	fn generate_atlas_imageview<T: RangeBounds<u16>>(ttype: &TextureDescriptor_type<T>, finalData: Vec<u8>, x: u32, y: u32, mut nblayer: u32, cmdbuff: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>) -> anyhow::Result<Arc<ImageView>>
 	{
 		let upload_buffer = match Buffer::from_iter(
 			ManagerMemoryAllocator::singleton().get(),
@@ -338,7 +306,7 @@ impl TextureDescriptor
 				..Default::default()
 			},
 			finalData,
-		){
+		) {
 			Ok(x) => x,
 			Err(err) => return Err(anyhow!("Cannot create buffer atlas : {}",err))
 		};
@@ -388,11 +356,11 @@ impl TextureDescriptor
 		return Ok(atlas);
 	}
 	
-	fn generate_empty_descriptorCache(ttype: &TextureDescriptor_type, shaderName: &String, shaderSetId: usize, samplerName: &String) -> Arc<PersistentDescriptorSet>
+	fn generate_empty_descriptorCache<T: RangeBounds<u16>>(ttype: &TextureDescriptor_type<T>, shaderName: &String, shaderSetId: usize, samplerName: &String) -> Arc<PersistentDescriptorSet>
 	{
 		let mut combuilder = HGEMain::singleton().SecondaryCmdBuffer_generate();
 		
-		let result = Self::generate_atlas_imageview(ttype, vec![0,0,0,0], 1,1,1,&mut combuilder).unwrap();
+		let result = Self::generate_atlas_imageview(ttype, vec![0, 0, 0, 0], 1, 1, 1, &mut combuilder).unwrap();
 		
 		let returned = PersistentDescriptorSet::new(
 			&HGEMain::singleton().getAllocatorSet(),
@@ -405,7 +373,7 @@ impl TextureDescriptor
 			[]
 		).unwrap();
 		
-		HGEMain::SecondaryCmdBuffer_add(HGEMain_secondarybuffer_type::TEXTURE, combuilder.build().unwrap(), ||{});
+		HGEMain::SecondaryCmdBuffer_add(HGEMain_secondarybuffer_type::TEXTURE, combuilder.build().unwrap(), || {});
 		
 		return returned;
 	}

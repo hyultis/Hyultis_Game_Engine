@@ -1,5 +1,0 @@
-16:33:13.493340522      (HGE/src/Textures/Manager.rs:l433) : launched textureOrder
-16:33:13.493388343      (HGE/src/assetStreamReader.rs:l116) : assetManager readFile ./static/alpha_test.png
-16:33:13.494196082      (HGE/src/assetStreamReader.rs:l116) : assetManager readFile ./static/image.png
-16:33:13.495300834      (HGE/src/Textures/textureLoader.rs:l84) : load image : alpha_test.png
-16:33:13.497113557      (HGE/src/Textures/textureLoader.rs:l84) : load image : image.png

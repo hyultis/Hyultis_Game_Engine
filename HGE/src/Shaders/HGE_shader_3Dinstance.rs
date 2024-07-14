@@ -279,6 +279,14 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 					
 					haveatleastone = true;
 				}
+				else
+				{
+					selfdata._cacheDatasMem = None;
+					selfdata._cacheIndicesMem = None;
+					selfdata._cacheIndicesLen = 0;
+					selfdata._cacheInstanceMem = None;
+					selfdata._cacheInstanceLen = 0;
+				}
 			});
 		
 		if(haveatleastone)
