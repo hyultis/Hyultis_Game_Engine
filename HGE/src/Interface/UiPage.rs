@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::collections::BTreeMap;
-use downcast_rs::Downcast;
+use downcast_rs::{Downcast, impl_downcast};
 use dyn_clone::DynClone;
 use HArcMut::HArcMut;
 use crate::components::event::{event, event_trait, event_type};
@@ -36,6 +36,7 @@ pub trait UiPageContent: DynClone + event_trait + ShaderDrawerImpl + Downcast
 }
 
 dyn_clone::clone_trait_object!(UiPageContent);
+impl_downcast!(UiPageContent);
 
 #[derive(Clone)]
 pub struct UiPage
