@@ -107,7 +107,7 @@ impl Bar
 		&mut self._components
 	}
 	
-	// progress is a percent between 0.0 (0ù) and 1.0 (100%)
+	// progress is a percent between 0.0 (0%) and 1.0 (100%)
 	pub fn updateProgress(&mut self, mut progress: f32)
 	{
 		progress = progress.clamp(0.0, 1.0);
@@ -270,7 +270,7 @@ impl ShaderDrawerImpl for Bar {
 		}
 		
 		self._planes = newplanes;
-		self._cacheinfos.setNeedUpdate(true);
+		self._cacheinfos.setNeedUpdate(false);
 		self._cacheinfos.setPresent();
 	}
 	
