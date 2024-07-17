@@ -18,7 +18,6 @@ struct Cube
 {
 	_corner: [worldPosition; 2],
 	_components: Components,
-	_canUpdate: bool,
 	_cacheinfos: cacheInfos
 }
 
@@ -30,7 +29,6 @@ impl Cube
 		{
 			_corner: corners.intoArray(),
 			_components: Default::default(),
-			_canUpdate: false,
 			_cacheinfos: cacheInfos::default(),
 		}
 	}
@@ -45,7 +43,7 @@ impl Cube // Struct3D_vertex
 	}
 	pub fn components_mut(&mut self) -> &mut Components<worldPosition, rotation, scale, offset<worldPosition, rotation, scale>>
 	{
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 		&mut self._components
 	}
 	
@@ -131,7 +129,7 @@ impl chunk_content for Cube {}
 
 impl ShaderDrawerImpl for Cube {
 	fn cache_mustUpdate(&self) -> bool {
-		self._canUpdate || self._cacheinfos.isAbsent()
+		self._cacheinfos.isNotShow()
 	}
 	
 	fn cache_submit(&mut self) {
@@ -141,6 +139,7 @@ impl ShaderDrawerImpl for Cube {
 		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder|{
 			holder.insert(tmp,structure);
 		});
+		self._cacheinfos.setNeedUpdate(false);
 		self._cacheinfos.setPresent();
 	}
 	
@@ -177,8 +176,6 @@ impl ShaderDrawerImplReturn<HGE_shader_3Dsimple_def> for Cube
 		}
 		
 		ModelUtils::generateNormal(&mut vertex.vertex, &vertex.indices);
-		
-		self._canUpdate = false;
 		
 		return Some(vertex);
 	}

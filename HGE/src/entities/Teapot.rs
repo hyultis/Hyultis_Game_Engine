@@ -16,7 +16,6 @@ use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn,
 pub struct Teapot
 {
 	_components: Components,
-	_canUpdate: bool,
 	_cacheinfos: cacheInfos
 }
 
@@ -27,7 +26,6 @@ impl Teapot
 		Teapot
 		{
 			_components: Default::default(),
-			_canUpdate: true,
 			_cacheinfos: cacheInfos::default(),
 		}
 	}
@@ -2863,7 +2861,7 @@ impl Teapot
 	}
 	pub fn components_mut(&mut self) -> &mut Components<worldPosition, rotation, scale, offset<worldPosition, rotation, scale>>
 	{
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 		&mut self._components
 	}
 }
@@ -2874,7 +2872,7 @@ impl chunk_content for Teapot{}
 
 impl ShaderDrawerImpl for Teapot {
 	fn cache_mustUpdate(&self) -> bool {
-		self._canUpdate || self._cacheinfos.isAbsent()
+		self._cacheinfos.isNotShow()
 	}
 	
 	fn cache_submit(&mut self) {
@@ -2884,6 +2882,7 @@ impl ShaderDrawerImpl for Teapot {
 		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder|{
 			holder.insert(tmp,structure);
 		});
+		self._cacheinfos.setNeedUpdate(false);
 		self._cacheinfos.setPresent();
 	}
 	
@@ -2922,8 +2921,6 @@ impl ShaderDrawerImplReturn<HGE_shader_3Dsimple_def> for Teapot
 		
 		let indice = [0, 1, 2, 1, 3, 2].to_vec();
 		ModelUtils::generateNormal(&mut vecstruct, &indice);
-		
-		self._canUpdate = false;
 		
 		return Some(
 			ShaderDrawerImplStruct{

@@ -28,7 +28,7 @@ impl Plane<worldPosition>
 			z: bottomRight.z,
 		};
 		self._pos[3] = bottomRight;
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	/// define a plane as flat 2D square aligned on Y
@@ -48,7 +48,7 @@ impl Plane<worldPosition>
 			z: bottomRight.z,
 		};
 		self._pos[3] = bottomRight;
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	/// define a plane as flat 2D square aligned on Z
@@ -68,13 +68,13 @@ impl Plane<worldPosition>
 			z: leftTop.z,
 		};
 		self._pos[3] = bottomRight;
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 }
 
 impl ShaderDrawerImpl for Plane<worldPosition> {
 	fn cache_mustUpdate(&self) -> bool {
-		self._canUpdate || self._cacheinfos.isAbsent()
+		self._cacheinfos.isNotShow()
 	}
 	
 	fn cache_submit(&mut self) {
@@ -85,7 +85,7 @@ impl ShaderDrawerImpl for Plane<worldPosition> {
 			holder.insert(tmp,structure);
 		});
 		self._cacheinfos.setPresent();
-		self._canUpdate = false;
+		self._cacheinfos.setNeedUpdate(false);
 	}
 	
 	fn cache_remove(&mut self) {
@@ -144,7 +144,7 @@ impl event_trait for Plane<worldPosition>
 		let update = self._events.clone().trigger(eventtype, self);
 		if (eventtype == event_type::WINREFRESH)
 		{
-			self._canUpdate = true;
+			self._cacheinfos.setNeedUpdate(true);
 		}
 		self.cache_submit();
 		return update;

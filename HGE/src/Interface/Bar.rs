@@ -38,7 +38,6 @@ pub struct Bar
 	_position: [interfacePosition;2],
 	_textureSize: [f32;2],
 	_orientation : Bar_orientation,
-	_canUpdate: bool,
 	_events: event<Bar>,
 	_hitbox: UiHitbox,
 	_cacheinfos: cacheInfos
@@ -63,7 +62,6 @@ impl Bar
 			_position: [interfacePosition::default(),interfacePosition::default()],
 			_textureSize: [1.0,1.0],
 			_orientation: Bar_orientation::HORIZONTAL,
-			_canUpdate: true,
 			_events: event::new(),
 			_hitbox: UiHitbox::new(),
 			_cacheinfos: cacheInfos::default(),
@@ -76,19 +74,19 @@ impl Bar
 	pub fn setTextureSize(&mut self, sizex: f32, sizey: f32)
 	{
 		self._textureSize = [ sizex,sizey ];
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn setOrientation(&mut self, orientation: Bar_orientation)
 	{
 		self._orientation = orientation;
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn setSquare(&mut self, leftTop: interfacePosition, bottomRight: interfacePosition)
 	{
 		self._position = [leftTop,bottomRight];
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	// add a changing state at specific percent progress.
@@ -96,7 +94,7 @@ impl Bar
 	pub fn addState(&mut self, progress: u16,state: Bar_state)
 	{
 		self._progressState.insert(progress,state);
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn components(&self) -> &Components<interfacePosition, rotation, scale, offset<interfacePosition, rotation, scale>>
@@ -105,7 +103,7 @@ impl Bar
 	}
 	pub fn components_mut(&mut self) -> &mut Components<interfacePosition, rotation, scale, offset<interfacePosition, rotation, scale>>
 	{
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 		&mut self._components
 	}
 	
@@ -115,7 +113,7 @@ impl Bar
 		progress = progress.clamp(0.0, 1.0);
 		let progress = (progress*10000.0) as u16;
 		self._progress = progress;
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 }
 
@@ -146,7 +144,7 @@ impl event_trait_add<Bar> for Bar
 
 impl ShaderDrawerImpl for Bar {
 	fn cache_mustUpdate(&self) -> bool {
-		self._canUpdate
+		self._cacheinfos.isNotShow()
 	}
 	
 	fn cache_submit(&mut self)
@@ -271,8 +269,8 @@ impl ShaderDrawerImpl for Bar {
 			x.cache_submit();
 		}
 		
-		self._canUpdate = false;
 		self._planes = newplanes;
+		self._cacheinfos.setNeedUpdate(true);
 		self._cacheinfos.setPresent();
 	}
 	

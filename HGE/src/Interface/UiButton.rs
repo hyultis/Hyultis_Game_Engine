@@ -29,7 +29,6 @@ pub struct UiButton
 	_pressedFn: Arc<RwLock<Option<Box<dyn FnMut(&mut UiButton) + Send + Sync>>>>,
 	_state: UiButtonState,
 	_hide: bool,
-	_cacheUpdated: bool,
 	_cacheinfos: cacheInfos
 }
 
@@ -44,7 +43,6 @@ impl UiButton
 			_pressedFn: Arc::new(RwLock::new(None)),
 			_state: UiButtonState::IDLE,
 			_hide: false,
-			_cacheUpdated: true,
 			_cacheinfos: cacheInfos::default()
 		}
 	}
@@ -53,7 +51,7 @@ impl UiButton
 	pub fn add(&mut self, content: impl UiButton_content + Send + Sync +'static)
 	{
 		self._content.push(Box::new(content));
-		self._cacheUpdated = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn setClickedFn(&mut self, func: impl FnMut(&mut UiButton) + Send + Sync + 'static)
@@ -82,14 +80,14 @@ impl UiButton
 	{
 		//println!("set to idle");
 		self._state = UiButtonState::IDLE;
-		self._cacheUpdated = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	fn setCacheToHover(&mut self)
 	{
 		//println!("set to hover");
 		self._state = UiButtonState::HOVER;
-		self._cacheUpdated = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	
@@ -97,7 +95,7 @@ impl UiButton
 	{
 		//println!("set to pressed");
 		self._state = UiButtonState::PRESSED;
-		self._cacheUpdated = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	fn checkContentUpdate(&self) -> bool
@@ -197,12 +195,12 @@ impl hideable for UiButton
 {
 	fn hide(&mut self) {
 		self._hide = true;
-		self._cacheUpdated = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	fn show(&mut self) {
 		self._hide = false;
-		self._cacheUpdated = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	fn isShow(&self) -> bool {
@@ -213,7 +211,7 @@ impl hideable for UiButton
 impl ShaderDrawerImpl for UiButton {
 	fn cache_mustUpdate(&self) -> bool
 	{
-		self._cacheUpdated || self.checkContentUpdate() || self._cacheinfos.isAbsent()
+		self.checkContentUpdate() || self._cacheinfos.isNotShow()
 	}
 	
 	fn cache_submit(&mut self)
@@ -224,7 +222,7 @@ impl ShaderDrawerImpl for UiButton {
 			ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
 				holder.remove(tmp);
 			});
-			self._cacheUpdated = false;
+			self._cacheinfos.setNeedUpdate(false);
 			self._cacheinfos.setAbsent();
 			return;
 		}
@@ -239,8 +237,8 @@ impl ShaderDrawerImpl for UiButton {
 				newHitbox.updateFromHitbox(x.getHitbox());
 			}
 			else {
-				println!("uibutton content invalid");
-				self._cacheUpdated = false;
+				//println!("uibutton content invalid");
+				self._cacheinfos.setNeedUpdate(false);
 				return;
 			}
 		}
@@ -249,14 +247,14 @@ impl ShaderDrawerImpl for UiButton {
 		{
 			if(newHitbox.isEmpty())
 			{
-				println!("uibutton pas de hitbox");
-				self._cacheUpdated = false;
+				//println!("uibutton pas de hitbox");
+				self._cacheinfos.setNeedUpdate(false);
 				return;
 			}
 			self._hitbox = newHitbox;
 		}
 		
-		self._cacheUpdated = false;
+		self._cacheinfos.setNeedUpdate(false);
 		
 		let tmp = self._cacheinfos;
 		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{

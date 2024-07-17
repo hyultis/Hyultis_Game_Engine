@@ -23,7 +23,6 @@ pub struct Plane<A>
 	_posHitbox: Option<[A; 4]>,
 	_uvcoord: Option<[[f32; 2]; 4]>,
 	_color: Option<[color; 4]>,
-	_canUpdate: bool,
 	_hitbox: UiHitbox,
 	_events: event<Plane<A>>,
 	_cacheinfos: cacheInfos
@@ -42,7 +41,6 @@ impl<A> Plane<A>
 			_posHitbox: None,
 			_uvcoord: None,
 			_color: None, //[[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]],
-			_canUpdate: true,
 			_hitbox: UiHitbox::new(),
 			_events: event::new(),
 			_cacheinfos: cacheInfos::default(),
@@ -52,7 +50,7 @@ impl<A> Plane<A>
 	pub fn setTexCoord(&mut self, newtexcoord: corner4<[f32; 2]>)
 	{
 		self._uvcoord = Some(newtexcoord.intoArray());
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn getTexCoord(&self)->corner4<[f32; 2]>
@@ -75,7 +73,7 @@ impl<A> Plane<A>
 			bottomright
 		];
 		self._uvcoord = Some(tmp);
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn components(&self) -> &Components<A, rotation, scale, offset<A, rotation, scale>>
@@ -84,14 +82,14 @@ impl<A> Plane<A>
 	}
 	pub fn components_mut(&mut self) -> &mut Components<A, rotation, scale, offset<A, rotation, scale>>
 	{
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 		&mut self._components
 	}
 	
 	pub fn setColor(&mut self, color: corner4<color>)
 	{
 		self._color = Some(color.intoArray());
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn getColor(&self) -> corner4<color>
@@ -125,14 +123,14 @@ impl<A> Plane<A>
 	pub fn setVertexPos(&mut self, newpos: corner4<A>)
 	{
 		self._pos = newpos.intoArray();
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	/// set a hitbox independent of Vertex plane.
 	pub fn setVertexPosHitbox(&mut self, newpos: corner4<A>)
 	{
 		self._posHitbox = Some(newpos.intoArray());
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 }
 
@@ -148,7 +146,6 @@ where A: HGEC_origin,
 			_posHitbox: self._posHitbox.clone(),
 			_uvcoord: self._uvcoord.clone(),
 			_color: self._color.clone(),
-			_canUpdate: self._canUpdate.clone(),
 			_hitbox: self._hitbox.clone(),
 			_events: self._events.clone(),
 			_cacheinfos: cacheInfos::default(),

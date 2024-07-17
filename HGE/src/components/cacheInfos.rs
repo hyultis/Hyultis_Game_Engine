@@ -12,6 +12,7 @@ pub enum cacheInfos_state
 #[derive(Copy, Clone)]
 pub struct cacheInfos
 {
+	needUpdate: bool,
 	uuid: Uuid,
 	state: cacheInfos_state
 }
@@ -37,6 +38,22 @@ impl cacheInfos
 	{
 		self.state == cacheInfos_state::ABSENT
 	}
+	
+	pub fn setNeedUpdate(&mut self, val: bool)
+	{
+		self.needUpdate = val;
+	}
+	
+	pub fn isNeedUpdate(&self) -> bool
+	{
+		self.needUpdate
+	}
+	
+	/// return true if absent OR needupdate
+	pub fn isNotShow(&self) -> bool
+	{
+		self.needUpdate || self.isAbsent()
+	}
 }
 
 impl Into<Uuid> for cacheInfos
@@ -57,6 +74,7 @@ impl Debug for cacheInfos
 {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("cacheInfos")
+			.field("needUpdate", &self.needUpdate)
 			.field("state", &self.state)
 			.field("uuid", &self.uuid)
 			.finish()
@@ -67,6 +85,7 @@ impl Default for cacheInfos
 {
 	fn default() -> Self {
 		Self{
+			needUpdate: false,
 			uuid: ShaderDrawer_Manager::uuid_generate(),
 			state: cacheInfos_state::ABSENT,
 		}

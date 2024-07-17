@@ -1,3 +1,5 @@
+
+use crate::components::cacheInfos::cacheInfos;
 use crate::components::event::{event, event_trait, event_trait_add, event_type};
 use crate::components::hideable::hideable;
 use crate::Interface::UiHitbox::UiHitbox;
@@ -14,7 +16,7 @@ pub struct UiHidable
 	_hitbox: UiHitbox,
 	_content: Vec<Box<dyn UiHidable_content + Send + Sync>>,
 	_hide: bool,
-	_cacheUpdated: bool,
+	_cacheinfos: cacheInfos,
 	_event: event<Self>,
 }
 
@@ -27,7 +29,7 @@ impl UiHidable
 			_hitbox: UiHitbox::new(),
 			_content: Vec::new(),
 			_hide: false,
-			_cacheUpdated: true,
+			_cacheinfos: Default::default(),
 			_event: event::new(),
 		}
 	}
@@ -36,6 +38,7 @@ impl UiHidable
 	pub fn add(&mut self, content: impl UiHidable_content + Send + Sync +'static)
 	{
 		self._content.push(Box::new(content));
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn boxed(self) -> Box<UiHidable>
@@ -45,6 +48,7 @@ impl UiHidable
 	
 	pub fn content_mut(&mut self) -> &mut Vec<Box<dyn UiHidable_content + Send + Sync>>
 	{
+		self._cacheinfos.setNeedUpdate(true);
 		&mut self._content
 	}
 	
@@ -90,12 +94,12 @@ impl hideable for UiHidable
 {
 	fn hide(&mut self) {
 		self._hide = true;
-		self._cacheUpdated = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	fn show(&mut self) {
 		self._hide = false;
-		self._cacheUpdated = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	fn isShow(&self) -> bool {
@@ -106,7 +110,7 @@ impl hideable for UiHidable
 impl ShaderDrawerImpl for UiHidable {
 	fn cache_mustUpdate(&self) -> bool
 	{
-		self._cacheUpdated || self.checkContentUpdate()
+		self._cacheinfos.isNotShow() || self.checkContentUpdate()
 	}
 	
 	fn cache_submit(&mut self)
@@ -120,12 +124,14 @@ impl ShaderDrawerImpl for UiHidable {
 		let mut newHitbox = UiHitbox::new();
 		self._content.iter_mut().for_each(|x|newHitbox.updateFromHitbox(x.getHitbox()));
 		self._hitbox = newHitbox;
-		self._cacheUpdated = false;
+		self._cacheinfos.setNeedUpdate(false);
+		self._cacheinfos.setPresent();
 		self._content.iter_mut().for_each(|x|x.cache_submit());
 	}
 	
 	fn cache_remove(&mut self) {
 		self._content.iter_mut().for_each(|x|x.cache_remove());
+		self._cacheinfos.setAbsent();
 	}
 }
 

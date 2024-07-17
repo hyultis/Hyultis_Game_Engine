@@ -22,7 +22,7 @@ impl Plane<interfacePosition>
 		self._pos[2] = interfacePosition::fromSame(&leftTop, &bottomRight);
 		self._pos[0] = leftTop;
 		self._pos[3] = bottomRight;
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 }
 
@@ -44,7 +44,7 @@ impl UiPageContent for Plane<interfacePosition>
 
 impl ShaderDrawerImpl for Plane<interfacePosition> {
 	fn cache_mustUpdate(&self) -> bool {
-		self._canUpdate || self._cacheinfos.isAbsent()
+		self._cacheinfos.isNotShow()
 	}
 	
 	fn cache_submit(&mut self) {
@@ -54,7 +54,7 @@ impl ShaderDrawerImpl for Plane<interfacePosition> {
 		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
 			holder.insert(tmp,structure);
 		});
-		self._canUpdate = false;
+		self._cacheinfos.setNeedUpdate(false);
 		self._cacheinfos.setPresent();
 	}
 	
@@ -150,7 +150,7 @@ impl event_trait for Plane<interfacePosition>
 		let update = self._events.clone().trigger(eventtype, self);
 		if (eventtype == event_type::WINREFRESH)
 		{
-			self._canUpdate = true;
+			self._cacheinfos.setNeedUpdate(true);
 		}
 		if(self._cacheinfos.isPresent() && update)
 		{

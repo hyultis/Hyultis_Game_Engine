@@ -14,7 +14,6 @@ pub struct Line
 	_pos: [interfacePosition; 2],
 	_color: [[f32; 4]; 2],
 	_events: event<Line>,
-	_canUpdate: bool,
 	_cacheinfos: cacheInfos
 }
 
@@ -23,13 +22,13 @@ impl Line
 	pub fn setStart(&mut self, newstart: interfacePosition)
 	{
 		self._pos[0] = newstart;
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn setEnd(&mut self, newend: interfacePosition)
 	{
 		self._pos[1] = newend;
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn setColor(&mut self, colors: corner2<[f32; 4]>)
@@ -49,7 +48,6 @@ impl Default for Line
 			_pos: [interfacePosition::new_percent(0.0, 0.0), interfacePosition::new_percent(0.0, 0.0)],
 			_color: [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
 			_events: event,
-			_canUpdate: true,
 			_cacheinfos: cacheInfos::default(),
 		};
 	}
@@ -83,7 +81,7 @@ impl event_trait_add<Line> for Line
 impl ShaderDrawerImpl for Line {
 	fn cache_mustUpdate(&self) -> bool
 	{
-		self._canUpdate || self._cacheinfos.isAbsent()
+		self._cacheinfos.isNotShow()
 	}
 	
 	fn cache_submit(&mut self)
@@ -93,6 +91,7 @@ impl ShaderDrawerImpl for Line {
 		ShaderDrawer_Manager::inspect::<HGE_shader_2Dline_holder>(move |holder|{
 			holder.insert(tmp,structure);
 		});
+		self._cacheinfos.setNeedUpdate(false);
 		self._cacheinfos.setPresent();
 	}
 	
@@ -121,8 +120,6 @@ impl ShaderDrawerImplReturn<HGE_shader_2Dsimple_def> for Line
 			color: self._color[1],
 			..HGE_shader_2Dsimple_def::default()
 		});
-		
-		self._canUpdate = false;
 		
 		Some(ShaderDrawerImplStruct{ vertex: vecstruct, indices: vec![0,1] })
 	}

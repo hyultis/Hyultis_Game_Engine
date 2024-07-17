@@ -12,6 +12,7 @@ use crate::components::event::{event, event_trait, event_trait_add, event_type};
 use crate::components::offset::offset;
 use crate::components::rotations::rotation;
 use crate::components::scale::scale;
+use crate::entities::utils::entities_utils;
 use crate::Interface::UiButton::UiButton_content;
 use crate::Interface::UiHidable::UiHidable_content;
 use crate::Interface::UiHitbox::{UiHitbox, UiHitbox_raw};
@@ -130,7 +131,6 @@ pub struct Text
 	_textSize: Option<TextSize>,
 	_managerfont_textId: u128,
 	_cacheShared: Arc<RwLock<TextCacheUpdater>>,
-	_cacheLocalUpdate: bool,
 	_isVisible: bool,
 	_events: event<Text>,
 	_hitbox: UiHitbox,
@@ -149,7 +149,6 @@ impl Text
 			_textSize: None,
 			_managerfont_textId: ManagerFont::singleton().getUniqId(),
 			_cacheShared: Arc::new(RwLock::new(TextCacheUpdater{ vertex: vec![], indices: vec![], isUpdated: false })),
-			_cacheLocalUpdate: false,
 			_isVisible: false,
 			_events: Self::newWithWinRefreshEvent(),
 			_hitbox: UiHitbox::new(),
@@ -180,13 +179,13 @@ impl Text
 		self._texts = vec![];
 		self._isVisible = false;
 		ManagerFont::singleton().Text_remove(self._managerfont_textId);
-		self._cacheLocalUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn setPos(&mut self, pos: interfacePosition)
 	{
 		*self._components.origin_mut() = pos;
-		self._cacheLocalUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn setLayout(&mut self, newlayout: Layout<BuiltInLineBreaker>)
@@ -197,7 +196,7 @@ impl Text
 	pub fn setOffset(&mut self, x: f32, y: f32)
 	{
 		self._components.offset_mut().origin_mut().set([x,y,0.0]);
-		self._cacheLocalUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn components(&self) -> &Components<interfacePosition, rotation, scale, offset<interfacePosition, rotation, scale>>
@@ -206,7 +205,7 @@ impl Text
 	}
 	pub fn components_mut(&mut self) -> &mut Components<interfacePosition, rotation, scale, offset<interfacePosition, rotation, scale>>
 	{
-		self._cacheLocalUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 		&mut self._components
 	}
 	
@@ -243,7 +242,7 @@ impl Text
 			*lockcache = x;
 		}, self._managerfont_textId);
 		
-		self._cacheLocalUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn setVisible(&mut self)
@@ -260,36 +259,12 @@ impl Text
 	{
 		self._isVisible = false;
 		self._cacheShared.write().isUpdated = true;
-		self._cacheLocalUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 	}
 	
 	pub fn getVisible(&self) -> bool
 	{
 		return self._isVisible;
-	}
-
-	/// this is a special cloning method, clone() make a continuity instance (same fontid, same cache, etc)
-	/// this method start a copy who its discontinue for this one (like, coping a text, but not drawing in the same position
-	pub fn copy(&self) -> Self
-	{
-		let tmpvec: Vec<_> = self._texts.iter().cloned().collect();
-		
-		let mut tmpfinal = Text {
-			_components: self._components.clone(),
-			_layout: self._layout.clone(),
-			_texts: tmpvec,
-			_textSize: self._textSize.clone(),
-			_managerfont_textId: ManagerFont::singleton().getUniqId(),
-			_cacheShared: Arc::new(RwLock::new(TextCacheUpdater{ vertex: vec![], indices: vec![], isUpdated: false })),
-			_cacheLocalUpdate: false,
-			_isVisible: self._isVisible,
-			_events: Self::newWithWinRefreshEvent(),
-			_hitbox: UiHitbox::new(),
-			_cacheinfos: cacheInfos::default(),
-		};
-		tmpfinal.commit();
-		
-		return tmpfinal;
 	}
 
 	fn newWithWinRefreshEvent() -> event<Text>
@@ -343,7 +318,6 @@ impl Clone for Text
 			_textSize: self._textSize.clone(),
 			_managerfont_textId: self._managerfont_textId,
 			_cacheShared: self._cacheShared.clone(),
-			_cacheLocalUpdate: false,
 			_isVisible: self._isVisible,
 			_events: self._events.clone(),
 			_hitbox: self._hitbox.clone(),
@@ -356,7 +330,7 @@ impl Clone for Text
 
 impl ShaderDrawerImpl for Text {
 	fn cache_mustUpdate(&self) -> bool {
-		self._cacheLocalUpdate || self._cacheShared.read().isUpdated || self._cacheinfos.isAbsent()
+		self._cacheShared.read().isUpdated || self._cacheinfos.isNotShow()
 	}
 	
 	fn cache_submit(&mut self) {
@@ -367,7 +341,7 @@ impl ShaderDrawerImpl for Text {
 				holder.remove(tmp);
 			});
 			self._cacheShared.write().isUpdated = false;
-			self._cacheLocalUpdate = false;
+			self._cacheinfos.setNeedUpdate(false);
 			self._cacheinfos.setAbsent();
 			return;
 		}
@@ -419,7 +393,7 @@ impl ShaderDrawerImplReturn<HGE_shader_2Dsimple_def> for Text
 			
 		};
 		self._hitbox = UiHitbox::newFrom2D(&hitboxvec);
-		self._cacheLocalUpdate = false;
+		self._cacheinfos.setNeedUpdate(false);
 		
 		return Some(ShaderDrawerImplStruct{
 			vertex: structure.vertex.drain(0..).collect(),
@@ -442,3 +416,27 @@ impl UiPageContent for Text
 
 impl UiButton_content for Text {}
 impl UiHidable_content for Text {}
+
+impl entities_utils for Text
+{
+	fn cloneAsNew(&self) -> Self
+	{
+		let tmpvec: Vec<_> = self._texts.iter().cloned().collect();
+		
+		let mut tmpfinal = Text {
+			_components: self._components.clone(),
+			_layout: self._layout.clone(),
+			_texts: tmpvec,
+			_textSize: self._textSize.clone(),
+			_managerfont_textId: ManagerFont::singleton().getUniqId(),
+			_cacheShared: Arc::new(RwLock::new(TextCacheUpdater{ vertex: vec![], indices: vec![], isUpdated: false })),
+			_isVisible: self._isVisible,
+			_events: Self::newWithWinRefreshEvent(),
+			_hitbox: UiHitbox::new(),
+			_cacheinfos: cacheInfos::default(),
+		};
+		tmpfinal.commit();
+		
+		return tmpfinal;
+	}
+}

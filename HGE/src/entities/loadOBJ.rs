@@ -21,7 +21,6 @@ pub struct loadOBJ
 {
 	_components: Components,
 	_model: Option<tobj::Model>,
-	_canUpdate: bool,
 	_cacheinfos: cacheInfos
 }
 
@@ -71,7 +70,6 @@ impl loadOBJ
 		{
 			_components: Default::default(),
 			_model: model,
-			_canUpdate: true,
 			_cacheinfos: cacheInfos::default(),
 		};
 	}
@@ -82,7 +80,7 @@ impl loadOBJ
 	}
 	pub fn components_mut(&mut self) -> &mut Components<worldPosition, rotation, scale, offset<worldPosition, rotation, scale>>
 	{
-		self._canUpdate = true;
+		self._cacheinfos.setNeedUpdate(true);
 		&mut self._components
 	}
 }
@@ -94,7 +92,7 @@ impl chunk_content for loadOBJ {}
 
 impl ShaderDrawerImpl for loadOBJ {
 	fn cache_mustUpdate(&self) -> bool {
-		self._canUpdate || self._cacheinfos.isAbsent()
+		self._cacheinfos.isNotShow()
 	}
 	
 	fn cache_submit(&mut self) {
@@ -104,6 +102,7 @@ impl ShaderDrawerImpl for loadOBJ {
 		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder|{
 			holder.insert(tmp,structure);
 		});
+		self._cacheinfos.setNeedUpdate(false);
 		self._cacheinfos.setPresent();
 	}
 	
@@ -160,8 +159,6 @@ impl ShaderDrawerImplReturn<HGE_shader_3Dsimple_def> for loadOBJ
 				new_vextex.push(newvertex);
 			}
 		}
-		
-		self._canUpdate = false;
 		
 		Some(
 			ShaderDrawerImplStruct{
