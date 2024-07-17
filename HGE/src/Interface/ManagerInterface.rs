@@ -8,6 +8,8 @@ use parking_lot::RwLock;
 use singletonThread::SingletonThread;
 use crate::components::event::{event_trait, event_type};
 use crate::Interface::UiPage::UiPage;
+use std::thread;
+use std::time::Duration;
 
 pub struct ManagerInterface
 {
@@ -74,6 +76,12 @@ impl ManagerInterface
 			if let Some(mut page) = Self::singleton()._pageArray.get_mut(&name) {
 				page.event_trigger(event_type::ENTER);
 				page.cache_checkupdate();
+			}
+			
+			// sometime cleaning is too long ?
+			thread::sleep(Duration::from_millis(10));
+			if let Some(page) = Self::singleton()._pageArray.get_mut(&oldpage) {
+				page.cache_clear();
 			}
 		});
 	}
