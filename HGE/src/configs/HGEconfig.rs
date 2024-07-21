@@ -1,7 +1,7 @@
 use std::sync::{Arc, OnceLock};
 use arc_swap::{ArcSwap, Guard};
 use Hconfig::HConfigManager::HConfigManager;
-use json::JsonValue;
+use Hconfig::rusty_json::base::JsonValue;
 use vulkano::swapchain::PresentMode;
 use crate::configs::general::HGEconfig_general;
 use crate::configs::system_swapchain::HGEconfig_system_swapchain;
@@ -47,7 +47,7 @@ impl HGEconfig
 			PresentMode::Mailbox => "Mailbox",
 			_ => "Fifo"
 		}.to_string())).to_string());
-		updatedconfig.fpslimiter = config.getOrSetDefault("system/swapchain/fpslimiter", JsonValue::from(defaultFpslimiter)).as_u8().unwrap_or(0);
+		updatedconfig.fpslimiter = config.getOrSetDefault("system/swapchain/fpslimiter", JsonValue::from(defaultFpslimiter)).parse().unwrap_or(0);
 		
 		let _ =	config.save();
 		

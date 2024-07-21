@@ -174,11 +174,10 @@ impl UiPage
 		self._content.iter()
 			.for_each(|(_, elem)| {
 				elem.updateIf(|i|{
-					let mut returning = false;
-					if(i.cache_mustUpdate())
+					let returning = i.cache_mustUpdate();
+					if(returning)
 					{
 						i.cache_submit();
-						returning = true;
 					}
 					returning
 				});

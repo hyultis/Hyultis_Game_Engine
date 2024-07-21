@@ -42,14 +42,14 @@ pub struct interfacePosition
 
 impl interfacePosition
 {
-	/// define a percent positioned position, witch move if window is resized, go to 0.0 ( = 0%) , to 1.0 ( = 100.00%)
+	/// define a "percent positioned" position, witch move if window is resized, go to 0.0 ( = 0%) , to 1.0 ( = 100.00%)
 	/// with Z as Ui layer
 	pub fn new_percent(x: f32, y: f32) -> Self
 	{
 		return interfacePosition::new_percent_z(x, y, 0);
 	}
 	
-	/// define a percent positioned position, witch move if window is resized, go to 0.0 ( = 0%) , to 1.0 ( = 100.00%)
+	/// define a "percent positioned" position, witch move if window is resized, go to 0.0 ( = 0%) , to 1.0 ( = 100.00%)
 	pub fn new_percent_z(x: f32, y: f32, z: u16) -> Self
 	{
 		return interfacePosition
@@ -64,13 +64,13 @@ impl interfacePosition
 		};
 	}
 	
-	/// define a pixel positioned position, witch do not move if window is resized (can go out of screen)
+	/// define a "pixel positioned" position, witch do not move if window is resized (can go out of screen)
 	pub fn new_pixel(x: i32, y: i32) -> Self
 	{
 		return interfacePosition::new_pixel_z(x, y, 0);
 	}
 	
-	/// define a pixel positioned position, witch do not move if window is resized (can go out of screen)
+	/// define a "pixel positioned" position, witch do not move if window is resized (can go out of screen)
 	/// with Z as Ui layer
 	pub fn new_pixel_z(x: i32, y: i32, z: u16) -> Self
 	{
@@ -161,6 +161,18 @@ impl interfacePosition
 		{
 			_type: ttype,
 			_dyny: Some(Arc::new(func)),
+			..interfacePosition::default()
+		}
+	}
+	
+	/// shortcut for creating a dynamic interface position for XY axis
+	pub fn fromDynXY(ttype: PixelType, funcx: impl Fn() -> f32 + Send + Sync + 'static, funcy: impl Fn() -> f32 + Send + Sync + 'static) -> Self
+	{
+		interfacePosition
+		{
+			_type: ttype,
+			_dynx: Some(Arc::new(funcx)),
+			_dyny: Some(Arc::new(funcy)),
 			..interfacePosition::default()
 		}
 	}
@@ -399,13 +411,13 @@ impl interfacePosition
 				ParentType::ADD => {
 					parents._x = parents._x + normalizedParent.getXraw();
 					parents._y = parents._y + normalizedParent.getYraw();
-					parents._z = parents._z.max(normalizedParent._z);
+					parents._z = parents._z + normalizedParent._z;
 				}
 				ParentType::SUB =>
 					{
 						parents._x = parents._x - normalizedParent.getXraw();
 						parents._y = parents._y - normalizedParent.getYraw();
-						parents._z = parents._z.max(normalizedParent._z);
+						parents._z = parents._z - normalizedParent._z;
 					}
 			}
 		}

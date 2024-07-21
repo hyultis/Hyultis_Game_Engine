@@ -1,3 +1,4 @@
+use crate::components::cacheInfos::cacheInfos;
 use crate::components::color::color;
 use crate::components::event::{event_trait, event_trait_add, event_type};
 use crate::components::interfacePosition::interfacePosition;
@@ -45,6 +46,10 @@ impl UiPageContent for Plane<interfacePosition>
 impl ShaderDrawerImpl for Plane<interfacePosition> {
 	fn cache_mustUpdate(&self) -> bool {
 		self._cacheinfos.isNotShow()
+	}
+	
+	fn cache_infos(&self) -> &cacheInfos {
+		&self._cacheinfos
 	}
 	
 	fn cache_submit(&mut self) {

@@ -333,6 +333,10 @@ impl ShaderDrawerImpl for Text {
 		self._cacheShared.read().isUpdated || self._cacheinfos.isNotShow()
 	}
 	
+	fn cache_infos(&self) -> &cacheInfos {
+		&self._cacheinfos
+	}
+	
 	fn cache_submit(&mut self) {
 		if(!self._isVisible)
 		{

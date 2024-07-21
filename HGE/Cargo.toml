@@ -12,7 +12,6 @@ dynamicresolution = []
 
 [dependencies]
 #base stuff
-rand = "0.8.5"
 ahash = "0.8.11"
 dashmap = {version = "6.0.1", features = ["rayon"]}
 dyn-clone = "1.0.17"
@@ -20,14 +19,10 @@ parking_lot = "0.12.1"
 anyhow = "1.0.79"
 rayon = "1.10.0"
 arc-swap = "1.7.1"
-rand_chacha = "0.3.1"
-rand_seeder = "0.2.3"
 HArcMut = "1.1.1"
 singletonThread = "1.0.0"
 bytemuck = "1.15.0"
 derive_more = { version = "1.0.0-beta.6", features = ["full"] }
-sys-locale = "0.3.1"
-webbrowser = "1.0.1"
 downcast-rs = "1.2.1"
 
 #data
@@ -35,15 +30,11 @@ downcast-rs = "1.2.1"
 csv = "1.3.0"
 Hconfig = { workspace = true }
 Htrace = { workspace = true }
-base64 = "0.22.0"
-json = "0.12.4"
-rsa = { version = "0.9.6", features = ["sha2"]}
 uuid = { version = "1.8.0" , features = [ "v4","v7", "fast-rng"]}
 
 #graphic
 #sdl2 = "0.35.2"
 vulkano = "0.34.1"
-vulkano-shaders = "0.34.0"
 raw-window-handle = "0.5.2"
 image = "0.25.1"
 palette = "0.7.5"

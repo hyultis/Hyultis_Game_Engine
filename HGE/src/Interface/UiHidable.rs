@@ -61,6 +61,13 @@ impl UiHidable
 		})
 	}
 	
+	fn checkContentIsPresent(&self) -> bool
+	{
+		self._content.iter().any(|x|{
+			x.cache_infos().isPresent()
+		})
+	}
+	
 }
 
 impl event_trait_add<UiHidable> for UiHidable
@@ -111,6 +118,10 @@ impl ShaderDrawerImpl for UiHidable {
 	fn cache_mustUpdate(&self) -> bool
 	{
 		self._cacheinfos.isNotShow() || self.checkContentUpdate()
+	}
+	
+	fn cache_infos(&self) -> &cacheInfos {
+		&self._cacheinfos
 	}
 	
 	fn cache_submit(&mut self)

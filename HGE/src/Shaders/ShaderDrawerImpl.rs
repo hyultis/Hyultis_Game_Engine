@@ -1,6 +1,9 @@
+use crate::components::cacheInfos::cacheInfos;
+
 pub trait ShaderDrawerImpl //: DynClone + Downcast
 {
 	fn cache_mustUpdate(&self) -> bool;
+	fn cache_infos(&self) -> &cacheInfos;
 	fn cache_submit(&mut self);
 	fn cache_remove(&mut self);
 }

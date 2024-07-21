@@ -72,17 +72,6 @@ impl ManagerModels
 				}
 			}
 		}
-		
-		/*for x in &add
-		{
-			if(!old.contains(&x))
-			{
-				if let Some(mut chunk) = self._chunks.get_mut(x)
-				{
-					chunk.cacheForceUpdate();
-				}
-			}
-		}*/
 	}
 	
 	pub fn active_chunk_get(&self) -> Arc<Vec<[i32; 3]>>
@@ -93,7 +82,10 @@ impl ManagerModels
 	pub fn all_chunk_reset(&self)
 	{
 		self.active_chunk_resetAndAdd(vec![]);
-		self._chunks.retain(|_,_|{false});
+		self._chunks.retain(|_,x|{
+			x.cache_remove();
+			false
+		});
 	}
 	
 	pub fn tickUpdate(&self)

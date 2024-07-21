@@ -3,6 +3,8 @@
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
 #![allow(dead_code, deprecated)]
+#![allow(unused_parens)]
+#![deny(unused_crate_dependencies)]
 
 pub mod Paths;
 pub mod HGEMain;

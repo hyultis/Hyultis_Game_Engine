@@ -1,3 +1,5 @@
+#![deny(unused_crate_dependencies)]
+#![allow(unused_variables,unused_parens, non_snake_case)]
 #[warn(unused_parens)]
 
 use std::fs;

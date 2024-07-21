@@ -2,6 +2,8 @@ use std::fmt::Debug;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use cgmath::{Point3, Vector3};
 
+pub extern crate cgmath;
+
 pub mod interfacePosition;
 pub mod worldPosition;
 pub mod event;

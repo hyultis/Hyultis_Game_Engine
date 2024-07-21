@@ -214,6 +214,10 @@ impl ShaderDrawerImpl for UiButton {
 		self.checkContentUpdate() || self._cacheinfos.isNotShow()
 	}
 	
+	fn cache_infos(&self) -> &cacheInfos {
+		&self._cacheinfos
+	}
+	
 	fn cache_submit(&mut self)
 	{
 		if(self._hide)

@@ -1,3 +1,4 @@
+use crate::components::cacheInfos::cacheInfos;
 use crate::components::color::color;
 use crate::components::event::{event_trait, event_trait_add, event_type};
 use crate::components::HGEC_origin;
@@ -75,6 +76,10 @@ impl Plane<worldPosition>
 impl ShaderDrawerImpl for Plane<worldPosition> {
 	fn cache_mustUpdate(&self) -> bool {
 		self._cacheinfos.isNotShow()
+	}
+	
+	fn cache_infos(&self) -> &cacheInfos {
+		&self._cacheinfos
 	}
 	
 	fn cache_submit(&mut self) {

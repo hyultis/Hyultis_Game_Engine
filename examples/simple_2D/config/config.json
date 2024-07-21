@@ -1,8 +1,8 @@
 {
     "system": {
         "swapchain": {
-            "presentmode": "Immediate",
-            "fpslimiter": 0
+                "presentmode": "Immediate",
+                "fpslimiter": 0
         }
     },
     "window": {

@@ -9,9 +9,12 @@ use crate::components::offset::offset;
 use crate::components::rotations::rotation;
 use crate::components::scale::scale;
 use crate::entities::Plane::Plane;
+use crate::entities::utils::entities_utils;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::{UiPageContent, UiPageContent_type};
-use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl};
+use crate::Shaders::HGE_shader_2Dsimple::HGE_shader_2Dsimple_holder;
+use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
+use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn, ShaderDrawerImplStruct};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Bar_orientation
@@ -32,7 +35,6 @@ pub struct Bar_state
 pub struct Bar
 {
 	_components: Components<interfacePosition>,
-	_planes: Vec<Plane<interfacePosition>>,
 	_progress: u16,
 	_progressState: HashMap<u16,Bar_state>,
 	_position: [interfacePosition;2],
@@ -56,7 +58,6 @@ impl Bar
 		let mut tmp = Bar
 		{
 			_components: Components::default(),
-			_planes: Vec::new(),
 			_progress: 0,
 			_progressState: Statesmap,
 			_position: [interfacePosition::default(),interfacePosition::default()],
@@ -115,6 +116,11 @@ impl Bar
 		self._progress = progress;
 		self._cacheinfos.setNeedUpdate(true);
 	}
+	
+	pub fn getProgress(&self) -> f32
+	{
+		return self._progress as f32/10000.0;
+	}
 }
 
 impl event_trait for Bar
@@ -145,6 +151,10 @@ impl event_trait_add<Bar> for Bar
 impl ShaderDrawerImpl for Bar {
 	fn cache_mustUpdate(&self) -> bool {
 		self._cacheinfos.isNotShow()
+	}
+	
+	fn cache_infos(&self) -> &cacheInfos {
+		&self._cacheinfos
 	}
 	
 	fn cache_submit(&mut self)
@@ -263,21 +273,29 @@ impl ShaderDrawerImpl for Bar {
 			newplanes.push(newplane);
 		}
 		
-		self.cache_remove(); // removing old plane
+		let mut datas = ShaderDrawerImplStruct::default();
 		for x in newplanes.iter_mut() {
 			*x.components_mut() = self._components.clone();
-			x.cache_submit();
+			if let Some(mut cache) = x.cache_get()
+			{
+				datas.combine(&mut cache);
+			}
 		}
 		
-		self._planes = newplanes;
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+			holder.insert(tmp,datas);
+		});
+		
 		self._cacheinfos.setNeedUpdate(false);
 		self._cacheinfos.setPresent();
 	}
 	
 	fn cache_remove(&mut self) {
-		for mut x in self._planes.drain(0..) {
-			x.cache_remove();
-		}
+		let tmp = self._cacheinfos;
+		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+			holder.remove(tmp);
+		});
 		self._cacheinfos.setAbsent();
 	}
 }
@@ -295,5 +313,22 @@ impl UiPageContent for Bar
 	
 	fn getHitbox(&self) -> UiHitbox {
 		self._hitbox.clone()
+	}
+}
+
+impl entities_utils for Bar
+{
+	fn cloneAsNew(&self) -> Self {
+		Self{
+			_components: self._components.clone(),
+			_progress: self._progress.clone(),
+			_progressState: self._progressState.clone(),
+			_position: self._position.clone(),
+			_textureSize: self._textureSize.clone(),
+			_orientation: self._orientation.clone(),
+			_events: self._events.clone(),
+			_hitbox: self._hitbox.clone(),
+			_cacheinfos: Default::default(),
+		}
 	}
 }

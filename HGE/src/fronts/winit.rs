@@ -4,8 +4,8 @@ use std::any::Any;
 use std::sync::OnceLock;
 use anyhow::anyhow;
 use Hconfig::HConfigManager::HConfigManager;
+use Hconfig::rusty_json::base::JsonValue;
 use Htrace::{HTrace, HTraceError};
-use json::JsonValue;
 use parking_lot::{RawRwLock, RwLock};
 use parking_lot::lock_api::{RwLockReadGuard, RwLockWriteGuard};
 use vulkano::swapchain::Surface;
@@ -221,7 +221,7 @@ impl HGEwinit
 		}
 		
 		let mut config = HConfigManager::singleton().get("config");
-		let mut windowtype = config.getOrSetDefault("window/type", JsonValue::from(defaultwindowtype)).as_u32().unwrap_or(2);
+		let mut windowtype = config.getOrSetDefault("window/type", JsonValue::from(defaultwindowtype)).parse().unwrap_or(2);
 		let mut fullscreenmode = None;
 		if (windowtype == 1 && eventloop.primary_monitor().is_none())
 		{
