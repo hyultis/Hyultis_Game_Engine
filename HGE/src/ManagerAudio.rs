@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use ahash::HashMap;
 use arc_swap::ArcSwap;
 use dashmap::DashMap;
-use Htrace::{HTrace, TSpawner};
+use Htrace::{HTrace, namedThread};
 use parking_lot::{Mutex, RwLock};
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use crate::assetStreamReader::assetManager;
@@ -273,7 +273,7 @@ impl ManagerAudio
 		
 		
 		let name = name.into();
-		let _ = TSpawner!(move ||{
+		let _ = namedThread!(move ||{
 			Self::singleton()._queueEffect.lock().push(audio_queue {
 				name: name,
 				channel: audio_channel::EFFECT,
@@ -290,7 +290,7 @@ impl ManagerAudio
 	pub fn music_add(&self, name: impl Into<String>)
 	{
 		let name = name.into();
-		let _ = TSpawner!(move ||{
+		let _ = namedThread!(move ||{
 			Self::singleton()._musicList.write().push(name);
 		});
 	}

@@ -3,7 +3,7 @@ use arc_swap::ArcSwap;
 use dashmap::DashMap;
 use dashmap::mapref::one::Ref;
 use Htrace::HTracer::HTracer;
-use Htrace::TSpawner;
+use Htrace::namedThread;
 use parking_lot::RwLock;
 use singletonThread::SingletonThread;
 use crate::components::event::{event_trait, event_type};
@@ -53,7 +53,7 @@ impl ManagerInterface
 	pub fn changeActivePage(&self, name: impl Into<String>)
 	{
 		let name = name.into();
-		let _ = TSpawner!(move ||{
+		let _ = namedThread!(move ||{
 			
 			let oldpage = Arc::unwrap_or_clone(Self::singleton()._activePage.load_full());
 			if(name==oldpage) // si on change pas de page, on refresh juste
@@ -109,7 +109,7 @@ impl ManagerInterface
 		page.eventWinRefresh();
 		
 		let otherpage = self._pageArray.iter().filter(|x|x.key().ne(&self.getActivePage())).map(|x|x.key().clone()).collect::<Vec<String>>();
-		let _ = TSpawner!(||{
+		let _ = namedThread!(||{
 			for x in otherpage
 			{
 				if let Some(page) = ManagerInterface::singleton()._pageArray.get(&x)

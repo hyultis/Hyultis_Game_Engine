@@ -18,6 +18,8 @@ pub struct HGEconfig_general
 	pub startFullscreen: bool,
 	pub windowTitle: String,
 	pub appVersion: Version,
+	/// namefile of the config inside the config directory, without ".json"
+	pub configName: String,
 	/// set true if the running device is steamdeck
 	/// force windows creation to Fullscreen::Exclusive
 	pub isSteamdeck: bool,
@@ -38,6 +40,7 @@ impl Default for HGEconfig_general
 				minor: 0,
 				patch: 0,
 			},
+			configName: "HGE".to_string(),
 			isSteamdeck: false,
 			isAndroid: false,
 			defaultShaderLoader: None,

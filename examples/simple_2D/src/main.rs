@@ -42,6 +42,7 @@ fn main()
 	let _ = fs::create_dir(Paths::singleton().getDynamic());
 	let _ = fs::remove_dir_all(format!("{}{}", Paths::singleton().getDynamic(), "/traces"));
 	
+	
 	HConfigManager::singleton().setConfPath(Paths::singleton().getConfig());
 	HTracer::minlvl_default(Type::WARNING);
 	HTracer::appendModule("cli", CommandLine::new(CommandLineConfig::default())).unwrap();

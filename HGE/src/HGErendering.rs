@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
-use Htrace::{HTrace, HTraceError, TSpawner};
+use Htrace::{HTrace, HTraceError, namedThread};
 use Htrace::Type::Type;
 use vulkano::{sync, Validated, VulkanError};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, BlitImageInfo, CommandBufferInheritanceInfo, CommandBufferUsage, ImageBlit, SecondaryAutoCommandBuffer, SubpassEndInfo};
@@ -230,7 +230,7 @@ impl HGErendering
 		
 		
 		// execute callback of updated cmdBuffer
-		let _ = TSpawner!(move ||{
+		let _ = namedThread!(move ||{
 				for func in callbackCmdBuffer {
 					func();
 				}

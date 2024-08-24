@@ -19,8 +19,8 @@ parking_lot = "0.12.1"
 anyhow = "1.0.79"
 rayon = "1.10.0"
 arc-swap = "1.7.1"
-HArcMut = "1.1.1"
-singletonThread = "1.0.0"
+HArcMut = { workspace = true }
+singletonThread = { workspace = true }
 bytemuck = "1.15.0"
 derive_more = { version = "1.0.0-beta.6", features = ["full"] }
 downcast-rs = "1.2.1"

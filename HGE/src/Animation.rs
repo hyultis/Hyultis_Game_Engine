@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use cgmath::num_traits::Pow;
 use crate::ManagerAnimation::AnimationHolder;
 use HArcMut::HArcMut;
-use Htrace::TSpawner;
+use Htrace::namedThread;
 
 enum AnimationRepeat
 {
@@ -164,7 +164,7 @@ impl<A, B> Animation<A, B>
 	    
 	    if let Some(func) = endcaller
 	    {
-		    let _ = TSpawner!(||{
+		    let _ = namedThread!(||{
 			   func();
 		    });
 	    }

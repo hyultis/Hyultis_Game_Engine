@@ -1,0 +1,21 @@
+{
+    "minlvl": 4,
+    "module": {
+        "cli": {
+                "colors": {
+
+                },
+                "lineReturn": "|",
+                "lineFormat": "[3m{time}[0m {lvl} ({file}:l{line}) : [{color}m{msg}[0m"
+        },
+        "file": {
+                "path": "./dynamic/traces",
+                "lineReturn": "|",
+                "lineFormat": "{time} {lvl} ({file}:l{line}) : {msg}",
+                "byHour": true,
+                "bySrc": false,
+                "byThreadId": true,
+                "forceInOneFile": ""
+        }
+    }
+}

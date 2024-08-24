@@ -1,11 +1,11 @@
 {
+    "window": {
+        "type": 0
+    },
     "system": {
         "swapchain": {
                 "presentmode": "Immediate",
                 "fpslimiter": 0
         }
-    },
-    "window": {
-        "type": 0
     }
 }

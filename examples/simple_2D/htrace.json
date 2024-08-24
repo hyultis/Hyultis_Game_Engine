@@ -1,0 +1,18 @@
+{
+  "minlvl": 5,
+  "module": {
+    "cli": {
+      "lineFormat": "{time} {lvl} ({file}:l{line}) : {msg}",
+      "lineReturn": " | "
+    },
+    "file": {
+      "byHour": true,
+      "bySrc": false,
+      "byThreadId": true,
+      "forceInOneFile": "",
+      "lineFormat": "{time} {lvl} ({file}:l{line}) : {msg}",
+      "lineReturn": " | ",
+      "path": "./dynamic/traces"
+    }
+  }
+}

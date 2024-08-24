@@ -13,7 +13,7 @@ use vulkano::command_buffer::{CommandBufferInheritanceInfo, SecondaryAutoCommand
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::swapchain::{Surface, SurfaceCapabilities, SurfaceTransform};
 use dashmap::DashMap;
-use Htrace::{HTrace, HTraceError, TSpawner};
+use Htrace::{HTrace, HTraceError, namedThread};
 use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions};
 use HArcMut::HArcMut;
 use Htrace::Type::Type;
@@ -275,7 +275,7 @@ impl HGEMain
 	
 	pub fn SecondaryCmdBuffer_add(sbtype: HGEMain_secondarybuffer_type, cmdBuffer: Arc<SecondaryAutoCommandBuffer>, callback: impl Fn() + Send + Sync + 'static)
 	{
-		let _ = TSpawner!(move || {
+		let _ = namedThread!(move || {
 			if let Some(mut arrayvec) = Self::singleton()._cmdBufferTextures.clone().get_mut(&sbtype)
 			{
 				arrayvec.0.push(cmdBuffer);

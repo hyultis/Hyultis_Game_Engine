@@ -11,5 +11,7 @@ version = "1.0.0"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-Hconfig = { path = "../../rust/Hconfig" }
-Htrace = { path = "../../rust/Htrace" }
+Hconfig = "1.1"
+Htrace = "1.0" #{ path = "../../rust/Htrace" }
+singletonThread = "1.1"
+HArcMut = "1.1"

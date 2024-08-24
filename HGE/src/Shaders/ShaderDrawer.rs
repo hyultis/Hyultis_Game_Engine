@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 use dashmap::DashMap;
 use dashmap::mapref::one::Ref;
-use Htrace::TSpawner;
+use Htrace::namedThread;
 use parking_lot::RwLock;
 use uuid::Uuid;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
@@ -43,7 +43,7 @@ impl ShaderDrawer_Manager
 	pub fn inspect<T>(func: impl FnOnce(&mut T) + Send + 'static)
 		where T: ShaderStructHolder
 	{
-		let _ = TSpawner!(||{
+		let _ = namedThread!(||{
 			let Some(tmp) = Self::singleton().get::<T>() else {return};
 			if let Some(holder) = tmp.write().downcast_mut::<T>()
 			{
@@ -60,7 +60,7 @@ impl ShaderDrawer_Manager
 	
 	pub fn allholder_Update()
 	{
-		let _ = TSpawner!(||
+		let _ = namedThread!(||
 		{
 			for thispipeline in Self::singleton()._datas.iter()
 			{

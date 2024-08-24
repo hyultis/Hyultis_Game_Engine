@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use anyhow::anyhow;
-use Htrace::{HTrace, HTraceError, TSpawner};
+use Htrace::{HTrace, HTraceError, namedThread};
 use vulkano::format::Format;
 use vulkano::device::DeviceOwned;
 use vulkano::image::ImageUsage;
@@ -210,7 +210,7 @@ impl HGESwapchain
 				
 				self._fpslimiter = fpslimiter;
 				
-				let _ = TSpawner!(||{
+				let _ = namedThread!(||{
 					ManagerInterface::singleton().WindowRefreshed();
 				});
 				return Ok(());

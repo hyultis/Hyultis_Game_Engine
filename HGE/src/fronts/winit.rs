@@ -4,7 +4,7 @@ use std::any::Any;
 use std::sync::OnceLock;
 use anyhow::anyhow;
 use Hconfig::HConfigManager::HConfigManager;
-use Hconfig::rusty_json::base::JsonValue;
+use Hconfig::serde_json::Value as JsonValue;
 use Htrace::{HTrace, HTraceError};
 use parking_lot::{RawRwLock, RwLock};
 use parking_lot::lock_api::{RwLockReadGuard, RwLockWriteGuard};
@@ -220,8 +220,8 @@ impl HGEwinit
 			defaultwindowtype = 0;
 		}
 		
-		let mut config = HConfigManager::singleton().get("config");
-		let mut windowtype = config.getOrSetDefault("window/type", JsonValue::from(defaultwindowtype)).parse().unwrap_or(2);
+		let mut config = HConfigManager::singleton().get(configBind.configName.clone());
+		let mut windowtype = config.getOrSetDefault("window/type", JsonValue::from(defaultwindowtype)).as_u64().unwrap_or(2);
 		let mut fullscreenmode = None;
 		if (windowtype == 1 && eventloop.primary_monitor().is_none())
 		{
