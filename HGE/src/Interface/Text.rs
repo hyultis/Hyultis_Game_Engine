@@ -337,6 +337,10 @@ impl ShaderDrawerImpl for Text {
 		&self._cacheinfos
 	}
 	
+	fn cache_infos_mut(&mut self) -> &mut cacheInfos {
+		&mut self._cacheinfos
+	}
+	
 	fn cache_submit(&mut self) {
 		if(!self._isVisible)
 		{

@@ -31,9 +31,7 @@ impl ManagerAnimation
 		    HTracer::threadSetName("ManagerAnimation");
 		    ManagerAnimation::singleton().internal_ticks();
 	    });
-	    singThread.setDuration_FPS(120);
 	    singThread.setThreadName("animation");
-	    //singThread.setLoop(true);
 	    
 	    let mut singThreadDrop = SingletonThread::new(||{
 		    HTracer::threadSetName("ManagerAnimation");
@@ -42,7 +40,6 @@ impl ManagerAnimation
 		    });
 	    });
 	    singThreadDrop.setThreadName("animation");
-	    singThreadDrop.setDuration_FPS(1);
 	    
         return ManagerAnimation {
 	        _maxid: RwLock::new(0),

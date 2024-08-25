@@ -6,8 +6,18 @@ use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, Features, Queu
 use vulkano::device::physical::PhysicalDeviceType;
 use vulkano::format::Format;
 use vulkano::instance::Instance;
+use vulkano::memory::MemoryPropertyFlags;
 use vulkano::swapchain::Surface;
 use vulkano::Version;
+
+
+#[derive(Clone)]
+pub struct BuilderDeviceMemory
+{
+	pub heapIndex: usize,
+	/// memory size in Mo
+	pub heapSize: u64,
+}
 
 #[derive(Clone)]
 pub struct BuilderDevice
@@ -19,7 +29,8 @@ pub struct BuilderDevice
 	pub extensionload_for13: bool,
 	pub maxpushconstant: u32,
 	pub maxtextureshader: Option<u32>,
-	pub depthformat: Format
+	pub depthformat: Format,
+	pub memory: BuilderDeviceMemory
 }
 
 impl BuilderDevice
@@ -224,7 +235,16 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 			tmpqueues.insert(x.queue_family_index(),x);
 		}
 		
-		
+		let mut memorySize = 0;
+		let deviceIndex = device.physical_device().memory_properties().memory_types.iter()
+			.filter(|x|x.property_flags.intersects(MemoryPropertyFlags::DEVICE_LOCAL))
+			.next().map(|x|x.heap_index).unwrap_or(0) as usize;
+		device.physical_device().memory_properties().memory_heaps.iter().for_each(|x|{println!("tst {} {:?}",x.size as u64,x.flags)});
+		if let Some(gpuram) = device.physical_device().memory_properties().memory_heaps.get(deviceIndex)
+		{
+			memorySize = ((gpuram.size as u64)/1024)/1024;
+		}
+		println!("device max memory size : {} {:.2}",memorySize,((memorySize as f64) / 1024.0f64) / 1024.0f64);
 		
 		let mut format = Format::D16_UNORM;
 		if let Ok(_) = device.physical_device().format_properties(Format::D32_SFLOAT)
@@ -241,6 +261,7 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 			maxpushconstant: pushconstantsize,
 			maxtextureshader: Some(128),
 			depthformat: format,
+			memory: BuilderDeviceMemory { heapIndex: deviceIndex, heapSize: memorySize },
 		}
 	}
 	

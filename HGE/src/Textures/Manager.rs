@@ -111,14 +111,7 @@ impl ManagerTexture
 				texture.update(|texturemut|{
 					
 					loadOrder.exec(texturemut);
-					
-					for x in self._descriptorSets.iter()
-					{
-						if(x.texture_isUpdated(&*texturemut))
-						{
-							break;
-						}
-					};
+					self.updateTextureOnAllDescriptor(texturemut);
 				});
 			}
 		}
@@ -150,14 +143,7 @@ impl ManagerTexture
 				
 				if(updated)
 				{
-					for x in self._descriptorSets.iter()
-					{
-						if(x.texture_isUpdated(&*texture))
-						{
-							break;
-						}
-					};
-					return true;
+					self.updateTextureOnAllDescriptor(texture);
 				}
 				
 				return false;
@@ -642,6 +628,11 @@ impl ManagerTexture
 			oneorder.exec(texture);
 		}
 		
+		self.updateTextureOnAllDescriptor(texture);
+	}
+	
+	fn updateTextureOnAllDescriptor(&self, texture: &mut Texture)
+	{
 		for x in self._descriptorSets.iter()
 		{
 			if(x.texture_isUpdated(&*texture))
@@ -649,6 +640,8 @@ impl ManagerTexture
 				break;
 			}
 		};
+		
+		texture.clearContent();
 	}
 	
 	fn executeCallback(&self)

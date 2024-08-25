@@ -330,7 +330,7 @@ impl HGEMain
 	{
 		let config = HGEconfig::singleton().general_get();
 		
-		let mut threadService = SingletonThread::newFiltered(||{
+		let threadService = SingletonThread::newFiltered(||{
 			Self::singleton()._cameraAnimation.write().retain_mut(|anim| {
 				!anim.ticks()
 			});
@@ -345,7 +345,6 @@ impl HGEMain
 		},||{
 			!**Self::singleton()._isSuspended.load()
 		});
-		threadService.setDuration(Duration::from_nanos(1));
 		
 		return Self
 		{
@@ -461,7 +460,7 @@ impl HGEMain
 		let mut texturesizebig = 1024;
 		if(cfg!(target_os = "android"))
 		{
-			texturesize = 128;
+			texturesize = 64;
 			texturesizebig = 256;
 		}
 		

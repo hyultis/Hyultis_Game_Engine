@@ -101,7 +101,7 @@ impl UiButton
 	fn checkContentUpdate(&self) -> bool
 	{
 		self._content.iter().any(|x|{
-			x.cache_mustUpdate()
+			x.cache_infos().isNeedUpdate()
 		})
 	}
 }
@@ -218,6 +218,10 @@ impl ShaderDrawerImpl for UiButton {
 		&self._cacheinfos
 	}
 	
+	fn cache_infos_mut(&mut self) -> &mut cacheInfos {
+		&mut self._cacheinfos
+	}
+	
 	fn cache_submit(&mut self)
 	{
 		if(self._hide)
@@ -241,17 +245,15 @@ impl ShaderDrawerImpl for UiButton {
 				newHitbox.updateFromHitbox(x.getHitbox());
 			}
 			else {
-				//println!("uibutton content invalid");
-				self._cacheinfos.setNeedUpdate(false);
 				return;
 			}
+			x.cache_infos_mut().setNeedUpdate(false);
 		}
 		
 		if(self._state==UiButtonState::IDLE || self._hitbox.isEmpty())
 		{
 			if(newHitbox.isEmpty())
 			{
-				//println!("uibutton pas de hitbox");
 				self._cacheinfos.setNeedUpdate(false);
 				return;
 			}

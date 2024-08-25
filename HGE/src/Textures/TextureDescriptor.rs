@@ -249,7 +249,7 @@ impl TextureDescriptor
 		};
 		
 		let tmp = DynamicImage::from(origin);
-		let tmp = tmp.resize_exact(x as u32, y as u32, FilterType::Gaussian);
+		let tmp = tmp.resize_exact(x as u32, y as u32, FilterType::Triangle);
 		
 		returned.content = tmp.as_rgba8().unwrap().as_raw().clone();
 		

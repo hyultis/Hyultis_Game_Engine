@@ -52,6 +52,10 @@ impl ShaderDrawerImpl for Plane<interfacePosition> {
 		&self._cacheinfos
 	}
 	
+	fn cache_infos_mut(&mut self) -> &mut cacheInfos {
+		&mut self._cacheinfos
+	}
+	
 	fn cache_submit(&mut self) {
 		let Some(structure) = self.cache_get() else {self.cache_remove();return};
 		

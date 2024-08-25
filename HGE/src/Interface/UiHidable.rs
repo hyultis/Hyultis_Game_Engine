@@ -124,6 +124,10 @@ impl ShaderDrawerImpl for UiHidable {
 		&self._cacheinfos
 	}
 	
+	fn cache_infos_mut(&mut self) -> &mut cacheInfos {
+		&mut self._cacheinfos
+	}
+	
 	fn cache_submit(&mut self)
 	{
 		if(self._hide)

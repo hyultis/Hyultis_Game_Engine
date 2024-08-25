@@ -67,22 +67,18 @@ impl textureLoader for textureLoader_fromFile
 	fn load(&self) -> anyhow::Result<textureLoader_normalized>
 	{
 		//println!("trying loading : {}",self.path);
-		let fileread = assetManager::singleton().readFile(self.path.clone());
-		if(fileread.is_none())
-		{
-			return Err(anyhow!("cannot load : {}",self.path));
-		}
-		let fileread = fileread.unwrap();
+		let fileread = match assetManager::singleton().readFile(self.path.clone()) {
+			None => return Err(anyhow!("cannot load : {}",self.path)),
+			Some(x) => x
+		};
 		
-		let im = Reader::with_format(fileread,ImageFormat::Png).decode();
-		//let im = image::open(&Path::new(&path));
-		if let Err(err) = im
-		{
-			return Err(anyhow!("cannot load : {} with {}",self.path,err));
-		}
+		let im = match Reader::with_format(fileread, ImageFormat::Png).decode() {
+			Ok(x) => x,
+			Err(err) => return Err(anyhow!("cannot load : {} because {}",self.path,err))
+		};
 		
 		HTrace!("load image : {}", self.path);
-		let im = image::DynamicImage::from(im.unwrap().into_rgba8());
+		let im = image::DynamicImage::from(im.into_rgba8());
 		
 		return Ok(textureLoader_normalized {
 			width: im.dimensions().0,
