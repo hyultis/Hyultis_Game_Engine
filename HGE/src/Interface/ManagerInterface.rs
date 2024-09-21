@@ -9,6 +9,7 @@ use singletonThread::SingletonThread;
 use crate::components::event::{event_trait, event_type};
 use crate::Interface::UiPage::UiPage;
 use std::thread;
+use std::thread::sleep;
 use std::time::Duration;
 
 pub struct ManagerInterface
@@ -17,6 +18,7 @@ pub struct ManagerInterface
 	_activePage: ArcSwap<String>,
 	_threadEachTickUpdate: RwLock<SingletonThread>,
 	_threadEachSecondUpdate: RwLock<SingletonThread>,
+	_threadRefreshwindows: RwLock<SingletonThread>,
 }
 
 static SINGLETON: OnceLock<ManagerInterface> = OnceLock::new();
@@ -34,12 +36,28 @@ impl ManagerInterface
 			ManagerInterface::singleton().EachSecondUpdate();
 		});
 		threadEachSecond.setDuration_FPS(1);
+		let threadRefreshwindows = SingletonThread::new(||{
+			HTracer::threadSetName("ManagerInterface_WR");
+			sleep(Duration::from_millis(500));
+			let Some(page) = Self::singleton()._pageArray.get(Self::singleton().getActivePage().as_str()) else {return};
+			page.eventWinRefresh();
+			
+			let otherpage = Self::singleton()._pageArray.iter().filter(|x|x.key().ne(&Self::singleton().getActivePage())).map(|x|x.key().clone()).collect::<Vec<String>>();
+			for x in otherpage
+			{
+				if let Some(page) = ManagerInterface::singleton()._pageArray.get(&x)
+				{
+					page.eventWinRefresh();
+				}
+			}
+		});
 		
 		return ManagerInterface {
 			_pageArray: Default::default(),
 			_activePage: ArcSwap::new(Arc::new("default".to_string())),
 			_threadEachTickUpdate: RwLock::new(threadEachTick),
 			_threadEachSecondUpdate: RwLock::new(threadEachSecond),
+			_threadRefreshwindows: RwLock::new(threadRefreshwindows),
 		};
 	}
 	
@@ -105,19 +123,7 @@ impl ManagerInterface
 	
 	pub fn WindowRefreshed(&self)
 	{
-		let Some(page) = self._pageArray.get(self.getActivePage().as_str()) else {return};
-		page.eventWinRefresh();
-		
-		let otherpage = self._pageArray.iter().filter(|x|x.key().ne(&self.getActivePage())).map(|x|x.key().clone()).collect::<Vec<String>>();
-		let _ = namedThread!(||{
-			for x in otherpage
-			{
-				if let Some(page) = ManagerInterface::singleton()._pageArray.get(&x)
-				{
-					page.eventWinRefresh();
-				}
-			}
-		});
+		self._threadRefreshwindows.write().thread_launch_delayabe();
 	}
 	
 	pub fn UiPageAppend(&self, name: impl Into<String>, page: UiPage)

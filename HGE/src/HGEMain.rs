@@ -322,6 +322,7 @@ impl HGEMain
 		self.window_InfosUpdate(size);
 		
 		self._rendering.write().forceSwapchainRecreate();
+		ManagerInterface::singleton().WindowRefreshed();
 	}
 	
 	///////////// PRIVATE

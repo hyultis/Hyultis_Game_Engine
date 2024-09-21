@@ -104,6 +104,13 @@ impl UiButton
 			x.cache_infos().isNeedUpdate()
 		})
 	}
+	
+	fn setContentUpdated(&mut self)
+	{
+		self._content.iter_mut().for_each(|x|{
+			x.cache_infos_mut().setNeedUpdate(false);
+		})
+	}
 }
 
 impl event_trait for UiButton {
@@ -261,6 +268,7 @@ impl ShaderDrawerImpl for UiButton {
 		}
 		
 		self._cacheinfos.setNeedUpdate(false);
+		self.setContentUpdated();
 		
 		let tmp = self._cacheinfos;
 		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
