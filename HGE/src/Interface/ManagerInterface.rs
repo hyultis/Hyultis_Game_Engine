@@ -38,7 +38,6 @@ impl ManagerInterface
 		threadEachSecond.setDuration_FPS(1);
 		let threadRefreshwindows = SingletonThread::new(||{
 			HTracer::threadSetName("ManagerInterface_WR");
-			sleep(Duration::from_millis(500));
 			let Some(page) = Self::singleton()._pageArray.get(Self::singleton().getActivePage().as_str()) else {return};
 			page.eventWinRefresh();
 			
