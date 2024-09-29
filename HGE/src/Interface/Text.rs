@@ -134,7 +134,8 @@ pub struct Text
 	_events: event<Text>,
 	_cacheinfos: cacheInfos,
 	_sharedStruct: Arc<RwLock<ShaderDrawerImplStruct<HGE_shader_2Dsimple_def>>>,
-	_sharedHitbox: Arc<RwLock<UiHitbox>>
+	_sharedHitbox: Arc<RwLock<UiHitbox>>,
+	_sharedCacheInfos: Arc<RwLock<cacheInfos>>
 }
 
 impl Text
@@ -153,6 +154,7 @@ impl Text
 			_cacheinfos: cacheInfos::default(),
 			_sharedStruct: Arc::new(Default::default()),
 			_sharedHitbox: Arc::new(RwLock::new(UiHitbox::new())),
+			_sharedCacheInfos: Arc::new(Default::default()),
 		}
 	}
 	
@@ -243,11 +245,6 @@ impl event_trait for Text
 	fn event_trigger(&mut self, eventtype: event_type) -> bool
 	{
 		let mut update = self._events.clone().trigger(eventtype, self);
-		if (eventtype == event_type::WINREFRESH)
-		{
-			update = false;
-			self._cacheinfos.setNeedUpdate(true);
-		}
 		if(self._cacheinfos.isPresent() && update)
 		{
 			self.cache_submit();
@@ -284,6 +281,7 @@ impl Clone for Text
 			_cacheinfos: self._cacheinfos.clone(),
 			_sharedStruct: self._sharedStruct.clone(),
 			_sharedHitbox: self._sharedHitbox.clone(),
+			_sharedCacheInfos: self._sharedCacheInfos.clone(),
 		};
 		
 		return tmpfinal;
@@ -337,6 +335,8 @@ impl ShaderDrawerImpl for Text {
 		let components = self._components.clone();
 		let shareHitbox = self._sharedHitbox.clone();
 		let shareStruct = self._sharedStruct.clone();
+		let sharedCacheInfos = self._sharedCacheInfos.clone();
+		self._sharedCacheInfos.write().setPresent();
 		ManagerFont::singleton().Text_add(tmp.to_owned(), move | mut x| {
 			x.isUpdated = true;
 			
@@ -367,10 +367,12 @@ impl ShaderDrawerImpl for Text {
 			*shareHitbox.write() = UiHitbox::newFrom2D(&hitboxvec);
 			*shareStruct.write() = tmpstruct.clone();
 			
-			ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
-				holder.insert(tmpcacheinfos,tmpstruct);
-			});
-			
+			if(sharedCacheInfos.read().isPresent())
+			{
+				ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder| {
+					holder.insert(tmpcacheinfos, tmpstruct);
+				});
+			}
 			
 		}, self._managerfont_textId);
 		self._cacheinfos.setPresent();
@@ -383,6 +385,7 @@ impl ShaderDrawerImpl for Text {
 			holder.remove(tmp);
 		});
 		self._cacheinfos.setAbsent();
+		self._sharedCacheInfos.write().setAbsent();
 		*self._sharedStruct.write() = ShaderDrawerImplStruct::default();
 		*self._sharedHitbox.write() = UiHitbox::new();
 	}
@@ -433,6 +436,7 @@ impl entities_utils for Text
 			_cacheinfos: cacheInfos::default(),
 			_sharedStruct: Arc::new(Default::default()),
 			_sharedHitbox: Arc::new(RwLock::new(UiHitbox::new())),
+			_sharedCacheInfos: Arc::new(Default::default()),
 		};
 	}
 }
