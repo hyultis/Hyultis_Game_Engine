@@ -41,11 +41,7 @@ impl HGErendering
 		let frame_format = HGEswapchain.getImageFormat();
 		let render_pass = Self::define_renderpass(&builderDevice, &HGEswapchain)?;
 		
-		let stdAlloccommand= StandardCommandBufferAllocator::new(builderDevice.device.clone(), StandardCommandBufferAllocatorCreateInfo {
-			primary_buffer_count: 8,
-			secondary_buffer_count: 8,
-			..Default::default()
-		});
+		let stdAlloccommand = StandardCommandBufferAllocator::new(builderDevice.device.clone(), Self::getDefaultAllocInfos());
 		
 		Ok(Self {
 			_swapChainC: HGEswapchain,
@@ -69,11 +65,7 @@ impl HGErendering
 		{
 			self._renderpassC = newrenderpass;
 		}
-		self._stdAllocCommand = StandardCommandBufferAllocator::new(self._builderDevice.device.clone(), StandardCommandBufferAllocatorCreateInfo {
-			primary_buffer_count: 8,
-			secondary_buffer_count: 8,
-			..Default::default()
-		});
+		self._stdAllocCommand = StandardCommandBufferAllocator::new(self._builderDevice.device.clone(), Self::getDefaultAllocInfos());
 		self._surface = surface;
 		self._previousFrameEnd = None;
 		self._recreatSwapChain = true;
@@ -171,27 +163,39 @@ impl HGErendering
 		}
 		
 		//println!("HGEMain: SecondaryCmdBuffer");
-		let mut cmdBufTexture = AutoCommandBufferBuilder::primary(
+		let mut cmdBufTexture = match AutoCommandBufferBuilder::primary(
 			&self._stdAllocCommand,
 			queueGraphic.queue_family_index(),
 			CommandBufferUsage::OneTimeSubmit,
-		)
-			.unwrap();
+		){
+			Ok(r) => r,
+			Err(err) => {
+				HTrace!("Cannot crate primary command buffer for texture : {}",err);
+				return;
+			}
+		};
 		
 		let mut callbackCmdBuffer = Vec::new();
-		if let Some(mut entry) = HGEMain::SecondaryCmdBuffer_drain(HGEMain_secondarybuffer_type::TEXTURE) {
-			for x in entry.0 {
+		if let Some(mut entry) = HGEMain::SecondaryCmdBuffer_drain(HGEMain_secondarybuffer_type::TEXTURE)
+		{
+			for x in entry.0
+			{
 				cmdBufTexture.execute_commands(x).unwrap();
 			}
 			callbackCmdBuffer.append(&mut entry.1);
 		}
 		
-		let mut cmdBuf = AutoCommandBufferBuilder::primary(
+		let mut cmdBuf = match AutoCommandBufferBuilder::primary(
 			&self._stdAllocCommand,
 			queueGraphic.queue_family_index(),
 			CommandBufferUsage::OneTimeSubmit,
-		)
-			.unwrap();
+		){
+			Ok(r) => r,
+			Err(err) => {
+				HTrace!("Cannot crate primary command buffer for mesh : {}",err);
+				return;
+			}
+		};
 		
 		self._Frame.clearBuffer(&mut cmdBuf, image_index);
 		HGEsubpass::singleton().ExecAllPass(self._renderpassC.clone(), &mut cmdBuf, &self._Frame, &self._stdAllocCommand);
@@ -208,12 +212,17 @@ impl HGErendering
 			.then_execute(queueGraphic.clone(), cmdBuf.build().unwrap()).unwrap();
 		
 		
-		let mut cmdBuf = AutoCommandBufferBuilder::primary(
+		let mut cmdBuf = match AutoCommandBufferBuilder::primary(
 			&self._stdAllocCommand,
 			queueGraphic.queue_family_index(),
 			CommandBufferUsage::OneTimeSubmit,
-		)
-			.unwrap();
+		){
+			Ok(r) => r,
+			Err(err) => {
+				HTrace!("Cannot crate primary command buffer dynamic resolution : {}",err);
+				return;
+			}
+		};
 		
 		#[cfg(feature = "dynamicresolution")]
 		{
@@ -424,5 +433,22 @@ impl HGErendering
 		
 		ManagerPipeline::singleton().pipelineRefresh(render_pass.clone());
 		return Ok(render_pass);
+	}
+	
+	fn getDefaultAllocInfos() -> StandardCommandBufferAllocatorCreateInfo
+	{
+		let mut stdACInfos= StandardCommandBufferAllocatorCreateInfo {
+			secondary_buffer_count: 32,
+			..Default::default()
+		};
+		if(cfg!(target_os = "android"))
+		{
+			stdACInfos = StandardCommandBufferAllocatorCreateInfo {
+				primary_buffer_count: 8,
+				secondary_buffer_count: 8,
+				..Default::default()
+			};
+		}
+		return stdACInfos;
 	}
 }

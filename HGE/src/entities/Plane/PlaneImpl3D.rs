@@ -94,7 +94,6 @@ impl ShaderDrawerImpl for Plane<worldPosition> {
 			holder.insert(tmp,structure);
 		});
 		self._cacheinfos.setPresent();
-		self._cacheinfos.setNeedUpdate(false);
 	}
 	
 	fn cache_remove(&mut self) {
@@ -138,6 +137,7 @@ impl ShaderDrawerImplReturn<HGE_shader_3Dsimple_def> for Plane<worldPosition>
 		
 		let indice = [0, 1, 2, 1, 3, 2].to_vec();
 		ModelUtils::generateNormal(&mut vecstruct, &indice);
+		self._cacheinfos.setNeedUpdate(false);
 		
 		return Some(
 			ShaderDrawerImplStruct{

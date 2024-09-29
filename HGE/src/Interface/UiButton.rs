@@ -5,9 +5,8 @@ use crate::components::event::{event_trait, event_type};
 use crate::components::hideable::hideable;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::{UiPageContent, UiPageContent_type};
-use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple_def, HGE_shader_2Dsimple_holder};
-use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
-use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn, ShaderDrawerImplStruct};
+use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple_def};
+use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn};
 
 
 pub trait UiButton_content: UiPageContent + ShaderDrawerImplReturn<HGE_shader_2Dsimple_def>{}
@@ -101,14 +100,7 @@ impl UiButton
 	fn checkContentUpdate(&self) -> bool
 	{
 		self._content.iter().any(|x|{
-			x.cache_infos().isNeedUpdate()
-		})
-	}
-	
-	fn setContentUpdated(&mut self)
-	{
-		self._content.iter_mut().for_each(|x|{
-			x.cache_infos_mut().setNeedUpdate(false);
+			x.cache_infos().isNotShow()
 		})
 	}
 }
@@ -233,55 +225,56 @@ impl ShaderDrawerImpl for UiButton {
 	{
 		if(self._hide)
 		{
-			let tmp = self._cacheinfos;
-			ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
-				holder.remove(tmp);
-			});
 			self._cacheinfos.setNeedUpdate(false);
-			self._cacheinfos.setAbsent();
+			self.cache_remove();
 			return;
 		}
 		
-		let mut structure = ShaderDrawerImplStruct::default();
 		let mut newHitbox = UiHitbox::new();
+		let mut haveOneNotCommit = false;
+		let mut atleastOneDrawed = false;
 		for x in self._content.iter_mut()
 		{
-			if let Some(mut content) = x.cache_get()
+			newHitbox.updateFromHitbox(x.getHitbox());
+			x.cache_submit();
+			if(x.cache_infos().isNeedUpdate())
 			{
-				structure.combine(&mut content);
-				newHitbox.updateFromHitbox(x.getHitbox());
+				haveOneNotCommit = true;
 			}
-			else {
-				return;
+			else
+			{
+				atleastOneDrawed = true;
 			}
-			x.cache_infos_mut().setNeedUpdate(false);
 		}
 		
 		if(self._state==UiButtonState::IDLE || self._hitbox.isEmpty())
 		{
 			if(newHitbox.isEmpty())
 			{
-				self._cacheinfos.setNeedUpdate(false);
+				if(atleastOneDrawed)
+				{
+					self._cacheinfos.setNeedUpdate(false);
+				}
 				return;
 			}
 			self._hitbox = newHitbox;
 		}
 		
-		self._cacheinfos.setNeedUpdate(false);
-		self.setContentUpdated();
-		
-		let tmp = self._cacheinfos;
-		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
-			holder.insert(tmp,structure);
-		});
-		self._cacheinfos.setPresent();
+		if(!haveOneNotCommit)
+		{
+			self._cacheinfos.setNeedUpdate(false);
+		}
+		if(atleastOneDrawed)
+		{
+			self._cacheinfos.setPresent();
+		}
 	}
 	
 	fn cache_remove(&mut self) {
-		let tmp = self._cacheinfos;
-		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
-			holder.remove(tmp);
-		});
+		for x in self._content.iter_mut()
+		{
+			x.cache_remove();
+		}
 		self._cacheinfos.setAbsent();
 	}
 }

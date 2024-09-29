@@ -63,7 +63,6 @@ impl ShaderDrawerImpl for Plane<interfacePosition> {
 		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
 			holder.insert(tmp,structure);
 		});
-		self._cacheinfos.setNeedUpdate(false);
 		self._cacheinfos.setPresent();
 	}
 	
@@ -140,6 +139,8 @@ impl ShaderDrawerImplReturn<HGE_shader_2Dsimple_def> for Plane<interfacePosition
 			}
 			self._hitbox = UiHitbox::newFrom2D(&hitboxvec);
 		}
+		
+		self._cacheinfos.setNeedUpdate(false);
 		
 		return Some(
 			ShaderDrawerImplStruct{

@@ -83,12 +83,12 @@ impl BuilderDevice
 		}
 		
 		
-		instance
+		/*instance
 			.enumerate_physical_devices()
 			.unwrap().for_each(|p| {
 			
 			HTrace!("device: {} (type: {:?})",p.properties().device_name,p.properties().device_type);
-			/*HTrace!((Htrace::Type::Type::DEBUG)"max_cull_distances: {}\n\
+			HTrace!((Htrace::Type::Type::DEBUG)"max_cull_distances: {}\n\
 max_bound_descriptor_sets: {}\n\
 max_descriptor_set_uniform_buffers_dynamic: {}\n\
 max_framebuffer width/height/layer: {}/{}/{}\n\
@@ -121,21 +121,24 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 				p.properties().max_image_array_layers,
 				p.properties().compute_units_per_shader_array.unwrap_or(0),
 				p.properties().shader_uniform_buffer_array_non_uniform_indexing_native.unwrap_or(false)
-			);*/
-		});
+			);
+		});*/
 		
 		
 		let (physical_device, _) = instance
 			.enumerate_physical_devices()
 			.unwrap()
 			.filter(|p| {
-				HTrace!((Type::DEBUG) "comparing vulkan version : {}.{} on {}.{}",p.api_version().major,p.api_version().minor,minversion.major,minversion.minor);
-				(p.api_version().major == minversion.major && p.api_version().minor >= minversion.minor) || p.api_version().major > minversion.major
-			})
-			.filter(|p| {
+				HTrace!("device: {} (type: {:?})",p.properties().device_name,p.properties().device_type);
+				HTrace!((Type::DEBUG) "comparing vulkan version : {}.{} ( needed {}.{} )",p.api_version().major,p.api_version().minor,minversion.major,minversion.minor);
+				let versionIsSupported = (p.api_version().major == minversion.major && p.api_version().minor >= minversion.minor) || p.api_version().major > minversion.major;
 				HTrace!((Type::DEBUG) "support extension : {:?}",p.supported_extensions());
 				HTrace!((Type::DEBUG) "check extension : {:?}",&device_extensions);
-				p.supported_extensions().contains(&device_extensions)
+				
+				let deviceIsSupported = versionIsSupported && (p.supported_extensions().contains(&device_extensions));
+				HTrace!((Type::DEBUG) "device excluded : {:?}",!deviceIsSupported);
+				
+				deviceIsSupported
 			})
 			.filter_map(|p| {
 				p.queue_family_properties()
@@ -239,12 +242,12 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 		let deviceIndex = device.physical_device().memory_properties().memory_types.iter()
 			.filter(|x|x.property_flags.intersects(MemoryPropertyFlags::DEVICE_LOCAL))
 			.next().map(|x|x.heap_index).unwrap_or(0) as usize;
-		device.physical_device().memory_properties().memory_heaps.iter().for_each(|x|{println!("tst {} {:?}",x.size as u64,x.flags)});
+		//device.physical_device().memory_properties().memory_heaps.iter().for_each(|x|{println!("tst {} {:?}",x.size as u64,x.flags)});
 		if let Some(gpuram) = device.physical_device().memory_properties().memory_heaps.get(deviceIndex)
 		{
 			memorySize = ((gpuram.size as u64)/1024)/1024;
 		}
-		println!("device max memory size : {} {:.2}",memorySize,((memorySize as f64) / 1024.0f64) / 1024.0f64);
+		HTrace!("device max memory size : {}",memorySize);
 		
 		let mut format = Format::D16_UNORM;
 		if let Ok(_) = device.physical_device().format_properties(Format::D32_SFLOAT)

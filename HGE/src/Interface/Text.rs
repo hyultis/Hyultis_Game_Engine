@@ -130,11 +130,11 @@ pub struct Text
 	_texts: Vec<OwnedText>,
 	_textSize: Option<TextSize>,
 	_managerfont_textId: u128,
-	_cacheShared: Arc<RwLock<TextCacheUpdater>>,
 	_isVisible: bool,
 	_events: event<Text>,
-	_hitbox: UiHitbox,
-	_cacheinfos: cacheInfos
+	_cacheinfos: cacheInfos,
+	_sharedStruct: Arc<RwLock<ShaderDrawerImplStruct<HGE_shader_2Dsimple_def>>>,
+	_sharedHitbox: Arc<RwLock<UiHitbox>>
 }
 
 impl Text
@@ -148,11 +148,11 @@ impl Text
 			_texts: vec![],
 			_textSize: None,
 			_managerfont_textId: ManagerFont::singleton().getUniqId(),
-			_cacheShared: Arc::new(RwLock::new(TextCacheUpdater{ vertex: vec![], indices: vec![], isUpdated: false })),
 			_isVisible: false,
 			_events: Self::newWithWinRefreshEvent(),
-			_hitbox: UiHitbox::new(),
 			_cacheinfos: cacheInfos::default(),
+			_sharedStruct: Arc::new(Default::default()),
+			_sharedHitbox: Arc::new(RwLock::new(UiHitbox::new())),
 		}
 	}
 	
@@ -209,42 +209,6 @@ impl Text
 		&mut self._components
 	}
 	
-	// need to be called after any changement, to send update to ManagerFont
-	pub fn commit(&mut self)
-	{
-		if (!self._isVisible)
-		{
-			return;
-		}
-		
-		let mut tmp = OwnedSection::default();
-		for x in self._texts.iter()
-		{
-			let mut newtext = x.clone().with_extra(Extra {
-				color: x.extra.color,
-				z: x.extra.z,
-				textId: self._managerfont_textId,
-			});
-			
-			if let Some(textsize) = &self._textSize
-			{
-				newtext = newtext.with_scale(textsize.getInt());
-			}
-			
-			tmp = tmp.add_text(newtext);
-		}
-		tmp = tmp.with_layout(self._layout);
-		
-		let tmparccache = self._cacheShared.clone();
-		ManagerFont::singleton().Text_add(tmp.to_owned(), move | mut x| {
-			let mut lockcache = tmparccache.write();
-			x.isUpdated = true;
-			*lockcache = x;
-		}, self._managerfont_textId);
-		
-		self._cacheinfos.setNeedUpdate(true);
-	}
-	
 	pub fn setVisible(&mut self)
 	{
 		self._isVisible = true;
@@ -258,7 +222,6 @@ impl Text
 	pub fn forceRefresh(&mut self)
 	{
 		self._isVisible = false;
-		self._cacheShared.write().isUpdated = true;
 		self._cacheinfos.setNeedUpdate(true);
 	}
 	
@@ -282,9 +245,8 @@ impl event_trait for Text
 		let mut update = self._events.clone().trigger(eventtype, self);
 		if (eventtype == event_type::WINREFRESH)
 		{
-			update = true;
-			self.commit();
-			self._cacheShared.write().isUpdated = true;
+			update = false;
+			self._cacheinfos.setNeedUpdate(true);
 		}
 		if(self._cacheinfos.isPresent() && update)
 		{
@@ -317,11 +279,11 @@ impl Clone for Text
 			_texts: tmpvec,
 			_textSize: self._textSize.clone(),
 			_managerfont_textId: self._managerfont_textId,
-			_cacheShared: self._cacheShared.clone(),
 			_isVisible: self._isVisible,
 			_events: self._events.clone(),
-			_hitbox: self._hitbox.clone(),
 			_cacheinfos: self._cacheinfos.clone(),
+			_sharedStruct: self._sharedStruct.clone(),
+			_sharedHitbox: self._sharedHitbox.clone(),
 		};
 		
 		return tmpfinal;
@@ -329,40 +291,90 @@ impl Clone for Text
 }
 
 impl ShaderDrawerImpl for Text {
-	fn cache_mustUpdate(&self) -> bool {
-		self._cacheShared.read().isUpdated || self._cacheinfos.isNotShow()
+	fn cache_mustUpdate(&self) -> bool
+	{
+		self._cacheinfos.isNotShow()
 	}
 	
-	fn cache_infos(&self) -> &cacheInfos {
+	fn cache_infos(&self) -> &cacheInfos
+	{
 		&self._cacheinfos
 	}
 	
-	fn cache_infos_mut(&mut self) -> &mut cacheInfos {
+	fn cache_infos_mut(&mut self) -> &mut cacheInfos
+	{
 		&mut self._cacheinfos
 	}
 	
-	fn cache_submit(&mut self) {
+	fn cache_submit(&mut self)
+	{
 		if(!self._isVisible)
 		{
-			let tmp = self._cacheinfos;
-			ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
-				holder.remove(tmp);
-			});
-			self._cacheShared.write().isUpdated = false;
+			self.cache_remove();
 			self._cacheinfos.setNeedUpdate(false);
-			self._cacheinfos.setAbsent();
 			return;
 		}
 		
-		let Some(structure) = self.cache_get() else {self.cache_remove();return};
-		let tmp = self._cacheinfos;
-		ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
-			holder.insert(tmp,ShaderDrawerImplStruct{
-				vertex: structure.vertex.clone(),
-				indices: structure.indices.clone(),
+		let mut tmp = OwnedSection::default();
+		for x in self._texts.iter()
+		{
+			let mut newtext = x.clone().with_extra(Extra {
+				color: x.extra.color,
+				z: x.extra.z,
+				textId: self._managerfont_textId,
 			});
-		});
+			
+			if let Some(textsize) = &self._textSize
+			{
+				newtext = newtext.with_scale(textsize.getInt());
+			}
+			
+			tmp = tmp.add_text(newtext);
+		}
+		tmp = tmp.with_layout(self._layout);
+		
+		let tmpcacheinfos = self._cacheinfos;
+		let components = self._components.clone();
+		let shareHitbox = self._sharedHitbox.clone();
+		let shareStruct = self._sharedStruct.clone();
+		ManagerFont::singleton().Text_add(tmp.to_owned(), move | mut x| {
+			x.isUpdated = true;
+			
+			let mut hitboxvec = Vec::new();
+			
+			for vertex in x.vertex.iter_mut() {
+				let mut vertexCorrected = interfacePosition::new_pixel(vertex.position[0] as i32,vertex.position[1] as i32);
+				components.computeVertex(&mut vertexCorrected);
+				vertex.position = vertexCorrected.convertToVertex();
+				vertex.ispixel = vertexCorrected.getTypeInt();
+				vertex.color[0] = vertex.color[0]*components.texture().color().r;
+				vertex.color[1] = vertex.color[1]*components.texture().color().g;
+				vertex.color[2] = vertex.color[2]*components.texture().color().b;
+				vertex.color[3] = vertex.color[3]*components.texture().color().a;
+				
+				hitboxvec.push(UiHitbox_raw {
+					position: vertex.position,
+					ispixel: vertex.ispixel==1,
+				});
+				
+			};
+			
+			let tmpstruct = ShaderDrawerImplStruct{
+				vertex: x.vertex.drain(0..).collect(),
+				indices: x.indices.drain(0..).collect(),
+			};
+			
+			*shareHitbox.write() = UiHitbox::newFrom2D(&hitboxvec);
+			*shareStruct.write() = tmpstruct.clone();
+			
+			ShaderDrawer_Manager::inspect::<HGE_shader_2Dsimple_holder>(move |holder|{
+				holder.insert(tmpcacheinfos,tmpstruct);
+			});
+			
+			
+		}, self._managerfont_textId);
 		self._cacheinfos.setPresent();
+		self._cacheinfos.setNeedUpdate(false);
 	}
 	
 	fn cache_remove(&mut self) {
@@ -371,36 +383,15 @@ impl ShaderDrawerImpl for Text {
 			holder.remove(tmp);
 		});
 		self._cacheinfos.setAbsent();
+		*self._sharedStruct.write() = ShaderDrawerImplStruct::default();
+		*self._sharedHitbox.write() = UiHitbox::new();
 	}
 }
 
 impl ShaderDrawerImplReturn<HGE_shader_2Dsimple_def> for Text
 {
 	fn cache_get(&mut self) -> Option<ShaderDrawerImplStruct<HGE_shader_2Dsimple_def>> {
-		let mut structure = {
-			let mut tmp = self._cacheShared.write();
-			tmp.isUpdated = false;
-			tmp.clone()
-		};
-		let mut hitboxvec = Vec::new();
-		
-		for vertex in structure.vertex.iter_mut() {
-			let mut vertexCorrected = interfacePosition::new_pixel(vertex.position[0] as i32,vertex.position[1] as i32);
-			self._components.computeVertex(&mut vertexCorrected);
-			vertex.position = vertexCorrected.convertToVertex();
-			vertex.ispixel = vertexCorrected.getTypeInt();
-			vertex.color[0] = vertex.color[0]*self._components.texture().color().r;
-			vertex.color[1] = vertex.color[1]*self._components.texture().color().g;
-			vertex.color[2] = vertex.color[2]*self._components.texture().color().b;
-			vertex.color[3] = vertex.color[3]*self._components.texture().color().a;
-			
-			hitboxvec.push(UiHitbox_raw {
-				position: vertex.position,
-				ispixel: vertex.ispixel==1,
-			});
-			
-		};
-		self._hitbox = UiHitbox::newFrom2D(&hitboxvec);
+		let mut structure = self._sharedStruct.read().clone();
 		self._cacheinfos.setNeedUpdate(false);
 		
 		return Some(ShaderDrawerImplStruct{
@@ -418,7 +409,7 @@ impl UiPageContent for Text
 	}
 
 	fn getHitbox(&self) -> UiHitbox {
-		self._hitbox.clone()
+		self._sharedHitbox.read().clone()
 	}
 }
 
@@ -431,20 +422,17 @@ impl entities_utils for Text
 	{
 		let tmpvec: Vec<_> = self._texts.iter().cloned().collect();
 		
-		let mut tmpfinal = Text {
+		return Text {
 			_components: self._components.clone(),
 			_layout: self._layout.clone(),
 			_texts: tmpvec,
 			_textSize: self._textSize.clone(),
 			_managerfont_textId: ManagerFont::singleton().getUniqId(),
-			_cacheShared: Arc::new(RwLock::new(TextCacheUpdater{ vertex: vec![], indices: vec![], isUpdated: false })),
 			_isVisible: self._isVisible,
 			_events: Self::newWithWinRefreshEvent(),
-			_hitbox: UiHitbox::new(),
 			_cacheinfos: cacheInfos::default(),
+			_sharedStruct: Arc::new(Default::default()),
+			_sharedHitbox: Arc::new(RwLock::new(UiHitbox::new())),
 		};
-		tmpfinal.commit();
-		
-		return tmpfinal;
 	}
 }

@@ -201,8 +201,6 @@ fn build2D()
 		{
 			*start.clone().write().unwrap() += 1;
 		}
-		x.commit();
-		
 		true
 	});
 	page.add("text",text);
@@ -216,7 +214,6 @@ fn build2D()
 	text.event_add(event_type::EACH_TICK,move |x|{
 		x.emptyText();
 		x.addText(OwnedText::new(format!("x: {:.3}",movepos.clone().read().unwrap())).with_scale(16.0).with_color([1.0,1.0,0.0,1.0]));
-		x.commit();
 		true
 	});
 	page.add("text2",text);

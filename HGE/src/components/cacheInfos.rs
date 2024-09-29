@@ -9,7 +9,7 @@ pub enum cacheInfos_state
 	ABSENT
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy)]
 pub struct cacheInfos
 {
 	needUpdate: bool,
@@ -89,5 +89,16 @@ impl Default for cacheInfos
 			uuid: ShaderDrawer_Manager::uuid_generate(),
 			state: cacheInfos_state::ABSENT,
 		}
+	}
+}
+
+impl Clone for cacheInfos
+{
+	fn clone(&self) -> Self {
+		return Self{
+			needUpdate: self.needUpdate,
+			uuid: ShaderDrawer_Manager::uuid_generate(),
+			state: self.state,
+		};
 	}
 }
