@@ -200,13 +200,13 @@ impl HGE_shader_2Dsimple_holder
 	pub fn insert(&self, uuid: cacheInfos, structure: ShaderDrawerImplStruct<impl IntoVertexted<HGE_shader_2Dsimple> + Send + Sync + 'static>)
 	{
 		ShaderStructHolder_utils::insert(uuid.into(), structure, &self._datas);
-		self._haveUpdate.store(true, Ordering::Relaxed);
+		self._haveUpdate.store(true, Ordering::Release);
 	}
 	
 	pub fn remove(&self, uuid: cacheInfos)
 	{
 		self._datas.remove(&uuid.into());
-		self._haveUpdate.store(true, Ordering::Relaxed);
+		self._haveUpdate.store(true, Ordering::Release);
 	}
 	
 	fn compileData(&self) -> (Vec<HGE_shader_2Dsimple>, Vec<u32>, bool)
@@ -265,15 +265,15 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 	fn reset(&self)
 	{
 		self._datas.clear();
-		self._haveUpdate.store(false, Ordering::Relaxed);
+		self._haveUpdate.store(false, Ordering::Release);
 		self._cacheIndicesMem.store(None);
 		self._cacheDatasMem.store(None);
-		self._cacheIndicesLen.store(0, Ordering::Relaxed);
+		self._cacheIndicesLen.store(0, Ordering::Release);
 	}
 	
 	fn update(&self)
 	{
-		if (!self._haveUpdate.load(Ordering::Relaxed))
+		if (!self._haveUpdate.load(Ordering::Acquire))
 		{
 			return;
 		}
@@ -283,7 +283,7 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 		{
 			self._cacheDatasMem.store(None);
 			self._cacheIndicesMem.store(None);
-			self._cacheIndicesLen.store(0, Ordering::Relaxed);
+			self._cacheIndicesLen.store(0, Ordering::Release);
 			return;
 		}
 		
@@ -303,9 +303,9 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 			memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
 				| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
 			..Default::default()
-		}), Ordering::Relaxed);
+		}), Ordering::Release);
 		
-		self._haveUpdate.store(false, Ordering::Relaxed);
+		self._haveUpdate.store(false, Ordering::Release);
 	}
 	
 	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
@@ -330,7 +330,7 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 			));
 		}
 		
-		let lenIndice = self._cacheIndicesLen.load(Ordering::Relaxed);
+		let lenIndice = self._cacheIndicesLen.load(Ordering::Acquire);
 		
 		ManagerBuilder::builderAddPipeline(cmdBuilder, &pipelinename);
 		

@@ -168,7 +168,7 @@ impl HGE_shader_3Dinstance_holder
 		if let Some(this) = self._datas.get(&modelname)
 		{
 			this._instance.insert(instancename.into(), instance);
-			self._haveUpdate.store(true, Ordering::Relaxed);
+			self._haveUpdate.store(true, Ordering::Release);
 		}
 	}
 	
@@ -178,7 +178,7 @@ impl HGE_shader_3Dinstance_holder
 		if let Some(this) = self._datas.get(&modelname)
 		{
 			this._instance.remove(&instancename.into());
-			self._haveUpdate.store(true, Ordering::Relaxed);
+			self._haveUpdate.store(true, Ordering::Release);
 		}
 	}
 	
@@ -239,7 +239,7 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 	
 	fn update(&self)
 	{
-		if (!self._haveUpdate.load(Ordering::Relaxed))
+		if (!self._haveUpdate.load(Ordering::Acquire))
 		{
 			return;
 		}
@@ -270,7 +270,7 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 						memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
 							| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
 						..Default::default()
-					}), Ordering::Relaxed);
+					}), Ordering::Release);
 					
 					let datas = selfdata._instance.iter().map(|x| {
 						x.value().clone()
@@ -282,21 +282,21 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 						memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
 							| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
 						..Default::default()
-					}), Ordering::Relaxed);
+					}), Ordering::Release);
 					
 					haveatleastone = true;
 				} else {
 					selfdata._cacheDatasMem.store(None);
 					selfdata._cacheIndicesMem.store(None);
-					selfdata._cacheIndicesLen.store(0, Ordering::Relaxed);
+					selfdata._cacheIndicesLen.store(0, Ordering::Release);
 					selfdata._cacheInstanceMem.store(None);
-					selfdata._cacheInstanceLen.store(0, Ordering::Relaxed);
+					selfdata._cacheInstanceLen.store(0, Ordering::Release);
 				}
 			});
 		
 		if (haveatleastone)
 		{
-			self._haveUpdate.store(false, Ordering::Relaxed);
+			self._haveUpdate.store(false, Ordering::Release);
 		}
 	}
 	
@@ -320,7 +320,11 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 		}
 		
 		self._datas.iter().filter(|selfdata| {
-			selfdata._cacheDatasMem.load().is_some() && selfdata._cacheIndicesMem.load().is_some() && selfdata._cacheInstanceMem.load().is_some()
+			selfdata._cacheDatasMem.load().is_some()
+				&& selfdata._cacheIndicesMem.load().is_some()
+				&& selfdata._cacheInstanceMem.load().is_some()
+				&& selfdata._cacheIndicesLen.load(Ordering::Acquire) > 0
+				&& selfdata._cacheInstanceLen.load(Ordering::Acquire) > 0
 		}).for_each(|selfdata|
 			{
 				let Some(datamem) = &*selfdata._cacheDatasMem.load() else { return };
@@ -329,20 +333,20 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 				
 				ManagerBuilder::builderAddPipeline(cmdBuilder, &pipelinename);
 				
-				let indicelen = selfdata._cacheIndicesLen.load(Ordering::Relaxed);
-				let isntancelen = selfdata._cacheIndicesLen.load(Ordering::Relaxed);
+				let indicelen = selfdata._cacheIndicesLen.load(Ordering::Acquire);
+				let instancelen = selfdata._cacheInstanceLen.load(Ordering::Acquire);
 				
-				cmdBuilder
+				HTraceError!(cmdBuilder
 					.bind_vertex_buffers(0, ((&**datamem).clone(), (&**instancemem).clone())).unwrap()
 					.bind_index_buffer((&**indicemem).clone()).unwrap()
-					.draw_indexed(indicelen, isntancelen, 0, 0, 0).unwrap();
+					.draw_indexed(indicelen, instancelen, 0, 0, 0));
 				
 				if (ManagerBuilder::builderAddPipelineTransparency(cmdBuilder, &pipelinename))
 				{
-					cmdBuilder
+					HTraceError!(cmdBuilder
 						.bind_vertex_buffers(0, ((&**datamem).clone(), (&**instancemem).clone())).unwrap()
 						.bind_index_buffer((&**indicemem).clone()).unwrap()
-						.draw_indexed(indicelen, isntancelen, 0, 0, 0).unwrap();
+						.draw_indexed(indicelen, instancelen, 0, 0, 0));
 				}
 			});
 	}
