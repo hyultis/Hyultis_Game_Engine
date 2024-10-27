@@ -6,23 +6,24 @@ edition = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-#default = []
-default = ["dynamicresolution"]
+default = []
+#default = ["dynamicresolution"]
 dynamicresolution = []
+debuglayer = []
 
 [dependencies]
 #base stuff
 ahash = "0.8.11"
-dashmap = {version = "6.0.1", features = ["rayon"]}
+dashmap = { version = "6.1.0", features = ["rayon"] }
 dyn-clone = "1.0.17"
-parking_lot = "0.12.1"
-anyhow = "1.0.79"
+parking_lot = "0.12.3"
+anyhow = "1.0.91"
 rayon = "1.10.0"
 arc-swap = "1.7.1"
 HArcMut = { workspace = true }
 singletonThread = { workspace = true }
-bytemuck = "1.15.0"
-derive_more = { version = "1.0.0-beta.6", features = ["full"] }
+bytemuck = "1.19.0"
+derive_more = { version = "1.0.0", features = ["full"] }
 downcast-rs = "1.2.1"
 
 #data
@@ -30,17 +31,17 @@ downcast-rs = "1.2.1"
 csv = "1.3.0"
 Hconfig = { workspace = true }
 Htrace = { workspace = true }
-uuid = { version = "1.8.0" , features = [ "v4","v7", "fast-rng"]}
+uuid = { version = "1.11.0", features = ["v4", "v7", "fast-rng"] }
 
 #graphic
 #sdl2 = "0.35.2"
 vulkano = "0.34.1"
 raw-window-handle = "0.5.2"
-image = "0.25.1"
-palette = "0.7.5"
-ab_glyph = "0.2.25"
-glyph_brush = "0.7.8"
-glyph_brush_layout = "0.2.3"
+image = "0.25.4"
+palette = "0.7.6"
+ab_glyph = "0.2.29"
+glyph_brush = "0.7.11"
+glyph_brush_layout = "0.2.4"
 
 #3D
 tobj = "4.0.2"
@@ -53,5 +54,5 @@ rodio = "0.19.0"
 winit = { version = "0.30.3", features = ["rwh_05"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
-winit = {version= "0.30.3", features = ["rwh_05", "android-game-activity"]}
-android-activity = { version = "0.6.0", features = ["game-activity"]}
+winit = { version = "0.30.3", features = ["rwh_05", "android-game-activity"] }
+android-activity = { version = "0.6.0", features = ["game-activity"] }

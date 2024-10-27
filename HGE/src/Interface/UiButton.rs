@@ -1,15 +1,15 @@
-use std::sync::{Arc};
-use parking_lot::RwLock;
 use crate::components::cacheInfos::cacheInfos;
 use crate::components::event::{event_trait, event_type};
 use crate::components::hideable::hideable;
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Interface::UiPage::{UiPageContent, UiPageContent_type};
-use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dsimple_def};
+use crate::Shaders::HGE_shader_2Dsimple::HGE_shader_2Dsimple_def;
 use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn};
+use parking_lot::RwLock;
+use std::sync::Arc;
 
 
-pub trait UiButton_content: UiPageContent + ShaderDrawerImplReturn<HGE_shader_2Dsimple_def>{}
+pub trait UiButton_content: UiPageContent + ShaderDrawerImplReturn<HGE_shader_2Dsimple_def> {}
 dyn_clone::clone_trait_object!(UiButton_content);
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -47,7 +47,7 @@ impl UiButton
 	}
 	
 	// add a ui content to drawing
-	pub fn add(&mut self, content: impl UiButton_content + Send + Sync +'static)
+	pub fn add(&mut self, content: impl UiButton_content + Send + Sync + 'static)
 	{
 		self._content.push(Box::new(content));
 		self._cacheinfos.setNeedUpdate(true);
@@ -99,7 +99,7 @@ impl UiButton
 	
 	fn checkContentUpdate(&self) -> bool
 	{
-		self._content.iter().any(|x|{
+		self._content.iter().any(|x| {
 			x.cache_infos().isNotShow()
 		})
 	}
@@ -111,34 +111,34 @@ impl event_trait for UiButton {
 		let mut returning = false;
 		match eventtype {
 			event_type::IDLE => {
-				if(self._state != UiButtonState::IDLE)
+				if (self._state != UiButtonState::IDLE)
 				{
-					self._content.iter_mut().filter(|x|x.event_have(eventtype))
-						.for_each(|item|{
-						item.event_trigger(eventtype);
-					});
+					self._content.iter_mut().filter(|x| x.event_have(eventtype))
+					    .for_each(|item| {
+						    item.event_trigger(eventtype);
+					    });
 					self.setCacheToIdle();
 					returning = true;
 				}
 			}
 			event_type::HOVER => {
-				if(self._state != UiButtonState::HOVER)
+				if (self._state != UiButtonState::HOVER)
 				{
-					self._content.iter_mut().filter(|x|x.event_have(eventtype))
-						.for_each(|item|{
-						item.event_trigger(eventtype);
-					});
+					self._content.iter_mut().filter(|x| x.event_have(eventtype))
+					    .for_each(|item| {
+						    item.event_trigger(eventtype);
+					    });
 					self.setCacheToHover();
 					returning = true;
 				}
 			}
 			event_type::CLICKED => {
-				if(self._state != UiButtonState::PRESSED)
+				if (self._state != UiButtonState::PRESSED)
 				{
-					self._content.iter_mut().filter(|x|x.event_have(eventtype))
-						.for_each(|item|{
-						item.event_trigger(eventtype);
-					});
+					self._content.iter_mut().filter(|x| x.event_have(eventtype))
+					    .for_each(|item| {
+						    item.event_trigger(eventtype);
+					    });
 					self.setCacheToPressed();
 					let selfbinding = self._pressedFn.clone();
 					let mut binding = selfbinding.write();
@@ -154,15 +154,15 @@ impl event_trait for UiButton {
 			event_type::WINREFRESH => {
 				let mut update = false;
 				for x in self._content.iter_mut()
-					.filter(|x|x.event_have(eventtype))
+				             .filter(|x| x.event_have(eventtype))
 				{
-					if(x.event_trigger(eventtype))
+					if (x.event_trigger(eventtype))
 					{
 						update = true;
 					}
 				}
 				
-				if(update)
+				if (update)
 				{
 					returning = true;
 				}
@@ -170,7 +170,7 @@ impl event_trait for UiButton {
 			_ => ()
 		};
 		
-		if(self._cacheinfos.isPresent() && returning)
+		if (self._cacheinfos.isPresent() && returning)
 		{
 			self.cache_submit();
 		}
@@ -223,7 +223,7 @@ impl ShaderDrawerImpl for UiButton {
 	
 	fn cache_submit(&mut self)
 	{
-		if(self._hide)
+		if (self._hide)
 		{
 			self._cacheinfos.setNeedUpdate(false);
 			self.cache_remove();
@@ -237,21 +237,19 @@ impl ShaderDrawerImpl for UiButton {
 		{
 			newHitbox.updateFromHitbox(x.getHitbox());
 			x.cache_submit();
-			if(x.cache_infos().isNeedUpdate())
+			if (x.cache_infos().isNeedUpdate())
 			{
 				haveOneNotCommit = true;
-			}
-			else
-			{
+			} else {
 				atleastOneDrawed = true;
 			}
 		}
 		
-		if(self._state==UiButtonState::IDLE || self._hitbox.isEmpty())
+		if (self._state == UiButtonState::IDLE || self._hitbox.isEmpty())
 		{
-			if(newHitbox.isEmpty())
+			if (newHitbox.isEmpty())
 			{
-				if(atleastOneDrawed)
+				if (atleastOneDrawed)
 				{
 					self._cacheinfos.setNeedUpdate(false);
 				}
@@ -260,11 +258,11 @@ impl ShaderDrawerImpl for UiButton {
 			self._hitbox = newHitbox;
 		}
 		
-		if(!haveOneNotCommit)
+		if (!haveOneNotCommit)
 		{
 			self._cacheinfos.setNeedUpdate(false);
 		}
-		if(atleastOneDrawed)
+		if (atleastOneDrawed)
 		{
 			self._cacheinfos.setPresent();
 		}

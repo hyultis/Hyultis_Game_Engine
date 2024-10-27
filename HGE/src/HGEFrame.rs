@@ -1,12 +1,12 @@
+use crate::HGEMain::HGEMain;
+use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use std::sync::Arc;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryAutoCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents};
 use vulkano::format::Format;
-use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
 use vulkano::image::view::ImageView;
-use vulkano::memory::allocator::{AllocationCreateInfo};
+use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
+use vulkano::memory::allocator::AllocationCreateInfo;
 use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass};
-use crate::HGEMain::HGEMain;
-use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 
 #[derive(Clone)]
 pub struct HGEFrame
@@ -16,7 +16,7 @@ pub struct HGEFrame
 	_img_render_UI: Arc<ImageView>,
 	_img_render_WorldSolid: Arc<ImageView>,
 	_img_render_Full: Arc<ImageView>,
-	_img_size: [u32;2],
+	_img_size: [u32; 2],
 	_frames: Vec<Arc<Framebuffer>>,
 	_ouputFormat: Format
 }
@@ -24,15 +24,14 @@ pub struct HGEFrame
 impl HGEFrame
 {
 	pub fn new(format: Format, depthformat: Format) -> HGEFrame {
+		let newsize = [100, 100];
+		let imgsize = [100, 100, 1];
 		
-		let newsize = [100,100];
-		let imgsize = [100,100,1];
-		
-		let tmp1 = HGEFrame::generateNewDefaultImg(imgsize,format, ImageUsage::COLOR_ATTACHMENT | ImageUsage::INPUT_ATTACHMENT);
-		let tmp2 = HGEFrame::generateNewDefaultImg(imgsize,format, ImageUsage::COLOR_ATTACHMENT | ImageUsage::INPUT_ATTACHMENT);
-		let tmp3 = HGEFrame::generateNewDefaultImg(imgsize,format, ImageUsage::COLOR_ATTACHMENT | ImageUsage::TRANSFER_SRC);
-		let depth1 = HGEFrame::generateNewDefaultImgDepth(imgsize,depthformat);
-		let depth2 = HGEFrame::generateNewDefaultImgDepth(imgsize,depthformat);
+		let tmp1 = HGEFrame::generateNewDefaultImg(imgsize, format, ImageUsage::COLOR_ATTACHMENT | ImageUsage::INPUT_ATTACHMENT);
+		let tmp2 = HGEFrame::generateNewDefaultImg(imgsize, format, ImageUsage::COLOR_ATTACHMENT | ImageUsage::INPUT_ATTACHMENT);
+		let tmp3 = HGEFrame::generateNewDefaultImg(imgsize, format, ImageUsage::COLOR_ATTACHMENT | ImageUsage::TRANSFER_SRC);
+		let depth1 = HGEFrame::generateNewDefaultImgDepth(imgsize, depthformat);
+		let depth2 = HGEFrame::generateNewDefaultImgDepth(imgsize, depthformat);
 		
 		return HGEFrame {
 			_img_depthUI: depth1,
@@ -60,10 +59,10 @@ impl HGEFrame
 					Some(1f32.into()),
 				],
 				..RenderPassBeginInfo::framebuffer(
-					self.get(image_index as usize) ,
+					self.get(image_index as usize),
 				)
 			},
-			SubpassBeginInfo{
+			SubpassBeginInfo {
 				contents: SubpassContents::SecondaryCommandBuffers,
 				..SubpassBeginInfo::default()
 			},
@@ -75,45 +74,45 @@ impl HGEFrame
 		self.resize();
 		
 		let framebuffers = images
-		.into_iter()
-		.map(|render_final| {
-			Framebuffer::new(
-				render_pass.clone(),
-				FramebufferCreateInfo {
-					attachments: vec![
-						self._img_render_UI.clone(),
-						self._img_render_WorldSolid.clone(),
-						#[cfg(feature = "dynamicresolution")]
-						self._img_render_Full.clone(),
-						render_final,
-						self._img_depthUI.clone(),
-						self._img_depthSolid.clone(),
-					],
-					..Default::default()
-				},
-			)
-				.unwrap()
-		})
-		.collect::<Vec<_>>();
+			.into_iter()
+			.map(|render_final| {
+				Framebuffer::new(
+					render_pass.clone(),
+					FramebufferCreateInfo {
+						attachments: vec![
+							self._img_render_UI.clone(),
+							self._img_render_WorldSolid.clone(),
+							#[cfg(feature = "dynamicresolution")]
+							self._img_render_Full.clone(),
+							render_final,
+							self._img_depthUI.clone(),
+							self._img_depthSolid.clone(),
+						],
+						..Default::default()
+					},
+				)
+					.unwrap()
+			})
+			.collect::<Vec<_>>();
 		self._frames = framebuffers;
 	}
 	
 	fn resize(&mut self)
 	{
-		let newsize: [u32;2] = HGEMain::singleton().getWindowInfos().into();
+		let newsize: [u32; 2] = HGEMain::singleton().getWindowInfos().into();
 		let depthformat = HGEMain::singleton().getDevice().depthformat;
 		
-		if(newsize == self._img_size)
+		if (newsize == self._img_size)
 		{
 			return;
 		}
 		
-		let imgsize = [newsize[0],newsize[1],1];
+		let imgsize = [newsize[0], newsize[1], 1];
 		self._img_render_UI = HGEFrame::generateNewDefaultImg(imgsize, self._ouputFormat, ImageUsage::COLOR_ATTACHMENT | ImageUsage::INPUT_ATTACHMENT);
 		self._img_render_WorldSolid = HGEFrame::generateNewDefaultImg(imgsize, self._ouputFormat, ImageUsage::COLOR_ATTACHMENT | ImageUsage::INPUT_ATTACHMENT);
 		self._img_render_Full = HGEFrame::generateNewDefaultImg(imgsize, self._ouputFormat, ImageUsage::COLOR_ATTACHMENT | ImageUsage::TRANSFER_SRC);
-		self._img_depthUI = HGEFrame::generateNewDefaultImgDepth(imgsize,depthformat);
-		self._img_depthSolid = HGEFrame::generateNewDefaultImgDepth(imgsize,depthformat);
+		self._img_depthUI = HGEFrame::generateNewDefaultImgDepth(imgsize, depthformat);
+		self._img_depthSolid = HGEFrame::generateNewDefaultImgDepth(imgsize, depthformat);
 		
 		self._img_size = newsize;
 	}
@@ -137,7 +136,7 @@ impl HGEFrame
 	{
 		return self._img_render_Full.clone();
 	}
-		
+	
 	pub fn getImgUIDepth(&self) -> Arc<ImageView>
 	{
 		return self._img_depthUI.clone();
@@ -149,11 +148,11 @@ impl HGEFrame
 	
 	////// PRIVATE //////////////
 	
-	fn generateNewDefaultImgDepth(newsize: [u32;3], depthformat: Format) -> Arc<ImageView>
+	fn generateNewDefaultImgDepth(newsize: [u32; 3], depthformat: Format) -> Arc<ImageView>
 	{
 		let mut resultimg = Image::new(
 			ManagerMemoryAllocator::singleton().get(),
-			ImageCreateInfo{
+			ImageCreateInfo {
 				image_type: ImageType::Dim2d,
 				format: depthformat,
 				extent: newsize,
@@ -167,7 +166,7 @@ impl HGEFrame
 		{
 			resultimg = Image::new(
 				ManagerMemoryAllocator::singleton().get(),
-				ImageCreateInfo{
+				ImageCreateInfo {
 					image_type: ImageType::Dim2d,
 					format: depthformat,
 					extent: newsize,
@@ -191,16 +190,16 @@ impl HGEFrame
 			AllocationCreateInfo::default(),
 		) {
 			Ok(_) => println!("OK !"),
-			Err(err) => println!("NOK ! {:?}",err),
+			Err(err) => println!("NOK ! {:?}", err),
 		};
 	}
 	
-	fn generateNewDefaultImgFakeDepth(newsize: [u32;3]) -> Arc<ImageView>
+	fn generateNewDefaultImgFakeDepth(newsize: [u32; 3]) -> Arc<ImageView>
 	{
 		return ImageView::new_default(
 			Image::new(
 				ManagerMemoryAllocator::singleton().get(),
-				ImageCreateInfo{
+				ImageCreateInfo {
 					image_type: ImageType::Dim2d,
 					format: Format::R8_UNORM,
 					extent: newsize,
@@ -212,19 +211,19 @@ impl HGEFrame
 		).unwrap();
 	}
 	
-	pub fn generateNewDefaultImg(newsize: [u32;3], format: Format, usage: ImageUsage) -> Arc<ImageView>
+	pub fn generateNewDefaultImg(newsize: [u32; 3], format: Format, usage: ImageUsage) -> Arc<ImageView>
 	{
 		return ImageView::new_default(
 			Image::new(
 				ManagerMemoryAllocator::singleton().get(),
-				ImageCreateInfo{
+				ImageCreateInfo {
 					image_type: ImageType::Dim2d,
 					format,
 					extent: newsize,
 					usage,
 					..ImageCreateInfo::default()
 				},
-				AllocationCreateInfo::default(),
+				AllocationCreateInfo::default()
 			).unwrap(),
 		).unwrap();
 	}

@@ -1,48 +1,48 @@
 extern crate vulkano;
 
-use std::any::Any;
-use std::ops::Range;
-use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
-use anyhow::anyhow;
-use arc_swap::{ArcSwap, ArcSwapOption, Guard};
-use vulkano::{command_buffer::{
-	AutoCommandBufferBuilder, CommandBufferUsage,
-}, Version, VulkanLibrary};
-use vulkano::command_buffer::{CommandBufferInheritanceInfo, SecondaryAutoCommandBuffer};
-use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
-use vulkano::swapchain::{Surface, SurfaceCapabilities, SurfaceTransform};
-use dashmap::DashMap;
-use Htrace::{HTrace, HTraceError, namedThread};
-use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions};
-use HArcMut::HArcMut;
-use Htrace::Type::Type;
-use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
-use singletonThread::SingletonThread;
-use crate::Animation::Animation;
-use crate::BuilderDevice::BuilderDevice;
-use crate::Camera::Camera;
 use crate::components::window::{window_infos, window_orientation};
 use crate::configs::general::HGEconfig_general;
 use crate::configs::HGEconfig::HGEconfig;
-use crate::Interface::ManagerInterface::ManagerInterface;
+use crate::Animation::Animation;
+use crate::BuilderDevice::BuilderDevice;
+use crate::Camera::Camera;
 use crate::HGErendering::HGErendering;
 use crate::HGEsubpass::HGEsubpassName;
-use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Interface::ManagerFont::ManagerFont;
+use crate::Interface::ManagerInterface::ManagerInterface;
 use crate::InterpolateTimer::ManagerInterpolate;
 use crate::ManagerAnimation::{AnimationHolder, ManagerAnimation};
+use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Models3D::ManagerModels::ManagerModels;
-use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder};
 use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dline_holder, HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
 use crate::Shaders::HGE_shader_3Dinstance::{HGE_shader_3Dinstance, HGE_shader_3Dinstance_holder};
 use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
 use crate::Shaders::HGE_shader_screen::HGE_shader_screen;
 use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
+use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder};
 use crate::Textures::Manager::ManagerTexture;
 use crate::Textures::TextureDescriptor::TextureDescriptor;
 use crate::Textures::TextureDescriptor_type::{TextureDescriptor_exclude, TextureDescriptor_process, TextureDescriptor_type};
+use anyhow::anyhow;
+use arc_swap::{ArcSwap, ArcSwapOption, Guard};
+use dashmap::DashMap;
+use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+use singletonThread::SingletonThread;
+use std::any::Any;
+use std::ops::Range;
+use std::sync::{Arc, OnceLock};
+use std::time::{Duration, Instant};
+use vulkano::command_buffer::{CommandBufferInheritanceInfo, SecondaryAutoCommandBuffer};
+use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
+use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions};
+use vulkano::swapchain::{Surface, SurfaceCapabilities, SurfaceTransform};
+use vulkano::{command_buffer::{
+	AutoCommandBufferBuilder, CommandBufferUsage,
+}, Version, VulkanLibrary};
+use HArcMut::HArcMut;
+use Htrace::Type::Type;
+use Htrace::{namedThread, HTrace, HTraceError};
 
 const HGE_STRING: &str = "HGE";
 const HGE_VERSION: Version = Version {
@@ -66,7 +66,6 @@ pub struct HGEMain
 	_isSuspended: ArcSwap<bool>,
 	_builderDevice: ArcSwap<BuilderDevice>,
 	_rendering: Arc<RwLock<HGErendering>>,
-	
 	
 	// app data
 	_appName: ArcSwap<String>,
@@ -92,7 +91,7 @@ pub struct HGEMain
 }
 
 static SINGLETON: OnceLock<HGEMain> = OnceLock::new();
-pub struct preinit{
+pub struct preinit {
 	_init: bool
 }
 
@@ -117,21 +116,21 @@ impl HGEMain
 		}
 		HGEconfig::defineGeneral(config);
 		
-		Ok(preinit{ _init: true })
+		Ok(preinit { _init: true })
 	}
 	
-	pub fn initialize(required_extensions: InstanceExtensions,rawWindow: impl HasRawWindowHandle + HasRawDisplayHandle + Any + Send + Sync, preinit: anyhow::Result<preinit>) -> anyhow::Result<()>
+	pub fn initialize(required_extensions: InstanceExtensions, rawWindow: impl HasRawWindowHandle + HasRawDisplayHandle + Any + Send + Sync, preinit: anyhow::Result<preinit>) -> anyhow::Result<()>
 	{
 		match preinit {
 			Ok(_) => {}
-			Err(err) => {return Err(anyhow!("{}",err));}
+			Err(err) => { return Err(anyhow!("toto {}",err)); }
 		};
 		
 		HTrace!("Engine initialization ----");
 		let instance = Self::Init_Instance(required_extensions)?;
 		
 		HTrace!("Engine initialization : surface build");
-		let surface = Self::Init_SurfaceReload(rawWindow,instance.clone())?;
+		let surface = Self::Init_SurfaceReload(rawWindow, instance.clone())?;
 		
 		HTrace!("Engine initialization : device build");
 		let builderDevice = Arc::new(BuilderDevice::new(instance.clone(), surface.clone()));
@@ -144,7 +143,7 @@ impl HGEMain
 		let rendering = HGErendering::new(builderDevice.clone(), surface.clone())?;
 		
 		HTrace!("Engine initialization : HGE creation");
-		let selfnew = Self::new(instance,builderDevice,surface,stdAllocSet,rendering);
+		let selfnew = Self::new(instance, builderDevice, surface, stdAllocSet, rendering);
 		if SINGLETON.set(selfnew).is_err()
 		{
 			return Err(anyhow!("HGE instance set by another thread"));
@@ -166,17 +165,18 @@ impl HGEMain
 	
 	pub fn runRendering(&self)
 	{
-		if(**Self::singleton()._isSuspended.load())
+		if (**Self::singleton()._isSuspended.load())
 		{
 			return;
 		}
 		
 		let durationFromLast = Self::singleton()._ManagerInterpolate.read().getNowFromLast();
-		if(self._rendering.write().rendering(durationFromLast))
+		let mut tmp = self._rendering.write();
+		if (tmp.rendering(durationFromLast))
 		{
+			tmp.drawStats();
 			Self::singleton()._ManagerInterpolate.write().update();
 		}
-		
 	}
 	
 	pub fn getCamera(&self) -> HArcMut<Camera>
@@ -289,16 +289,16 @@ impl HGEMain
 	
 	pub(crate) fn SecondaryCmdBuffer_drain(typed: HGEMain_secondarybuffer_type) -> Option<(Vec<Arc<SecondaryAutoCommandBuffer>>, Vec<Arc<dyn Fn() + Send + Sync>>)>
 	{
-		return Self::singleton()._cmdBufferTextures.clone().remove(&typed).map(|(_,x)|x);
+		return Self::singleton()._cmdBufferTextures.clone().remove(&typed).map(|(_, x)| x);
 	}
 	
 	pub fn engineResumed(&self, rawWindow: impl HasRawWindowHandle + HasRawDisplayHandle + Any + Send + Sync) -> anyhow::Result<()>
 	{
 		HTrace!("Engine context creation ----");
-		let newsurface = Self::Init_SurfaceReload(rawWindow,self._instance.load().clone())?;
+		let newsurface = Self::Init_SurfaceReload(rawWindow, self._instance.load().clone())?;
 		self._surface.swap(Some(newsurface.clone()));
 		
-		self._rendering.write().recreate(self._builderDevice.load().clone(),newsurface);
+		self._rendering.write().recreate(self._builderDevice.load().clone(), newsurface);
 		
 		ManagerInterface::singleton().WindowRefreshed();
 		self._isSuspended.swap(Arc::new(false));
@@ -317,7 +317,7 @@ impl HGEMain
 		*self._isSuspended.load_full()
 	}
 	
-	pub fn window_resize(&self, size: Option<[u32;2]>)
+	pub fn window_resize(&self, size: Option<[u32; 2]>)
 	{
 		self.window_InfosUpdate(size);
 		
@@ -331,7 +331,7 @@ impl HGEMain
 	{
 		let config = HGEconfig::singleton().general_get();
 		
-		let threadService = SingletonThread::newFiltered(||{
+		let threadService = SingletonThread::newFiltered(|| {
 			Self::singleton()._cameraAnimation.write().retain_mut(|anim| {
 				!anim.ticks()
 			});
@@ -343,7 +343,7 @@ impl HGEMain
 			ManagerAnimation::singleton().ticksAll();
 			
 			ShaderDrawer_Manager::allholder_Update();
-		},||{
+		}, || {
 			!**Self::singleton()._isSuspended.load()
 		});
 		
@@ -369,7 +369,7 @@ impl HGEMain
 		};
 	}
 	
-	fn window_InfosUpdate(&self, size: Option<[u32;2]>)
+	fn window_InfosUpdate(&self, size: Option<[u32; 2]>)
 	{
 		let Some(surfaceCap) = self.getSurfaceCapability() else {
 			return;
@@ -382,9 +382,7 @@ impl HGEMain
 		{
 			rawwidth = winsize[0];
 			rawheight = winsize[1];
-		}
-		else
-		{
+		} else {
 			let extends = surfaceCap.current_extent.unwrap_or([100, 100]);
 			rawwidth = extends[0];
 			rawheight = extends[1];
@@ -459,20 +457,20 @@ impl HGEMain
 		
 		let mut texturesize = 256;
 		let mut texturesizebig = 1024;
-		if(cfg!(target_os = "android"))
+		if (cfg!(target_os = "android"))
 		{
 			texturesize = 64;
 			texturesizebig = 256;
 		}
 		
 		ManagerTexture::singleton().preload();
-		ManagerTexture::singleton().descriptorSet_create("HGE_set0",TextureDescriptor::new(TextureDescriptor_type::<Range<u16>>::ONE("font".to_string()),
+		ManagerTexture::singleton().descriptorSet_create("HGE_set0", TextureDescriptor::new(TextureDescriptor_type::<Range<u16>>::ONE("font".to_string()),
 			TextureDescriptor_exclude::NONE,
 			HGE_shader_2Dsimple_holder::pipelineName(), 0, "default"));
-		ManagerTexture::singleton().descriptorSet_create("HGE_set1",TextureDescriptor::new(TextureDescriptor_type::SIZE_DEPENDENT(0..512,TextureDescriptor_process::RESIZE(texturesize,texturesize)),
+		ManagerTexture::singleton().descriptorSet_create("HGE_set1", TextureDescriptor::new(TextureDescriptor_type::SIZE_DEPENDENT(0..512, TextureDescriptor_process::RESIZE(texturesize, texturesize)),
 			TextureDescriptor_exclude::ARRAY(vec!["font".to_string()]),
 			HGE_shader_2Dsimple_holder::pipelineName(), 1, "default"));
-		ManagerTexture::singleton().descriptorSet_create("HGE_set2",TextureDescriptor::new(TextureDescriptor_type::SIZE_MIN(512..,TextureDescriptor_process::RESIZE(texturesizebig,texturesizebig)),
+		ManagerTexture::singleton().descriptorSet_create("HGE_set2", TextureDescriptor::new(TextureDescriptor_type::SIZE_MIN(512.., TextureDescriptor_process::RESIZE(texturesizebig, texturesizebig)),
 			TextureDescriptor_exclude::ARRAY(vec!["font".to_string()]),
 			HGE_shader_2Dsimple_holder::pipelineName(), 2, "default"));
 		
@@ -483,15 +481,18 @@ impl HGEMain
 		Ok(())
 	}
 	
-	fn Init_Instance(required_extensions: InstanceExtensions) -> anyhow::Result<Arc<Instance>>
+	fn Init_Instance(mut required_extensions: InstanceExtensions) -> anyhow::Result<Arc<Instance>>
 	{
 		let library = VulkanLibrary::new().unwrap();
-		let debuglayer = Vec::new();
+		let mut debuglayer = Vec::new();
 		let config = HGEconfig::singleton().general_get();
 		
-		/*{
+		if (cfg!(feature = "debuglayer"))
+		{
 			debuglayer.push("VK_LAYER_KHRONOS_validation".to_string());
-		}*/
+		}
+		
+		required_extensions.ext_surface_maintenance1 = true;
 		
 		// Now creating the instance.
 		let instance = Instance::new(
@@ -507,7 +508,7 @@ impl HGEMain
 				flags: InstanceCreateFlags::ENUMERATE_PORTABILITY,
 				..Default::default()
 			},
-		)?;
+		).map_err(|e| { anyhow!("HGE cannot initialize instance because : {:?}", e) })?;
 		
 		Ok(instance)
 	}
@@ -521,8 +522,8 @@ impl HGEMain
 		
 		let builderDevice = self._builderDevice.load();
 		if let Ok(result) = builderDevice.device
-			.physical_device()
-			.surface_capabilities(surface, Default::default())
+		                                 .physical_device()
+		                                 .surface_capabilities(surface, Default::default())
 		{
 			return Some(result);
 		}

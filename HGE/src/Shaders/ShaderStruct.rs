@@ -1,14 +1,16 @@
+use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
+use crate::Shaders::intoVertexed::IntoVertexted;
+use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
+use arc_swap::ArcSwapOption;
 use dashmap::DashMap;
-use downcast_rs::{Downcast, impl_downcast};
+use downcast_rs::{impl_downcast, Downcast};
 use dyn_clone::DynClone;
+use std::sync::Arc;
 use uuid::Uuid;
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, Subbuffer};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
 use vulkano::memory::allocator::AllocationCreateInfo;
 use vulkano::pipeline::graphics::vertex_input::Vertex;
-use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
-use crate::Shaders::intoVertexed::IntoVertexted;
-use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
 
 pub trait ShaderStruct: DynClone + Send + Sync + Downcast {
 	fn createPipeline() -> anyhow::Result<()>
@@ -26,14 +28,13 @@ pub trait ShaderStructHolder: Send + Sync + Downcast
 			Self: Sized;
 	
 	fn pipelineName() -> String
-	where
-		Self: Sized;
+		where
+			Self: Sized;
 	
 	fn pipelineNameResolve(&self) -> String;
 	
-	fn reset(&mut self);
-	
-	fn update(&mut self);
+	fn reset(&self);
+	fn update(&self);
 	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String);
 }
 
@@ -42,16 +43,17 @@ impl_downcast!(ShaderStructHolder);
 pub trait ShaderStructInstance: ShaderStruct
 {}
 
-pub struct ShaderStructHolder_utils{}
+pub struct ShaderStructHolder_utils {}
 impl ShaderStructHolder_utils
 {
-	pub fn updateBuffer<T>(vertex: Vec<T>, output: &mut Option<Subbuffer<[T]>>, bufferInfos: BufferCreateInfo, allocInfos: AllocationCreateInfo) -> u32
-		where T: BufferContents
+	pub fn updateBuffer<T>(vertex: Vec<T>, output: &ArcSwapOption<Subbuffer<[T]>>, bufferInfos: BufferCreateInfo, allocInfos: AllocationCreateInfo) -> u32
+		where
+			T: BufferContents
 	{
 		let len = vertex.len() as u32;
-		if(len==0)
+		if (len == 0)
 		{
-			*output = None;
+			output.store(None);
 			return len;
 		}
 		
@@ -61,10 +63,10 @@ impl ShaderStructHolder_utils
 			allocInfos,
 			vertex,
 		) else {
-			*output = None;
+			output.store(None);
 			return 0;
 		};
-		*output = Some(buffer);
+		output.store(Some(Arc::new(buffer)));
 		
 		return len;
 	}
@@ -77,7 +79,7 @@ impl ShaderStructHolder_utils
 			vertexconvert.push(tmp);
 		};
 		
-		let newstruct = ShaderDrawerImplStruct{
+		let newstruct = ShaderDrawerImplStruct {
 			vertex: vertexconvert,
 			indices: structure.indices.clone(),
 		};

@@ -1,23 +1,23 @@
-use std::sync::{Arc, OnceLock};
-use std::time::Instant;
-use Htrace::HTraceError;
-use parking_lot::RwLock;
-use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer};
-use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferInheritanceInfo, CommandBufferInheritanceRenderPassInfo, CommandBufferInheritanceRenderPassType, CommandBufferUsage, PrimaryAutoCommandBuffer, SecondaryAutoCommandBuffer, SubpassBeginInfo, SubpassContents, SubpassEndInfo};
-use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
-use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
-use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
-use vulkano::pipeline::PipelineBindPoint;
-use vulkano::render_pass::{RenderPass, Subpass};
 use crate::HGEFrame::HGEFrame;
 use crate::HGEMain::HGEMain;
 use crate::ManagerBuilder::ManagerBuilder;
 use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Pipeline::ManagerPipeline::ManagerPipeline;
-use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::names;
 use crate::Shaders::HGE_shader_screen::HGE_shader_screen;
+use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
+use parking_lot::RwLock;
+use std::sync::{Arc, OnceLock};
+use std::time::Instant;
+use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer};
+use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
+use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferInheritanceInfo, CommandBufferInheritanceRenderPassInfo, CommandBufferInheritanceRenderPassType, CommandBufferUsage, PrimaryAutoCommandBuffer, SecondaryAutoCommandBuffer, SubpassBeginInfo, SubpassContents, SubpassEndInfo};
+use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
+use vulkano::pipeline::PipelineBindPoint;
+use vulkano::render_pass::{RenderPass, Subpass};
+use Htrace::HTraceError;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum HGEsubpassName
@@ -75,18 +75,18 @@ impl HGEsubpass
 		});
 	}
 	
-	pub fn ExecAllPass(&self, render_pass: Arc<RenderPass>, primaryCommandBuffer: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>, HGEFrameC: &HGEFrame, stdAllocCommand: &StandardCommandBufferAllocator)
+	pub fn ExecAllPass(&self, render_pass: Arc<RenderPass>, mut primaryCommandBuffer: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>, HGEFrameC: &HGEFrame, stdAllocCommand: &StandardCommandBufferAllocator)
 	{
 		let AllSubpass = HGEsubpassName::getByOrder();
 		let length = AllSubpass.len();
 		for nbpass in 0..length
 		{
 			//let lastinstant = Instant::now();
-			let thispass = AllSubpass[nbpass].clone();
-			primaryCommandBuffer.execute_commands(self.passExec(thispass.clone(), render_pass.clone(), HGEFrameC, stdAllocCommand)).unwrap();
+			let thispass = &AllSubpass[nbpass];
+			primaryCommandBuffer = primaryCommandBuffer.execute_commands(self.passExec(thispass, render_pass.clone(), HGEFrameC, stdAllocCommand)).unwrap();
 			if (nbpass < length - 1)
 			{
-				primaryCommandBuffer.next_subpass(SubpassEndInfo::default(), SubpassBeginInfo{
+				primaryCommandBuffer.next_subpass(SubpassEndInfo::default(), SubpassBeginInfo {
 					contents: SubpassContents::SecondaryCommandBuffers,
 					..SubpassBeginInfo::default()
 				}).unwrap();
@@ -95,7 +95,7 @@ impl HGEsubpass
 		}
 	}
 	
-	fn passExec(&self, thispass: HGEsubpassName, render_pass: Arc<RenderPass>, HGEFrameC: &HGEFrame, stdAllocCommand: &StandardCommandBufferAllocator) -> Arc<SecondaryAutoCommandBuffer>
+	fn passExec(&self, thispass: &HGEsubpassName, render_pass: Arc<RenderPass>, HGEFrameC: &HGEFrame, stdAllocCommand: &StandardCommandBufferAllocator) -> Arc<SecondaryAutoCommandBuffer>
 	{
 		let subpass = Subpass::from(render_pass, thispass.getSubpassID()).unwrap();
 		let mut cmdBuilder = AutoCommandBufferBuilder::secondary(
@@ -113,9 +113,9 @@ impl HGEsubpass
 			}
 		).unwrap();
 		
-		ShaderDrawer_Manager::singleton().holder_Draw(thispass.clone(),&mut cmdBuilder);
+		ShaderDrawer_Manager::singleton().holder_Draw(thispass, &mut cmdBuilder);
 		
-		if(thispass==HGEsubpassName::FINAL)
+		if (*thispass == HGEsubpassName::FINAL)
 		{
 			self.pass_Final(&mut cmdBuilder, HGEFrameC)
 		};
@@ -140,7 +140,7 @@ impl HGEsubpass
 			descriptor_set,
 		));
 		
-		if(ManagerShaders::singleton().push_constants(names::screen, cmdBuilder, ManagerPipeline::singleton().layoutGet(names::screen).unwrap(), 0)==false)
+		if (ManagerShaders::singleton().push_constants(names::screen, cmdBuilder, ManagerPipeline::singleton().layoutGet(names::screen).unwrap(), 0) == false)
 		{
 			return;
 		}

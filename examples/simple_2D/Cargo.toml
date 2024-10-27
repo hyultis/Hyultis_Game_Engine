@@ -6,7 +6,7 @@ edition = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-HGE = {path = "../../HGE" }
+HGE = { path = "../../HGE", features = ["debuglayer", "dynamicresolution"] }
 Hconfig = { workspace = true }
 Htrace = { workspace = true }
 vulkano = "0.34.1"
@@ -16,5 +16,5 @@ glyph_brush = "0.7.8"
 glyph_brush_layout = "0.2.3"
 
 [[bin]]
-path= "src/main.rs"
-name="simple_2D"
+path = "src/main.rs"
+name = "simple_2D"

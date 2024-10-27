@@ -244,7 +244,7 @@ impl event_trait for Text
 {
 	fn event_trigger(&mut self, eventtype: event_type) -> bool
 	{
-		let mut update = self._events.clone().trigger(eventtype, self);
+		let update = self._events.clone().trigger(eventtype, self);
 		if(self._cacheinfos.isPresent() && update)
 		{
 			self.cache_submit();

@@ -7,7 +7,7 @@ use vulkano::device::physical::PhysicalDeviceType;
 use vulkano::format::Format;
 use vulkano::instance::Instance;
 use vulkano::memory::MemoryPropertyFlags;
-use vulkano::swapchain::Surface;
+use vulkano::swapchain::{PresentMode, Surface, SurfaceCapabilities, SurfaceInfo};
 use vulkano::Version;
 
 
@@ -30,7 +30,8 @@ pub struct BuilderDevice
 	pub maxpushconstant: u32,
 	pub maxtextureshader: Option<u32>,
 	pub depthformat: Format,
-	pub memory: BuilderDeviceMemory
+	pub memory: BuilderDeviceMemory,
+	pub surfaceCapabilities: Option<SurfaceCapabilities>
 }
 
 impl BuilderDevice
@@ -256,6 +257,16 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 		}
 		HTrace!("depth format : {:?}",format);
 		
+		let mut surfaceCapabilities = None;
+		if let Ok(tmp) = device.physical_device().surface_capabilities(&surface, SurfaceInfo{
+			present_mode: Some(PresentMode::Fifo),
+			..SurfaceInfo::default()
+		})
+		{
+			HTrace!("surface Infos : {:?}",tmp);
+			surfaceCapabilities = Some(tmp);
+		}
+		
 		BuilderDevice {
 			device: device,
 			_queues: tmpqueues,
@@ -265,6 +276,7 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 			maxtextureshader: Some(128),
 			depthformat: format,
 			memory: BuilderDeviceMemory { heapIndex: deviceIndex, heapSize: memorySize },
+			surfaceCapabilities: surfaceCapabilities,
 		}
 	}
 	

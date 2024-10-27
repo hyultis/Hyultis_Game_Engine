@@ -18,6 +18,7 @@ pub mod color;
 pub mod hideable;
 pub mod window;
 pub mod cacheInfos;
+pub mod TimeStats;
 
 pub trait HGEC_base<T>: Clone + Debug + Send + Sync + Default
 {
