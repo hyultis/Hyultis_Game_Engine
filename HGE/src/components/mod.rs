@@ -1,8 +1,7 @@
+pub extern crate cgmath;
+use cgmath::{Point3, Vector3};
 use std::fmt::Debug;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
-use cgmath::{Point3, Vector3};
-
-pub extern crate cgmath;
 
 pub mod interfacePosition;
 pub mod worldPosition;
@@ -18,7 +17,7 @@ pub mod color;
 pub mod hideable;
 pub mod window;
 pub mod cacheInfos;
-pub mod TimeStats;
+pub mod system;
 
 pub trait HGEC_base<T>: Clone + Debug + Send + Sync + Default
 {
@@ -27,8 +26,8 @@ pub trait HGEC_base<T>: Clone + Debug + Send + Sync + Default
 
 pub trait HGEC_origin: HGEC_base<Self> + Add + AddAssign + Sub + SubAssign
 {
-    fn get(&self) -> [f32;3];
-	fn set(&mut self, new: [f32;3]);
+	fn get(&self) -> [f32; 3];
+	fn set(&mut self, new: [f32; 3]);
 	
 	fn toPoint3(&self) -> Point3<f32>;
 	fn toVec3(&self) -> Vector3<f32>;
@@ -36,12 +35,12 @@ pub trait HGEC_origin: HGEC_base<Self> + Add + AddAssign + Sub + SubAssign
 
 pub trait HGEC_rotation<A>: HGEC_base<A> + Add + AddAssign + Sub + SubAssign
 {
-	fn get(&self) -> [f32;3];
+	fn get(&self) -> [f32; 3];
 }
 
 pub trait HGEC_scale<A>: HGEC_base<A> + Add + AddAssign + Sub + SubAssign
 {
-	fn get(&self) -> [f32;3];
+	fn get(&self) -> [f32; 3];
 }
 
 pub trait HGEC_texture: HGEC_base<Option<texture::texture>>
@@ -51,15 +50,16 @@ pub trait HGEC_texture: HGEC_base<Option<texture::texture>>
 
 pub struct componentInstance
 {
-	pub origin: [f32;3],
-	pub scale: [f32;3],
-	pub rotation: [f32;3]
+	pub origin: [f32; 3],
+	pub scale: [f32; 3],
+	pub rotation: [f32; 3]
 }
 
-pub trait HGEC_offset<A,B,C>: HGEC_base<A>
-	where A: HGEC_origin,
-	      B: HGEC_rotation<A>,
-	      C: HGEC_scale<A>
+pub trait HGEC_offset<A, B, C>: HGEC_base<A>
+	where
+		A: HGEC_origin,
+		B: HGEC_rotation<A>,
+		C: HGEC_scale<A>
 {
 	fn origin(&self) -> &A;
 	fn origin_mut(&mut self) -> &mut A;
@@ -72,12 +72,13 @@ pub trait HGEC_offset<A,B,C>: HGEC_base<A>
 }
 
 #[derive(Copy, Clone, Debug, Default)]
-pub struct Components<A = worldPosition::worldPosition,B = rotations::rotation,C = scale::scale,D = offset::offset<A,B,C>, F = texture::textureAsset>
-	where A: HGEC_origin,
-	      B: HGEC_rotation<A>,
-	      C: HGEC_scale<A>,
-	      D: HGEC_offset<A,B,C>,
-	      F: HGEC_texture
+pub struct Components<A = worldPosition::worldPosition, B = rotations::rotation, C = scale::scale, D = offset::offset<A, B, C>, F = texture::textureAsset>
+	where
+		A: HGEC_origin,
+		B: HGEC_rotation<A>,
+		C: HGEC_scale<A>,
+		D: HGEC_offset<A, B, C>,
+		F: HGEC_texture
 {
 	origin: A,
 	rotation: B,
@@ -87,11 +88,12 @@ pub struct Components<A = worldPosition::worldPosition,B = rotations::rotation,C
 }
 
 impl<A, B, C, D, F> Components<A, B, C, D, F>
-	where A: HGEC_origin,
-	      B: HGEC_rotation<A>,
-	      C: HGEC_scale<A>,
-	      D: HGEC_offset<A,B,C>,
-	      F: HGEC_texture
+	where
+		A: HGEC_origin,
+		B: HGEC_rotation<A>,
+		C: HGEC_scale<A>,
+		D: HGEC_offset<A, B, C>,
+		F: HGEC_texture
 {
 	pub fn computeVertex(&self, vertex: &mut A)
 	{
@@ -113,7 +115,7 @@ impl<A, B, C, D, F> Components<A, B, C, D, F>
 	
 	pub fn computeInstance(&mut self) -> componentInstance
 	{
-		componentInstance{
+		componentInstance {
 			origin: self.origin.get(),
 			scale: self.scale.get(),
 			rotation: self.rotation.get(),

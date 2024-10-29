@@ -1,5 +1,6 @@
 extern crate vulkano;
 
+use crate::components::system::DeferredDatas::DeferredData;
 use crate::components::window::{window_infos, window_orientation};
 use crate::configs::general::HGEconfig_general;
 use crate::configs::HGEconfig::HGEconfig;
@@ -51,7 +52,7 @@ const HGE_VERSION: Version = Version {
 	patch: 0,
 };
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Copy, Clone)]
 pub enum HGEMain_secondarybuffer_type
 {
 	TEXTURE,
@@ -73,7 +74,7 @@ pub struct HGEMain
 	
 	// tmp
 	_stdAllocSet: ArcSwap<StandardDescriptorSetAllocator>,
-	_cmdBufferTextures: Arc<DashMap<HGEMain_secondarybuffer_type, (Vec<Arc<SecondaryAutoCommandBuffer>>, Vec<Arc<dyn Fn() + Send + Sync>>)>>,
+	_cmdBufferTextures: DashMap<HGEMain_secondarybuffer_type, DeferredData<(Vec<Arc<SecondaryAutoCommandBuffer>>, Vec<Arc<dyn Fn() + Send + Sync>>)>>,
 	
 	//cache data
 	_windowInfos: RwLock<window_infos>,
@@ -163,7 +164,7 @@ impl HGEMain
 		Self::singleton()._thread_runService.lock().thread_launch();
 	}
 	
-	pub fn runRendering(&self)
+	pub fn runRendering(&self, preSwapFunc: impl Fn())
 	{
 		if (**Self::singleton()._isSuspended.load())
 		{
@@ -172,7 +173,7 @@ impl HGEMain
 		
 		let durationFromLast = Self::singleton()._ManagerInterpolate.read().getNowFromLast();
 		let mut tmp = self._rendering.write();
-		if (tmp.rendering(durationFromLast))
+		if (tmp.rendering(durationFromLast, preSwapFunc))
 		{
 			tmp.drawStats();
 			Self::singleton()._ManagerInterpolate.write().update();
@@ -276,20 +277,34 @@ impl HGEMain
 	pub fn SecondaryCmdBuffer_add(sbtype: HGEMain_secondarybuffer_type, cmdBuffer: Arc<SecondaryAutoCommandBuffer>, callback: impl Fn() + Send + Sync + 'static)
 	{
 		let _ = namedThread!(move || {
-			if let Some(mut arrayvec) = Self::singleton()._cmdBufferTextures.clone().get_mut(&sbtype)
+			if(!Self::singleton()._cmdBufferTextures.contains_key(&sbtype))
 			{
-				arrayvec.0.push(cmdBuffer);
-				arrayvec.1.push(Arc::new(callback));
-				return;
+				Self::singleton()._cmdBufferTextures.insert(sbtype, DeferredData::new());
 			}
 			
-			Self::singleton()._cmdBufferTextures.clone().insert(sbtype, (vec![cmdBuffer], vec![Arc::new(callback)]));
+			let Some(binding) = Self::singleton()._cmdBufferTextures.get_mut(&sbtype) else {return};
+			let mut arrayvec = binding.inputMut();
+			match &mut *arrayvec
+			{
+				None => {
+					*arrayvec = Some(
+						(vec![cmdBuffer],vec![Arc::new(callback)])
+					);
+				},
+				Some((contentCommand,contentCallback)) => {
+					contentCommand.push(cmdBuffer);
+					contentCallback.push(Arc::new(callback));
+				}
+			}
 		});
 	}
 	
 	pub(crate) fn SecondaryCmdBuffer_drain(typed: HGEMain_secondarybuffer_type) -> Option<(Vec<Arc<SecondaryAutoCommandBuffer>>, Vec<Arc<dyn Fn() + Send + Sync>>)>
 	{
-		return Self::singleton()._cmdBufferTextures.clone().remove(&typed).map(|(_, x)| x);
+		let Some(dataBinding) = Self::singleton()._cmdBufferTextures.get(&typed) else { return None };
+		let Some(data) = dataBinding.steal() else { return None };
+		
+		return Some(data);
 	}
 	
 	pub fn engineResumed(&self, rawWindow: impl HasRawWindowHandle + HasRawDisplayHandle + Any + Send + Sync) -> anyhow::Result<()>
@@ -336,6 +351,8 @@ impl HGEMain
 				!anim.ticks()
 			});
 			
+			Self::singleton()._cmdBufferTextures.iter().for_each(|x| x.thread_launch());
+			
 			ManagerInterface::singleton().tickUpdate();
 			ManagerModels::singleton().tickUpdate();
 			ManagerFont::singleton().FontEngine_CacheUpdate();
@@ -364,7 +381,7 @@ impl HGEMain
 			_cameraC: HArcMut::new(Camera::new()),
 			_mouseMode: RwLock::new(true),
 			_ManagerInterpolate: RwLock::new(ManagerInterpolate::new()),
-			_cmdBufferTextures: Arc::new(DashMap::new()),
+			_cmdBufferTextures: DashMap::new(),
 			_thread_runService: Mutex::new(threadService),
 		};
 	}

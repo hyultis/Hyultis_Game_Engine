@@ -9,6 +9,8 @@ pub mod HGE_shader_3Dinstance;
 pub mod ShaderDrawer;
 pub mod intoVertexed;
 pub mod ShaderDrawerImpl;
+pub mod ShaderStructCache;
+pub mod ShaderStructCacheInstanced;
 
 pub enum names
 {

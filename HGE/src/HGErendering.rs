@@ -1,4 +1,4 @@
-use crate::components::TimeStats::TimeStats;
+use crate::components::system::TimeStats::TimeStats;
 use crate::BuilderDevice::BuilderDevice;
 use crate::HGEFrame::HGEFrame;
 use crate::HGEMain::{HGEMain, HGEMain_secondarybuffer_type};
@@ -101,7 +101,7 @@ impl HGErendering
 		self._recreatSwapChain = true;
 	}
 	
-	pub fn rendering(&mut self, durationFromLast: Duration) -> bool
+	pub fn rendering(&mut self, durationFromLast: Duration, preSwapFunc: impl Fn()) -> bool
 	{
 		if (self._generating)
 		{
@@ -129,7 +129,7 @@ impl HGErendering
 		
 		self._generating = true;
 		//self.getStatsOrCreate("main").setNow();
-		self.SwapchainGenerateImg();
+		self.SwapchainGenerateImg(preSwapFunc);
 		self.getStatsOrCreate("main").putElapsed();
 		self._generating = false;
 		return true;
@@ -142,8 +142,9 @@ impl HGErendering
 	
 	//////////// PRIVATE ///////////////
 	
-	fn SwapchainGenerateImg(&mut self)
+	fn SwapchainGenerateImg(&mut self, preSwapFunc: impl Fn())
 	{
+		{ self._previousFrameEnd.take(); }
 		if let Some(x) = &mut self._previousFrameEnd
 		{
 			x.cleanup_finished();
@@ -201,7 +202,7 @@ impl HGErendering
 		let mut callbackCmdBuffer = Vec::new();
 		if let Some(mut entry) = HGEMain::SecondaryCmdBuffer_drain(HGEMain_secondarybuffer_type::TEXTURE)
 		{
-			for x in entry.0
+			for x in entry.0.drain(0..)
 			{
 				cmdBufTexture.execute_commands(x).unwrap();
 			}
@@ -231,19 +232,20 @@ impl HGErendering
 		HGEsubpass::singleton().ExecAllPass(self._renderpassC.clone(), &mut cmdBuf, &self._Frame, &self._stdAllocCommand);
 		HTraceError!(cmdBuf.end_render_pass(SubpassEndInfo::default()));
 		
-		//println!("HGEMain: future");
+		println!("HGEMain: future take");
 		let future = match self._previousFrameEnd.take() {
 			None => sync::now(device.clone()).boxed_send_sync(),
 			Some(x) => x
 		};
 		
+		println!("HGEMain: future commands");
 		let future = future
 			.join(acquire_future)
 			.then_execute(queueGraphic.clone(), cmdBufTexture.build().unwrap()).unwrap()
 			.then_execute(queueGraphic.clone(), cmdBuf.build().unwrap()).unwrap();
 		
+		println!("HGEMain: semaphore");
 		let semaphore = future.then_signal_semaphore();
-		
 		let mut cmdBufDynamicRes = match AutoCommandBufferBuilder::primary(
 			&self._stdAllocCommand,
 			queueGraphic.queue_family_index(),
@@ -255,26 +257,42 @@ impl HGErendering
 				return;
 			}
 		};
-		
 		if (cfg!(feature = "dynamicresolution"))
 		{
+			println!("HGEMain: dynamicresolution");
 			let _ = cmdBufDynamicRes.execute_commands(self.dynamic_resolution(image_index).build().unwrap());
 		}
 		
+		println!("HGEMain: fence");
 		let fence = semaphore
 			.then_execute(queueGraphic.clone(), cmdBufDynamicRes.build().unwrap())
-			.unwrap()
-			.then_swapchain_present(
-				queueGraphic.clone(),
-				SwapchainPresentInfo::swapchain_image_index(swapchain, image_index),
-			)
-			//.then_signal_semaphore();
-			.then_signal_fence_and_flush();
+			.unwrap();
 		
-		match fence.map_err(Validated::unwrap) {
+		// func to execute something just before prsent
+		preSwapFunc();
+		
+		let fence = fence.then_swapchain_present(
+			queueGraphic.clone(),
+			SwapchainPresentInfo::swapchain_image_index(swapchain, image_index),
+		)
+			//.then_signal_semaphore();
+			             .then_signal_fence_and_flush();
+		
+		println!("HGEMain: fence result");
+		let Some(fence) = self.fence_result(fence) else { return; };
+		if (cfg!(not(target_os = "windows")))
+		{
+			println!("HGEMain: fence wait");
+			let _ = fence.wait(None); // if not present, make cleanup_finished() crash.
+		}
+		self._previousFrameEnd = Some(fence.boxed_send_sync());
+	}
+	
+	fn fence_result<T>(&mut self, result: Result<T, Validated<VulkanError>>) -> Option<T>
+	{
+		match result.map_err(Validated::unwrap) {
 			Ok(fence) => {
-				let _ = fence.wait(None); // if not present, make cleanup_finished() crash.
-				self._previousFrameEnd = Some(fence.boxed_send_sync());
+				return Some(fence);
 			}
 			Err(VulkanError::OutOfDate) => {
 				self._recreatSwapChain = true;
@@ -283,6 +301,8 @@ impl HGErendering
 				HTrace!("Failed to flush future: {:?}", e);
 			}
 		}
+		
+		return None;
 	}
 	
 	/// applied dynamic resolution system (move last image to swapimage with blit operation, return true if something gone wrong

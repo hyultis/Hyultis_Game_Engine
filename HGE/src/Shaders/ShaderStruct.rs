@@ -1,11 +1,9 @@
 use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Shaders::intoVertexed::IntoVertexted;
 use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
-use arc_swap::ArcSwapOption;
 use dashmap::DashMap;
 use downcast_rs::{impl_downcast, Downcast};
 use dyn_clone::DynClone;
-use std::sync::Arc;
 use uuid::Uuid;
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, Subbuffer};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
@@ -46,14 +44,14 @@ pub trait ShaderStructInstance: ShaderStruct
 pub struct ShaderStructHolder_utils {}
 impl ShaderStructHolder_utils
 {
-	pub fn updateBuffer<T>(vertex: Vec<T>, output: &ArcSwapOption<Subbuffer<[T]>>, bufferInfos: BufferCreateInfo, allocInfos: AllocationCreateInfo) -> u32
+	pub fn updateBuffer<T>(vertex: Vec<T>, output: &mut Option<Subbuffer<[T]>>, bufferInfos: BufferCreateInfo, allocInfos: AllocationCreateInfo) -> u32
 		where
 			T: BufferContents
 	{
 		let len = vertex.len() as u32;
 		if (len == 0)
 		{
-			output.store(None);
+			*output = None;
 			return len;
 		}
 		
@@ -63,10 +61,10 @@ impl ShaderStructHolder_utils
 			allocInfos,
 			vertex,
 		) else {
-			output.store(None);
+			*output = None;
 			return 0;
 		};
-		output.store(Some(Arc::new(buffer)));
+		*output = Some(buffer);
 		
 		return len;
 	}

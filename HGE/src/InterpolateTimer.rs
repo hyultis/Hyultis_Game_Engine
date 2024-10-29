@@ -24,16 +24,16 @@ impl InterpolateTimer
 		let mut durationFromStart = Instant::now().duration_since(self._startTime).as_nanos();
 		match self._type {
 			InterpolateTimer_type::CLAMP => {
-				durationFromStart = durationFromStart.clamp(0,self._duration);
+				durationFromStart = durationFromStart.clamp(0, self._duration);
 			}
 			InterpolateTimer_type::REPEAT => {
-				durationFromStart = durationFromStart%self._duration;
+				durationFromStart = durationFromStart % self._duration;
 			}
 		}
 		
-		let valdistance = self._endVal-self._startVal;
-		let percent = durationFromStart as f32/self._duration as f32;
-		return valdistance*percent;
+		let valdistance = self._endVal - self._startVal;
+		let percent = durationFromStart as f32 / self._duration as f32;
+		return valdistance * percent;
 	}
 }
 
@@ -61,7 +61,7 @@ impl ManagerInterpolate
 	
 	pub fn getNowFromLast(&self) -> Duration
 	{
-		return Instant::now().duration_since(self._now);
+		return self._now.elapsed();
 	}
 	
 	pub fn getFps(&self) -> u32
@@ -74,13 +74,13 @@ impl ManagerInterpolate
 	{
 		let durationFromLast = self._now.duration_since(self._lastTime).as_nanos() as f64;
 		let diff = durationFromLast / duration.as_nanos() as f64;
-		return (value as f64*diff) as f32;
+		return (value as f64 * diff) as f32;
 	}
 	
 	pub fn FromTo(&self, start: f32, end: f32, duree: Duration) -> InterpolateTimer
 	{
 		let nanos = duree.as_nanos();
-		return InterpolateTimer{
+		return InterpolateTimer {
 			_startVal: start,
 			_endVal: end,
 			_duration: nanos,

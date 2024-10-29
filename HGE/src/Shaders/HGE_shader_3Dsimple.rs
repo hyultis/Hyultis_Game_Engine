@@ -1,6 +1,5 @@
 use crate::components::cacheInfos::cacheInfos;
 use crate::HGEsubpass::HGEsubpassName;
-use crate::ManagerBuilder::ManagerBuilder;
 use crate::Pipeline::EnginePipelines;
 use crate::Pipeline::ManagerPipeline::ManagerPipeline;
 use crate::Shaders::intoVertexed::IntoVertexted;
@@ -8,22 +7,22 @@ use crate::Shaders::names;
 use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
 use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder, ShaderStructHolder_utils};
+use crate::Shaders::ShaderStructCache::ShaderStructCache;
 use crate::Textures::Manager::ManagerTexture;
 use anyhow::anyhow;
 use arc_swap::ArcSwapOption;
 use dashmap::DashMap;
 use std::convert::TryInto;
 use std::hash::{Hash, Hasher};
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use uuid::Uuid;
-use vulkano::buffer::{BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
+use vulkano::buffer::BufferContents;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
-use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::graphics::input_assembly::PrimitiveTopology;
 use vulkano::pipeline::graphics::vertex_input::Vertex;
 use vulkano::pipeline::PipelineBindPoint;
 use Htrace::HTraceError;
-
 
 // struct externe, a changer en HGE_shader_2Dsimple
 #[derive(Clone, Debug)]
@@ -162,9 +161,7 @@ pub struct HGE_shader_3Dsimple_holder
 {
 	_datas: DashMap<Uuid, ShaderDrawerImplStruct<Box<dyn IntoVertexted<HGE_shader_3Dsimple> + Send + Sync>>>,
 	_haveUpdate: AtomicBool,
-	_cacheDatasMem: ArcSwapOption<Subbuffer<[HGE_shader_3Dsimple]>>,
-	_cacheIndicesMem: ArcSwapOption<Subbuffer<[u32]>>,
-	_cacheIndicesLen: AtomicU32,
+	_cacheDraw: ArcSwapOption<ShaderStructCache<HGE_shader_3Dsimple>>
 }
 
 impl HGE_shader_3Dsimple_holder
@@ -219,10 +216,8 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 	fn init() -> Self {
 		Self {
 			_datas: DashMap::new(),
-			_cacheDatasMem: ArcSwapOption::empty(),
-			_cacheIndicesMem: ArcSwapOption::empty(),
 			_haveUpdate: AtomicBool::new(false),
-			_cacheIndicesLen: AtomicU32::new(0),
+			_cacheDraw: Default::default(),
 		}
 	}
 	
@@ -238,9 +233,7 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 	{
 		self._datas.clear();
 		self._haveUpdate.store(false, Ordering::Release);
-		self._cacheIndicesMem.store(None);
-		self._cacheDatasMem.store(None);
-		self._cacheIndicesLen.store(0, Ordering::Release);
+		self._cacheDraw.store(None);
 	}
 	
 	fn update(&self)
@@ -253,38 +246,19 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 		let (vertex, indices, atleastone) = self.compileData();
 		if (!atleastone)
 		{
-			self._cacheDatasMem.store(None);
-			self._cacheIndicesMem.store(None);
-			self._cacheIndicesLen.store(0, Ordering::Release);
+			self._cacheDraw.store(None);
 			return;
 		}
 		
-		ShaderStructHolder_utils::updateBuffer(vertex, &self._cacheDatasMem, BufferCreateInfo {
-			usage: BufferUsage::VERTEX_BUFFER,
-			..Default::default()
-		}, AllocationCreateInfo {
-			memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-				| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-			..Default::default()
-		});
-		
-		self._cacheIndicesLen.store(ShaderStructHolder_utils::updateBuffer(indices, &self._cacheIndicesMem, BufferCreateInfo {
-			usage: BufferUsage::INDEX_BUFFER,
-			..Default::default()
-		}, AllocationCreateInfo {
-			memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-				| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-			..Default::default()
-		}), Ordering::Release);
+		let mut newcache = ShaderStructCache::new();
+		newcache.update(vertex, indices);
+		self._cacheDraw.store(Some(Arc::new(newcache)));
 		
 		self._haveUpdate.store(false, Ordering::Release);
 	}
 	
 	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
 	{
-		let Some(datamem) = &*self._cacheDatasMem.load() else { return };
-		let Some(indicemem) = &*self._cacheIndicesMem.load() else { return };
-		
 		let Some(pipelineLayout) = ManagerPipeline::singleton().layoutGet(&pipelinename) else { return; };
 		if (ManagerShaders::singleton().push_constants(names::simple3D, cmdBuilder, pipelineLayout.clone(), 0) == false)
 		{
@@ -302,21 +276,9 @@ impl ShaderStructHolder for HGE_shader_3Dsimple_holder
 			));
 		}
 		
-		let lenIndice = self._cacheIndicesLen.load(Ordering::Acquire);
-		
-		ManagerBuilder::builderAddPipeline(cmdBuilder, &pipelinename);
-		
-		cmdBuilder
-			.bind_vertex_buffers(0, ((&**datamem).clone())).unwrap()
-			.bind_index_buffer((&**indicemem).clone()).unwrap()
-			.draw_indexed(lenIndice, 1, 0, 0, 0).unwrap();
-		
-		if ManagerBuilder::builderAddPipelineTransparency(cmdBuilder, &pipelinename)
+		if let Some(cache) = &*self._cacheDraw.load()
 		{
-			cmdBuilder
-				.bind_vertex_buffers(0, ((&**datamem).clone())).unwrap()
-				.bind_index_buffer((&**indicemem).clone()).unwrap()
-				.draw_indexed(lenIndice, 1, 0, 0, 0).unwrap();
+			cache.draw(cmdBuilder, pipelinename);
 		}
 	}
 }

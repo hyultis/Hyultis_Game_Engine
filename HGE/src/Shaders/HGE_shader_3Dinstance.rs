@@ -1,5 +1,4 @@
 use crate::HGEsubpass::HGEsubpassName;
-use crate::ManagerBuilder::ManagerBuilder;
 use crate::Pipeline::EnginePipelines;
 use crate::Pipeline::ManagerPipeline::ManagerPipeline;
 use crate::Shaders::intoVertexed::IntoVertexted;
@@ -7,17 +6,17 @@ use crate::Shaders::names;
 use crate::Shaders::HGE_shader_3Dsimple::HGE_shader_3Dsimple_def;
 use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImplStruct;
-use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder, ShaderStructHolder_utils};
+use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder};
+use crate::Shaders::ShaderStructCacheInstanced::ShaderStructCacheInstanced;
 use crate::Textures::Manager::ManagerTexture;
 use anyhow::anyhow;
 use arc_swap::{ArcSwap, ArcSwapOption};
 use dashmap::DashMap;
 use std::convert::TryInto;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use vulkano::buffer::{BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
+use vulkano::buffer::BufferContents;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
-use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::graphics::input_assembly::PrimitiveTopology;
 use vulkano::pipeline::graphics::vertex_input::Vertex;
 use vulkano::pipeline::PipelineBindPoint;
@@ -114,11 +113,7 @@ struct HGE_shader_3Dinstance_subholder
 	_model: ArcSwap<ShaderDrawerImplStruct<Box<dyn IntoVertexted<HGE_shader_3Dinstance> + Send + Sync>>>,
 	_haveUpdate: AtomicBool,
 	_instance: DashMap<String, HGE_shader_3Dinstance_data>,
-	_cacheDatasMem: ArcSwapOption<Subbuffer<[HGE_shader_3Dinstance]>>,
-	_cacheIndicesMem: ArcSwapOption<Subbuffer<[u32]>>,
-	_cacheIndicesLen: AtomicU32,
-	_cacheInstanceMem: ArcSwapOption<Subbuffer<[HGE_shader_3Dinstance_data]>>,
-	_cacheInstanceLen: AtomicU32,
+	_cacheDraw: ArcSwapOption<ShaderStructCacheInstanced<HGE_shader_3Dinstance, HGE_shader_3Dinstance_data>>
 }
 
 impl HGE_shader_3Dinstance_subholder
@@ -150,6 +145,26 @@ impl HGE_shader_3Dinstance_subholder
 		}
 		
 		return (vertex, indices, atleastone);
+	}
+	
+	pub fn cache_reset(&self)
+	{
+		self._cacheDraw.store(None);
+	}
+	
+	pub fn cache_update(&self, vertex: Vec<HGE_shader_3Dinstance>, indices: Vec<u32>, instance: Vec<HGE_shader_3Dinstance_data>)
+	{
+		let mut newcache = ShaderStructCacheInstanced::new();
+		newcache.update(vertex, indices, instance);
+		self._cacheDraw.store(Some(Arc::new(newcache)));
+	}
+	
+	pub fn cache_draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
+	{
+		if let Some(cache) = &*self._cacheDraw.load()
+		{
+			cache.draw(cmdBuilder, pipelinename);
+		}
 	}
 }
 
@@ -191,11 +206,7 @@ impl HGE_shader_3Dinstance_holder
 				_model: Default::default(),
 				_haveUpdate: AtomicBool::new(false),
 				_instance: Default::default(),
-				_cacheDatasMem: ArcSwapOption::empty(),
-				_cacheIndicesMem: ArcSwapOption::empty(),
-				_cacheInstanceMem: ArcSwapOption::empty(),
-				_cacheIndicesLen: AtomicU32::new(0),
-				_cacheInstanceLen: AtomicU32::new(0),
+				_cacheDraw: Default::default(),
 			});
 		}
 		
@@ -254,43 +265,15 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 				let (vertex, indices, atleastone) = selfdata.compileData();
 				if (atleastone)
 				{
-					ShaderStructHolder_utils::updateBuffer(vertex, &selfdata._cacheDatasMem, BufferCreateInfo {
-						usage: BufferUsage::VERTEX_BUFFER,
-						..Default::default()
-					}, AllocationCreateInfo {
-						memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-							| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-						..Default::default()
-					});
-					
-					selfdata._cacheIndicesLen.store(ShaderStructHolder_utils::updateBuffer(indices, &selfdata._cacheIndicesMem, BufferCreateInfo {
-						usage: BufferUsage::INDEX_BUFFER,
-						..Default::default()
-					}, AllocationCreateInfo {
-						memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-							| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-						..Default::default()
-					}), Ordering::Release);
-					
-					let datas = selfdata._instance.iter().map(|x| {
+					let instances = selfdata._instance.iter().map(|x| {
 						x.value().clone()
 					}).collect::<Vec<HGE_shader_3Dinstance_data>>();
-					selfdata._cacheInstanceLen.store(ShaderStructHolder_utils::updateBuffer(datas, &selfdata._cacheInstanceMem, BufferCreateInfo {
-						usage: BufferUsage::VERTEX_BUFFER,
-						..Default::default()
-					}, AllocationCreateInfo {
-						memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-							| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-						..Default::default()
-					}), Ordering::Release);
+					
+					selfdata.cache_update(vertex, indices, instances);
 					
 					haveatleastone = true;
 				} else {
-					selfdata._cacheDatasMem.store(None);
-					selfdata._cacheIndicesMem.store(None);
-					selfdata._cacheIndicesLen.store(0, Ordering::Release);
-					selfdata._cacheInstanceMem.store(None);
-					selfdata._cacheInstanceLen.store(0, Ordering::Release);
+					selfdata.cache_reset();
 				}
 			});
 		
@@ -319,35 +302,9 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 			));
 		}
 		
-		self._datas.iter().filter(|selfdata| {
-			selfdata._cacheDatasMem.load().is_some()
-				&& selfdata._cacheIndicesMem.load().is_some()
-				&& selfdata._cacheInstanceMem.load().is_some()
-				&& selfdata._cacheIndicesLen.load(Ordering::Acquire) > 0
-				&& selfdata._cacheInstanceLen.load(Ordering::Acquire) > 0
-		}).for_each(|selfdata|
+		self._datas.iter().for_each(|selfdata|
 			{
-				let Some(datamem) = &*selfdata._cacheDatasMem.load() else { return };
-				let Some(indicemem) = &*selfdata._cacheIndicesMem.load() else { return };
-				let Some(instancemem) = &*selfdata._cacheInstanceMem.load() else { return };
-				
-				ManagerBuilder::builderAddPipeline(cmdBuilder, &pipelinename);
-				
-				let indicelen = selfdata._cacheIndicesLen.load(Ordering::Acquire);
-				let instancelen = selfdata._cacheInstanceLen.load(Ordering::Acquire);
-				
-				HTraceError!(cmdBuilder
-					.bind_vertex_buffers(0, ((&**datamem).clone(), (&**instancemem).clone())).unwrap()
-					.bind_index_buffer((&**indicemem).clone()).unwrap()
-					.draw_indexed(indicelen, instancelen, 0, 0, 0));
-				
-				if (ManagerBuilder::builderAddPipelineTransparency(cmdBuilder, &pipelinename))
-				{
-					HTraceError!(cmdBuilder
-						.bind_vertex_buffers(0, ((&**datamem).clone(), (&**instancemem).clone())).unwrap()
-						.bind_index_buffer((&**indicemem).clone()).unwrap()
-						.draw_indexed(indicelen, instancelen, 0, 0, 0));
-				}
+				selfdata.cache_draw(cmdBuilder, pipelinename.clone());
 			});
 	}
 }
