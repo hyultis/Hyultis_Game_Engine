@@ -1,14 +1,14 @@
-use std::sync::Arc;
 use ahash::AHashMap;
-use Htrace::HTrace;
-use Htrace::Type::Type;
-use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, Features, Queue, QueueCreateInfo, QueueFlags};
+use std::sync::Arc;
 use vulkano::device::physical::PhysicalDeviceType;
+use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, Features, Queue, QueueCreateInfo, QueueFlags};
 use vulkano::format::Format;
 use vulkano::instance::Instance;
 use vulkano::memory::MemoryPropertyFlags;
 use vulkano::swapchain::{PresentMode, Surface, SurfaceCapabilities, SurfaceInfo};
 use vulkano::Version;
+use Htrace::HTrace;
+use Htrace::Type::Type;
 
 
 #[derive(Clone)]
@@ -23,15 +23,16 @@ pub struct BuilderDeviceMemory
 pub struct BuilderDevice
 {
 	pub device: Arc<Device>,
-	_queues: AHashMap<u32,Arc<Queue>>,
+	_queues: AHashMap<u32, Arc<Queue>>,
 	_queueData: AHashMap<u32, [bool; 3]>,
-
+	
 	pub extensionload_for13: bool,
 	pub maxpushconstant: u32,
 	pub maxtextureshader: Option<u32>,
 	pub depthformat: Format,
 	pub memory: BuilderDeviceMemory,
-	pub surfaceCapabilities: Option<SurfaceCapabilities>
+	pub surfaceCapabilities: Option<SurfaceCapabilities>,
+	pub isNvidia: bool,
 }
 
 impl BuilderDevice
@@ -61,7 +62,7 @@ impl BuilderDevice
 	{
 		return self.FindQueueForX(1);
 	}
-		
+	
 	pub fn getQueueCompute(&self) -> Arc<Queue>
 	{
 		return self.FindQueueForX(2);
@@ -71,7 +72,7 @@ impl BuilderDevice
 	{
 		match instance.enumerate_physical_devices() {
 			Ok(devices) => {
-				if(devices.len()==0)
+				if (devices.len() == 0)
 				{
 					HTrace!("no any vulkan devices");
 					panic!("no any vulkan devices");
@@ -79,7 +80,7 @@ impl BuilderDevice
 			}
 			Err(err) => {
 				HTrace!("Cannot list vulkan devices : {}",err);
-				panic!("Cannot list vulkan devices : {}",err);
+				panic!("Cannot list vulkan devices : {}", err);
 			}
 		}
 		
@@ -143,13 +144,13 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 			})
 			.filter_map(|p| {
 				p.queue_family_properties()
-					.iter()
-					.enumerate()
-					.position(|(i, q)| {
-						q.queue_flags.intersects(QueueFlags::GRAPHICS)
-							&& p.surface_support(i as u32, &surface).unwrap_or(false)
-					})
-					.map(|i| (p, i as u32))
+				 .iter()
+				 .enumerate()
+				 .position(|(i, q)| {
+					 q.queue_flags.intersects(QueueFlags::GRAPHICS)
+						 && p.surface_support(i as u32, &surface).unwrap_or(false)
+				 })
+				 .map(|i| (p, i as u32))
 			})
 			.min_by_key(|(p, _)| match p.properties().device_type {
 				PhysicalDeviceType::DiscreteGpu => 0,
@@ -173,16 +174,16 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 		let mut QueueVec = Vec::new();
 		for x in physical_device.queue_family_properties()
 		{
-			QueueData.insert(QueueNb,[x.queue_flags.intersects(QueueFlags::GRAPHICS),x.queue_flags.intersects(QueueFlags::TRANSFER),x.queue_flags.intersects(QueueFlags::COMPUTE)]);
+			QueueData.insert(QueueNb, [x.queue_flags.intersects(QueueFlags::GRAPHICS), x.queue_flags.intersects(QueueFlags::TRANSFER), x.queue_flags.intersects(QueueFlags::COMPUTE)]);
 			QueueVec.push(QueueCreateInfo {
 				queue_family_index: QueueNb,  // first is zero AND normaly a GPU have one queue minimal
 				queues: vec![1.0],
 				..Default::default()
 			});
-			QueueNb+=1;
+			QueueNb += 1;
 		}
 		
-		let pushconstantsize =	physical_device.properties().max_push_constants_size;
+		let pushconstantsize = physical_device.properties().max_push_constants_size;
 		//let mut can13 = physical_device.api_version() >= Version::V1_3;
 		let can13 = false; // need to false if VULKAN11COMP in shader define.glsl is set
 		let mut feature = Features { // pc default
@@ -196,7 +197,7 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 			//extended_dynamic_state: true,
 			..Features::empty()
 		};
-		if(!can13) // android
+		if (!can13) // android
 		{
 			feature = Features {
 				//sampler_anisotropy: true,
@@ -236,17 +237,17 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 		
 		let mut tmpqueues = AHashMap::new();
 		for x in queues {
-			tmpqueues.insert(x.queue_family_index(),x);
+			tmpqueues.insert(x.queue_family_index(), x);
 		}
 		
 		let mut memorySize = 0;
 		let deviceIndex = device.physical_device().memory_properties().memory_types.iter()
-			.filter(|x|x.property_flags.intersects(MemoryPropertyFlags::DEVICE_LOCAL))
-			.next().map(|x|x.heap_index).unwrap_or(0) as usize;
+		                        .filter(|x| x.property_flags.intersects(MemoryPropertyFlags::DEVICE_LOCAL))
+		                        .next().map(|x| x.heap_index).unwrap_or(0) as usize;
 		//device.physical_device().memory_properties().memory_heaps.iter().for_each(|x|{println!("tst {} {:?}",x.size as u64,x.flags)});
 		if let Some(gpuram) = device.physical_device().memory_properties().memory_heaps.get(deviceIndex)
 		{
-			memorySize = ((gpuram.size as u64)/1024)/1024;
+			memorySize = ((gpuram.size as u64) / 1024) / 1024;
 		}
 		HTrace!("device max memory size : {}",memorySize);
 		
@@ -258,7 +259,7 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 		HTrace!("depth format : {:?}",format);
 		
 		let mut surfaceCapabilities = None;
-		if let Ok(tmp) = device.physical_device().surface_capabilities(&surface, SurfaceInfo{
+		if let Ok(tmp) = device.physical_device().surface_capabilities(&surface, SurfaceInfo {
 			present_mode: Some(PresentMode::Fifo),
 			..SurfaceInfo::default()
 		})
@@ -267,8 +268,10 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 			surfaceCapabilities = Some(tmp);
 		}
 		
+		let isNvidia = device.physical_device().properties().driver_name.clone().unwrap_or("".to_string()).to_uppercase() == "NVIDIA";
+		
 		BuilderDevice {
-			device: device,
+			device,
 			_queues: tmpqueues,
 			_queueData: QueueData,
 			extensionload_for13: can13,
@@ -276,13 +279,14 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 			maxtextureshader: Some(128),
 			depthformat: format,
 			memory: BuilderDeviceMemory { heapIndex: deviceIndex, heapSize: memorySize },
-			surfaceCapabilities: surfaceCapabilities,
+			surfaceCapabilities,
+			isNvidia,
 		}
 	}
 	
 	pub fn getQueueSharing(&self) -> Vec<u32>
 	{
-		let tmp = self._queues.iter().map(|(_,x)|{x.queue_family_index()}).collect();
+		let tmp = self._queues.iter().map(|(_, x)| { x.queue_family_index() }).collect();
 		return tmp;
 	}
 	
@@ -292,12 +296,12 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 	{
 		let mut SecondaryElement = 1;
 		let mut ThirdElement = 2;
-		if(ElementToFind==1)
+		if (ElementToFind == 1)
 		{
 			SecondaryElement = 0;
 			ThirdElement = 2;
 		}
-		if(ElementToFind==2)
+		if (ElementToFind == 2)
 		{
 			SecondaryElement = 1;
 			ThirdElement = 0;
@@ -306,30 +310,28 @@ shader_uniform_buffer_array_non_uniform_indexing_native: {}",
 		let mut found = self._queues.get(&0);
 		
 		// search specialized queue
-		for (key,queue) in self._queueData.iter()
+		for (key, queue) in self._queueData.iter()
 		{
-			if(*key==0 || !queue[ElementToFind])
+			if (*key == 0 || !queue[ElementToFind])
 			{
 				continue;
 			}
-				if(!queue[SecondaryElement] && !queue[ThirdElement]) // specialised queue, so we leave directly
-				{
-					found = self._queues.get(key);
-					break;
-				}
-				if(!queue[SecondaryElement] || !queue[ThirdElement])
-				{
-					found = self._queues.get(key);
-				}
-			
+			if (!queue[SecondaryElement] && !queue[ThirdElement]) // specialised queue, so we leave directly
+			{
+				found = self._queues.get(key);
+				break;
+			}
+			if (!queue[SecondaryElement] || !queue[ThirdElement])
+			{
+				found = self._queues.get(key);
+			}
 		}
 		
-		if(found.is_none())
+		if (found.is_none())
 		{
 			return self._queues.get(&0).unwrap().clone();
 		}
 		
 		return found.unwrap().clone();
 	}
-	
 }
