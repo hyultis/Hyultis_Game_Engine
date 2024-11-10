@@ -26,6 +26,7 @@ use HGE::fronts::winit::winit::event_loop::{ActiveEventLoop, EventLoop};
 use HGE::fronts::winit::HGEwinit;
 use HGE::Animation::{Animation, AnimationUtils};
 use HGE::fronts::UserDefinedEventOverride::UserDefinedEventOverride;
+use HGE::fronts::winit::winit::keyboard::KeyCode;
 use HGE::fronts::winit::winit::window::WindowId;
 use HGE::HGEMain::HGEMain;
 use HGE::Interface::ManagerInterface::ManagerInterface;
@@ -40,12 +41,12 @@ mod shaders;
 
 fn main()
 {
-	/// creating default paths, and purging traces from last launch
+	// creating default paths, and purging traces from last launch
 	let _ = fs::create_dir(Paths::singleton().getConfig());
 	let _ = fs::create_dir(Paths::singleton().getDynamic());
 	let _ = fs::remove_dir_all(format!("{}{}", Paths::singleton().getDynamic(), "/traces"));
 	
-	/// defining default behavior for HConfigManager and HTracer
+	// defining default behavior for HConfigManager and HTracer
 	HConfigManager::singleton().setConfPath(Paths::singleton().getConfig());
 	HTracer::minlvl_default(Type::WARNING);
 	HTracer::appendModule("cli", CommandLine::new(CommandLineConfig::default())).unwrap();
@@ -56,14 +57,14 @@ fn main()
 	})).unwrap();
 	HTracer::threadSetName("main");
 	
-	/// loading resource used for this example after engine init
+	// loading resource used for this example after engine init
 	HGEwinit::singleton().setFunc_PostInit(|| {
 		ManagerTexture::singleton().add("image", "image.png", None);
 		ManagerTexture::singleton().add("alpha_test", "alpha_test.png", None);
 		build2D();
 	});
 	
-	/// main loop using HGEwinit
+	// main loop using HGEwinit
 	HGEwinit::run(EventLoop::new().unwrap(), HGEconfig_general {
 		startFullscreen: false,
 		windowTitle: "HGEexample".to_string(),
@@ -271,16 +272,16 @@ impl UserDefinedEventOverride for Simple2dEvents
 	
 	}
 	
-	fn window_event(&mut self, eventloop: &ActiveEventLoop, event: WindowEvent, window_id: WindowId) {
+	fn window_event(&mut self, eventloop: &ActiveEventLoop, event: &WindowEvent, window_id: WindowId) {
 		match event {
 			WindowEvent::MouseInput {
 				button,
 				state, ..
 			} => {
 				//println!("button {:?} : {:?}",button,state);
-				if (button == MouseButton::Left)
+				if (*button == MouseButton::Left)
 				{
-					self.mouseleftclick = state == ElementState::Pressed;
+					self.mouseleftclick = *state == ElementState::Pressed;
 				}
 			}
 			WindowEvent::CursorMoved {
@@ -292,6 +293,29 @@ impl UserDefinedEventOverride for Simple2dEvents
 			},
 			_ => ()
 		}
+	}
+	
+	fn device_event(&mut self, _: &ActiveEventLoop, _: &DeviceEvent, _: DeviceId)
+	{
+	}
+	
+	fn about_to_render(&mut self, eventloop: &ActiveEventLoop)
+	{
+		if (self.mousemoved || self.mouseleftclick)
+		{
+			ManagerInterface::singleton().mouseUpdate(self.mousex as u16, self.mousey as u16, (self.mouseleftclick ^ self.mouseleftcliked));
+		}
+		self.mouseleftcliked = self.mouseleftclick;
+		self.mousemoved = false;
+	}
+	
+	fn about_to_wait(&mut self, eventloop: &ActiveEventLoop)
+	{
+		if (HGEwinit::singleton().Inputs_getmut().getKeyboardStateAndSteal(KeyCode::Escape) == ElementState::Pressed)
+		{
+			eventloop.exit();
+		}
+		
 		let fps = HGEMain::singleton().getTimer().getFps() as u128;
 		if (self.start.elapsed().as_secs() > 3)
 		{
@@ -307,21 +331,6 @@ impl UserDefinedEventOverride for Simple2dEvents
 			self.fpsnb += 1;
 		}
 		
-		if (self.mousemoved || self.mouseleftclick)
-		{
-			ManagerInterface::singleton().mouseUpdate(self.mousex as u16, self.mousey as u16, (self.mouseleftclick ^ self.mouseleftcliked));
-		}
-		
-		self.mouseleftcliked = self.mouseleftclick;
-		self.mousemoved = false;
-		println!("fps : {} - {} - {}", self.fpsall / self.fpsnb, self.fpsmax, self.fpsmin);
-	}
-	
-	fn device_event(&mut self, eventloop: &ActiveEventLoop, event: DeviceEvent, device_id: DeviceId) {
-	
-	}
-	
-	fn about_to_wait(&mut self, eventloop: &ActiveEventLoop) {
-	
+		//println!("fps : {} - {} - {}", self.fpsall / self.fpsnb, self.fpsmax, self.fpsmin);
 	}
 }

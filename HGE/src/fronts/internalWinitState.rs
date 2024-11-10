@@ -124,32 +124,36 @@ impl<'a> ApplicationHandler<()> for internalWinitState<'a> {
 				func();
 				eventloop.exit();
 			},
-			WindowEvent::RedrawRequested =>
+			WindowEvent::RedrawRequested => //problem with windows ? https://github.com/rust-windowing/winit/pull/3950
+			//https://github.com/rust-windowing/winit/issues/3272
 			{
+				if let Some(tmp) = &mut self.events
+				{
+					tmp.about_to_render(eventloop);
+				}
+				
 				HGEMain::singleton().runRendering(|| {
 					HGEwinit::getWindow(|window| {
 						window.pre_present_notify();
 					});
 				});
-				HGEMain::singleton().runService();
-				
-				/*HGEwinit::getWindow(|window| {
-					window.request_redraw();
-				});*/
-			},
+			}
 			_ => ()
 		}
 		
-		if let Some(tmp) = &mut self.events
+		if(event!=WindowEvent::RedrawRequested)
 		{
-			tmp.window_event(eventloop, event, window_id);
+			if let Some(tmp) = &mut self.events
+			{
+				tmp.window_event(eventloop, &event, window_id);
+			}
 		}
 	}
 	
 	fn device_event(&mut self, eventloop: &ActiveEventLoop, device_id: DeviceId, event: DeviceEvent) {
 		if let Some(tmp) = &mut self.events
 		{
-			tmp.device_event(eventloop, event, device_id);
+			tmp.device_event(eventloop, &event, device_id);
 		}
 	}
 	
@@ -159,8 +163,7 @@ impl<'a> ApplicationHandler<()> for internalWinitState<'a> {
 			return;
 		}
 		
-		//HGEMain::singleton().runService();
-		eventloop.set_control_flow(ControlFlow::Poll);
+		HGEMain::singleton().runService();
 		HGEwinit::getWindow(|window| {
 			window.request_redraw();
 		});
@@ -176,5 +179,7 @@ impl<'a> ApplicationHandler<()> for internalWinitState<'a> {
 				eventloop.exit();
 			}
 		}
+		
+		eventloop.set_control_flow(ControlFlow::Poll);
 	}
 }
