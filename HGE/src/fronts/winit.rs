@@ -1,6 +1,5 @@
 pub extern crate winit;
 
-use crate::components::system::TimeStats::TimeStatsStorage;
 use crate::configs::general::HGEconfig_general;
 use crate::configs::HGEconfig::HGEconfig;
 use crate::fronts::Inputs::Inputs;
@@ -11,14 +10,14 @@ use parking_lot::{RawRwLock, RwLock};
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use std::any::Any;
 use std::sync::OnceLock;
-use vulkano::swapchain::Surface;
-use winit::event::{ElementState, Event, WindowEvent};
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::keyboard::{KeyCode, PhysicalKey};
-use winit::window::{Fullscreen, Window};
+use winit::event::WindowEvent;
+use winit::event_loop::{ActiveEventLoop, EventLoop};
+use winit::window::{Fullscreen, Window, WindowId};
 use Hconfig::serde_json::Value as JsonValue;
 use Hconfig::HConfigManager::HConfigManager;
 use Htrace::{HTrace, HTraceError};
+use crate::fronts::internalWinitState::internalWinitState;
+use crate::fronts::UserDefinedEventOverride::UserDefinedEventOverride;
 
 pub struct HGEwinit
 {
@@ -62,140 +61,12 @@ impl HGEwinit
 	
 	/// run winit event, HGE engine, and connect logic of your system
 	/// postEngineEvent is run between engine event and rendering
-	pub fn run(eventloop: EventLoop<()>, generalConf: HGEconfig_general, postEngineEvent: &mut impl FnMut(&Event<()>, &ActiveEventLoop))
+	pub fn run(eventloop: EventLoop<()>, generalConf: HGEconfig_general, userEvents: Option<&mut impl UserDefinedEventOverride>)
 	{
-		let mut initialized = false;
-		
-		let _ = eventloop.run(move |event, eventloop|
-			{
-				if (!initialized)
-				{
-					if event == Event::Resumed
-					{
-						let preinit = HGEMain::preinitialize(generalConf.clone());
-						let window = match Self::buildAgnosticWindow(eventloop) {
-							Ok(x) => x,
-							Err(err) => { panic!("cannot get window from winit : {}", err); }
-						};
-						HTraceError!(HGEMain::initialize(Surface::required_extensions(eventloop),window,preinit));
-						initialized = true;
-						
-						let func = &mut *Self::singleton()._funcPostInit.write();
-						func();
-					}
-				} else if HGEMain::singleton().engineIsSuspended()
-				{
-					if event == Event::Resumed
-					{
-						let window = match Self::buildAgnosticWindow(eventloop) {
-							Ok(x) => x,
-							Err(err) => { panic!("cannot get window from winit : {}", err); }
-						};
-						HTraceError!(HGEMain::singleton().engineResumed(window));
-					}
-				} else {
-					match &event
-					{
-						Event::WindowEvent {
-							event: WindowEvent::KeyboardInput {
-								event: input,
-								..
-							}, ..
-						} => {
-							//println!("key input : {:?}",input);
-							if let PhysicalKey::Code(key) = input.physical_key
-							{
-								let mut inputsC = Self::singleton()._inputsC.write();
-								inputsC.updateFromKeyboard(key, input.state);
-							}
-						},
-						Event::WindowEvent {
-							event: WindowEvent::Resized(winsize), ..
-						} => {
-							let mut width = winsize.width.max(1);
-							if (width > 7680)
-							{
-								width = 1;
-							}
-							let mut height = winsize.height.max(1);
-							if (height > 4320)
-							{
-								height = 1;
-							}
-							
-							#[cfg(target_os = "android")]
-							{
-								Self::singleton().setWindowHDPI((1080.0 / height as f32).min(1.0));
-							}
-							
-							HGEMain::singleton().window_resize(Some([width, height]));
-						},
-						Event::Suspended => {
-							HGEMain::singleton().engineSuspended();
-						},
-						Event::WindowEvent {
-							event: WindowEvent::CloseRequested,
-							.. // window_id
-						} => {
-							eventloop.exit();
-						},
-						Event::WindowEvent {
-							event: WindowEvent::Destroyed,
-							.. // window_id
-						} => {
-							let func = &mut *Self::singleton()._funcPre_exit.write();
-							func();
-							eventloop.exit();
-						},
-						_ => ()
-					}
-					
-					postEngineEvent(&event, eventloop);
-					
-					match event
-					{
-						Event::WindowEvent {
-							event: WindowEvent::RedrawRequested,
-							..
-						} => {
-							HGEMain::singleton().runRendering(|| {
-								if let Some(surfaceBinding) = &*HGEMain::singleton().getSurface()
-								{
-									if let Some(window) = surfaceBinding.object().unwrap().downcast_ref::<Window>()
-									{
-										window.pre_present_notify();
-									}
-								}
-							});
-							
-							if let Some(surfaceBinding) = &*HGEMain::singleton().getSurface()
-							{
-								if let Some(window) = surfaceBinding.object().unwrap().downcast_ref::<Window>()
-								{
-									window.request_redraw();
-								}
-							}
-						},
-						_ => ()
-					}
-					
-					if event == Event::AboutToWait
-					{
-						if (Self::singleton()._inputsC.write().getKeyboardStateAndSteal(KeyCode::Escape) == ElementState::Pressed)
-						{
-							eventloop.exit();
-						}
-						
-						HGEMain::singleton().runService();
-						eventloop.set_control_flow(ControlFlow::Poll);
-					}
-				}
-			});
+		HTraceError!(eventloop.run_app(&mut internalWinitState::new(generalConf, userEvents)));
 	}
 	
-	pub fn getWindow<F>(&self, func: F)
-		where
-			F: FnOnce(&Window)
+	pub fn getWindow(func: impl FnOnce(&Window))
 	{
 		let surfaceBinding = HGEMain::singleton().getSurface();
 		if let Some(surface) = &*surfaceBinding
@@ -203,6 +74,21 @@ impl HGEwinit
 			let tmp = surface.object().unwrap().downcast_ref::<Window>().unwrap();
 			func(tmp);
 		}
+	}
+	
+	pub(crate) fn inputs_get_mut<'a>() -> RwLockWriteGuard<'a, RawRwLock, Inputs>
+	{
+		return Self::singleton()._inputsC.write();
+	}
+	
+	pub(crate) fn funcPostInit_get_mut<'a>() -> RwLockWriteGuard<'a, RawRwLock, Box<dyn FnMut() + Send + Sync>>
+	{
+		return Self::singleton()._funcPostInit.write();
+	}
+	
+	pub(crate) fn funcPreExit_get_mut<'a>() -> RwLockWriteGuard<'a, RawRwLock, Box<dyn FnMut() + Send + Sync>>
+	{
+		return Self::singleton()._funcPre_exit.write();
 	}
 	
 	//////////////////// PRIVATE /////////////////
@@ -216,7 +102,7 @@ impl HGEwinit
 		}
 	}
 	
-	fn buildAgnosticWindow(eventloop: &ActiveEventLoop) -> anyhow::Result<impl HasRawWindowHandle + HasRawDisplayHandle + Any + Send + Sync>
+	pub(crate) fn buildAgnosticWindow(eventloop: &ActiveEventLoop) -> anyhow::Result<impl HasRawWindowHandle + HasRawDisplayHandle + Any + Send + Sync>
 	{
 		let configBind = HGEconfig::singleton().general_get();
 		

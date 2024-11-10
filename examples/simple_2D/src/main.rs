@@ -21,10 +21,12 @@ use HGE::components::interfacePosition::interfacePosition;
 use HGE::components::HGEC_offset;
 use HGE::configs::general::{HGEconfig_general, HGEconfig_general_font};
 use HGE::entities::Plane::Plane;
-use HGE::fronts::winit::winit::event::{ElementState, Event, MouseButton, WindowEvent};
-use HGE::fronts::winit::winit::event_loop::EventLoop;
+use HGE::fronts::winit::winit::event::{DeviceEvent, DeviceId, ElementState, MouseButton, WindowEvent};
+use HGE::fronts::winit::winit::event_loop::{ActiveEventLoop, EventLoop};
 use HGE::fronts::winit::HGEwinit;
 use HGE::Animation::{Animation, AnimationUtils};
+use HGE::fronts::UserDefinedEventOverride::UserDefinedEventOverride;
+use HGE::fronts::winit::winit::window::WindowId;
 use HGE::HGEMain::HGEMain;
 use HGE::Interface::ManagerInterface::ManagerInterface;
 use HGE::Interface::Text::Text;
@@ -38,11 +40,12 @@ mod shaders;
 
 fn main()
 {
+	/// creating default paths, and purging traces from last launch
 	let _ = fs::create_dir(Paths::singleton().getConfig());
 	let _ = fs::create_dir(Paths::singleton().getDynamic());
 	let _ = fs::remove_dir_all(format!("{}{}", Paths::singleton().getDynamic(), "/traces"));
 	
-	
+	/// defining default behavior for HConfigManager and HTracer
 	HConfigManager::singleton().setConfPath(Paths::singleton().getConfig());
 	HTracer::minlvl_default(Type::WARNING);
 	HTracer::appendModule("cli", CommandLine::new(CommandLineConfig::default())).unwrap();
@@ -51,27 +54,16 @@ fn main()
 		byHour: true,
 		..Htrace::File::FileConfig::default()
 	})).unwrap();
-	
 	HTracer::threadSetName("main");
 	
+	/// loading resource used for this example after engine init
 	HGEwinit::singleton().setFunc_PostInit(|| {
 		ManagerTexture::singleton().add("image", "image.png", None);
 		ManagerTexture::singleton().add("alpha_test", "alpha_test.png", None);
 		build2D();
 	});
 	
-	let mut fpsall = 0;
-	let mut fpsmin = 999999;
-	let mut fpsmax = 0;
-	let mut fpsnb = 1u128;
-	let start = Instant::now();
-	
-	let mut mousex = 0.0;
-	let mut mousey = 0.0;
-	let mut mousemoved = false;
-	let mut mouseleftclick = false;
-	let mut mouseleftcliked = false;
-	
+	/// main loop using HGEwinit
 	HGEwinit::run(EventLoop::new().unwrap(), HGEconfig_general {
 		startFullscreen: false,
 		windowTitle: "HGEexample".to_string(),
@@ -82,55 +74,18 @@ fn main()
 			path_fileBold: "fonts/NotoSans-SemiBold.ttf".to_string(),
 		},
 		..Default::default()
-	}, &mut move |event, _| {
-		match event {
-			Event::WindowEvent {
-				event: WindowEvent::MouseInput {
-					button,
-					state, ..
-				}, ..
-			} => {
-				//println!("button {:?} : {:?}",button,state);
-				if (*button == MouseButton::Left)
-				{
-					mouseleftclick = *state == ElementState::Pressed;
-				}
-			}
-			Event::WindowEvent {
-				event: WindowEvent::CursorMoved {
-					position, ..
-				}, ..
-			} => {
-				mousex = position.x;
-				mousey = position.y;
-				mousemoved = true;
-			},
-			_ => ()
-		}
-		let fps = HGEMain::singleton().getTimer().getFps() as u128;
-		if (start.elapsed().as_secs() > 3)
-		{
-			if (fps > fpsmax)
-			{
-				fpsmax = fps;
-			}
-			if (fps < fpsmin)
-			{
-				fpsmin = fps;
-			}
-			fpsall += fps;
-			fpsnb += 1;
-		}
-		
-		if (mousemoved || mouseleftclick)
-		{
-			ManagerInterface::singleton().mouseUpdate(mousex as u16, mousey as u16, (mouseleftclick ^ mouseleftcliked));
-		}
-		
-		mouseleftcliked = mouseleftclick;
-		mousemoved = false;
-		//println!("fps : {} - {} - {fpsmax} - {fpsmin}",fps, fpsall/fpsnb);
-	});
+	}, Some(&mut Simple2dEvents{
+		fpsall: 0,
+		fpsmin: 999999,
+		fpsmax: 0,
+		fpsnb: 1u128,
+		start: Instant::now(),
+		mousex: 0.0,
+		mousey: 0.0,
+		mousemoved: false,
+		mouseleftclick: false,
+		mouseleftcliked: false,
+	}));
 }
 
 fn build2D()
@@ -285,4 +240,88 @@ fn build2DAnimation(imagecontent: HArcMut<Box<dyn UiPageContent + Sync + Send>>,
 		});
 	animcam.setModeRepeat();
 	ManagerAnimation::singleton().append(animcam);
+}
+
+/**
+ * here we stock events, and they're corresponding variable
+ */
+struct Simple2dEvents
+{
+	fpsall: u128,
+	fpsmin: u128,
+	fpsmax: u128,
+	fpsnb: u128,
+	start: Instant,
+	
+	mousex: f64,
+	mousey: f64,
+	mousemoved: bool,
+	mouseleftclick: bool,
+	mouseleftcliked: bool,
+	
+}
+
+impl UserDefinedEventOverride for Simple2dEvents
+{
+	fn resumed(&mut self, eventloop: &ActiveEventLoop) {
+	
+	}
+	
+	fn suspended(&mut self, eventloop: &ActiveEventLoop) {
+	
+	}
+	
+	fn window_event(&mut self, eventloop: &ActiveEventLoop, event: WindowEvent, window_id: WindowId) {
+		match event {
+			WindowEvent::MouseInput {
+				button,
+				state, ..
+			} => {
+				//println!("button {:?} : {:?}",button,state);
+				if (button == MouseButton::Left)
+				{
+					self.mouseleftclick = state == ElementState::Pressed;
+				}
+			}
+			WindowEvent::CursorMoved {
+				position, ..
+			} => {
+				self.mousex = position.x;
+				self.mousey = position.y;
+				self.mousemoved = true;
+			},
+			_ => ()
+		}
+		let fps = HGEMain::singleton().getTimer().getFps() as u128;
+		if (self.start.elapsed().as_secs() > 3)
+		{
+			if (fps > self.fpsmax)
+			{
+				self.fpsmax = fps;
+			}
+			if (fps < self.fpsmin)
+			{
+				self.fpsmin = fps;
+			}
+			self.fpsall += fps;
+			self.fpsnb += 1;
+		}
+		
+		if (self.mousemoved || self.mouseleftclick)
+		{
+			ManagerInterface::singleton().mouseUpdate(self.mousex as u16, self.mousey as u16, (self.mouseleftclick ^ self.mouseleftcliked));
+		}
+		
+		self.mouseleftcliked = self.mouseleftclick;
+		self.mousemoved = false;
+		println!("fps : {} - {} - {}", self.fpsall / self.fpsnb, self.fpsmax, self.fpsmin);
+	}
+	
+	fn device_event(&mut self, eventloop: &ActiveEventLoop, event: DeviceEvent, device_id: DeviceId) {
+	
+	}
+	
+	fn about_to_wait(&mut self, eventloop: &ActiveEventLoop) {
+	
+	}
 }

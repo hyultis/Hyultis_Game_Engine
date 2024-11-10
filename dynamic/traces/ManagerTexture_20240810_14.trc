@@ -1,5 +1,0 @@
-14:56:02.205288423      (HGE/src/Textures/Manager.rs:l433) : launched textureOrder
-14:56:02.205524699      (HGE/src/assetStreamReader.rs:l116) : assetManager readFile ./static/alpha_test.png
-14:56:02.205586285      (HGE/src/Textures/Orders/Order_load.rs:l59) : texture is blocked for : cannot load : alpha_test.png
-14:56:02.205534868      (HGE/src/assetStreamReader.rs:l116) : assetManager readFile ./static/image.png
-14:56:02.205596534      (HGE/src/Textures/Orders/Order_load.rs:l59) : texture is blocked for : cannot load : image.png
