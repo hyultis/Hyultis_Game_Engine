@@ -56,3 +56,6 @@ winit = { version = "0.30.5", features = ["rwh_05"] }
 [target.'cfg(target_os = "android")'.dependencies]
 winit = { version = "0.30.5", features = ["rwh_05", "android-game-activity"] }
 android-activity = { version = "0.6.0", features = ["game-activity"] }
+
+[dev-dependencies]
+vulkano-shaders = "0.34.0"
