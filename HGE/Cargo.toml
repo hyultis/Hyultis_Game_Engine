@@ -10,6 +10,8 @@ default = []
 #default = ["dynamicresolution"]
 dynamicresolution = []
 debuglayer = []
+front_winit = ["winit"]
+front_sdl = ["sdl2"]
 
 [dependencies]
 #base stuff
@@ -34,9 +36,10 @@ Htrace = { workspace = true }
 uuid = { version = "1.11.0", features = ["v4", "v7", "fast-rng"] }
 
 #graphic
-#sdl2 = "0.35.2"
-vulkano = "0.34.1"
-raw-window-handle = "0.5.2"
+sdl2 = { version = "0.37.0", optional = true, features = ["raw-window-handle"] }
+#vulkano = "0.34.1"
+vulkano = { workspace = true }
+raw-window-handle = "0.6"
 image = "0.25.4"
 palette = "0.7.6"
 ab_glyph = "0.2.29"
@@ -51,10 +54,10 @@ cgmath = "0.18.0"
 rodio = "0.19.0"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-winit = { version = "0.30.5", features = ["rwh_05"] }
+winit = { version = "0.30.5", features = ["rwh_06"], optional = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
-winit = { version = "0.30.5", features = ["rwh_05", "android-game-activity"] }
+winit = { version = "0.30.5", features = ["rwh_06", "android-game-activity"], optional = true }
 android-activity = { version = "0.6.0", features = ["game-activity"] }
 
 [dev-dependencies]

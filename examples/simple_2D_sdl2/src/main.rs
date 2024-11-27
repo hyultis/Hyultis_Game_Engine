@@ -20,16 +20,8 @@ use HGE::components::interfacePosition::interfacePosition;
 use HGE::components::HGEC_offset;
 use HGE::configs::general::{HGEconfig_general, HGEconfig_general_font};
 use HGE::entities::Plane::Plane;
-use HGE::fronts::export::winit::event::{
-	DeviceEvent, DeviceId, ElementState, MouseButton, WindowEvent,
-};
-use HGE::fronts::export::winit::event_loop::ActiveEventLoop;
-use HGE::fronts::export::winit::keyboard::KeyCode;
-use HGE::fronts::export::winit::window::WindowId;
-use HGE::fronts::winit::front::HGEwinit;
-use HGE::fronts::winit::UserDefinedEventOverride::UserDefinedEventOverride;
+use HGE::fronts::sdl::front::HGEsdl;
 use HGE::Animation::{Animation, AnimationUtils};
-use HGE::HGEMain::HGEMain;
 use HGE::Interface::ManagerInterface::ManagerInterface;
 use HGE::Interface::Text::Text;
 use HGE::Interface::UiButton::UiButton;
@@ -62,7 +54,8 @@ fn main()
 	.unwrap();
 	HTracer::threadSetName("main");
 
-	let mut engineEvent = HGEwinit::singleton().event_mut();
+	let mut sdlFront = HGEsdl::new();
+	let mut engineEvent = sdlFront.events_mut();
 	// loading resource used for this example after engine init
 	engineEvent.setFunc_PostInit(|| {
 		ManagerTexture::singleton().add("image", "image.png", None);
@@ -82,9 +75,10 @@ fn main()
 		},
 		..Default::default()
 	});
-	std::mem::drop(engineEvent);
 
-	HGEwinit::run(Some(&mut Simple2dDatas {
+	// main loop using HGEwinit
+	sdlFront.run();
+	/*, Some(&mut Simple2dEvents {
 		fpsall: 0,
 		fpsmin: 999999,
 		fpsmax: 0,
@@ -95,7 +89,7 @@ fn main()
 		mousemoved: false,
 		mouseleftclick: false,
 		mouseleftcliked: false,
-	}));
+	}));*/
 }
 
 fn build2D()
@@ -323,7 +317,7 @@ struct Simple2dDatas
 	mouseleftcliked: bool,
 }
 
-impl UserDefinedEventOverride for Simple2dDatas
+/*impl UserDefinedEventOverride for Simple2dDatas
 {
 	fn resumed(&mut self, eventloop: &ActiveEventLoop) {}
 
@@ -400,3 +394,4 @@ impl UserDefinedEventOverride for Simple2dDatas
 		//println!("fps : {} - {} - {}", self.fpsall / self.fpsnb, self.fpsmax, self.fpsmin);
 	}
 }
+*/

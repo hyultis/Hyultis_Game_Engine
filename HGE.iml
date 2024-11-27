@@ -10,6 +10,7 @@
       <sourceFolder url="file://$MODULE_DIR$/HGE/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/examples/simple_2D/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples/simple_2D_sdl2/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/examples/simple_2D/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>

@@ -1,12 +1,12 @@
 [package]
-name = "simple_2D"
+name = "simple_2D_sdl2"
 version = { workspace = true }
 edition = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-HGE = { path = "../../HGE", features = ["debuglayer", "dynamicresolution", "front_winit"] }
+HGE = { path = "../../HGE", features = ["debuglayer", "dynamicresolution", "front_sdl"] }
 Hconfig = { workspace = true }
 Htrace = { workspace = true }
 vulkano = { workspace = true }
@@ -17,4 +17,4 @@ glyph_brush_layout = "0.2.3"
 
 [[bin]]
 path = "src/main.rs"
-name = "simple_2D"
+name = "simple_2D_sdl2"
