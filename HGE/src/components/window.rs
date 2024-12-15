@@ -1,6 +1,6 @@
 use derive_more::Display;
 use vulkano::pipeline::graphics::viewport::Viewport;
-use vulkano::swapchain::SurfaceTransform;
+use vulkano::swapchain::{SurfaceCapabilities, SurfaceTransform};
 
 /// rotation is clock wise
 #[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Debug, Display)]
@@ -9,33 +9,37 @@ pub enum window_orientation
 	NORMAL,
 	ROT_90,
 	ROT_180,
-	ROT_270
+	ROT_270,
 }
 
 impl window_orientation
 {
 	pub fn getDeg(&self) -> f32
 	{
-		match self {
+		match self
+		{
 			window_orientation::NORMAL => 0.0,
 			window_orientation::ROT_90 => 90.0,
 			window_orientation::ROT_180 => 180.0,
-			window_orientation::ROT_270 => 270.0
+			window_orientation::ROT_270 => 270.0,
 		}
 	}
 }
 
 impl Default for window_orientation
 {
-	fn default() -> Self {
+	fn default() -> Self
+	{
 		Self::NORMAL
 	}
 }
 
 impl From<SurfaceTransform> for window_orientation
 {
-	fn from(value: SurfaceTransform) -> Self {
-		match value {
+	fn from(value: SurfaceTransform) -> Self
+	{
+		match value
+		{
 			SurfaceTransform::Rotate90 => Self::ROT_90,
 			SurfaceTransform::Rotate180 => Self::ROT_180,
 			SurfaceTransform::Rotate270 => Self::ROT_270,
@@ -46,8 +50,10 @@ impl From<SurfaceTransform> for window_orientation
 
 impl Into<SurfaceTransform> for window_orientation
 {
-	fn into(self) -> SurfaceTransform {
-		match self {
+	fn into(self) -> SurfaceTransform
+	{
+		match self
+		{
 			Self::ROT_90 => SurfaceTransform::Rotate90,
 			Self::ROT_180 => SurfaceTransform::Rotate180,
 			Self::ROT_270 => SurfaceTransform::Rotate270,
@@ -62,11 +68,10 @@ pub enum window_type
 {
 	FULLSCREEN,
 	BORDERLESS,
-	WINDOW
+	WINDOW,
 }
 
-
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct window_infos
 {
 	pub originx: f32,
@@ -82,9 +87,10 @@ pub struct window_infos
 	pub ratio_w2h: f32,
 	pub ratio_h2w: f32,
 	pub isWide: bool,
-	
+
 	pub HDPI: f32,
 	pub orientation: window_orientation,
+	pub surfaceCapabilities: Option<SurfaceCapabilities>,
 }
 
 impl window_infos
@@ -92,32 +98,33 @@ impl window_infos
 	/// return wide if window is wider or tall
 	pub fn if_wide<T>(&self, wide: T, tall: T) -> T
 	{
-		if(self.isWide)
+		if (self.isWide)
 		{
 			return wide;
 		}
 		return tall;
 	}
-	
+
 	pub fn ViewPort(&self) -> Viewport
 	{
 		Viewport {
 			offset: [self.originx, self.originy],
-			extent: [self.widthF,self.heightF],
+			extent: [self.widthF, self.heightF],
 			depth_range: 0.0..=1.0,
 		}
 	}
-	
+
 	pub fn raw(&self) -> [u32; 2]
 	{
-		[self.raw_width,self.raw_height]
+		[self.raw_width, self.raw_height]
 	}
 }
 
 impl Default for window_infos
 {
-	fn default() -> Self {
-		Self{
+	fn default() -> Self
+	{
+		Self {
 			originx: 0.0,
 			originy: 0.0,
 			width: 1,
@@ -133,27 +140,31 @@ impl Default for window_infos
 			isWide: false,
 			HDPI: 1.0,
 			orientation: Default::default(),
+			surfaceCapabilities: None,
 		}
 	}
 }
 
 impl Into<[f32; 2]> for window_infos
 {
-	fn into(self) -> [f32; 2] {
+	fn into(self) -> [f32; 2]
+	{
 		[self.widthF, self.heightF]
 	}
 }
 
 impl Into<[f32; 4]> for window_infos
 {
-	fn into(self) -> [f32; 4] {
+	fn into(self) -> [f32; 4]
+	{
 		[self.widthF, self.heightF, self.ratio_w2h, self.ratio_h2w]
 	}
 }
 
 impl Into<[u32; 2]> for window_infos
 {
-	fn into(self) -> [u32; 2] {
+	fn into(self) -> [u32; 2]
+	{
 		[self.width, self.height]
 	}
 }

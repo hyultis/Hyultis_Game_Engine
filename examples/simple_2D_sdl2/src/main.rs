@@ -13,6 +13,7 @@ use Hconfig::HConfigManager::HConfigManager;
 use Htrace::CommandLine::{CommandLine, CommandLineConfig};
 use Htrace::HTracer::HTracer;
 use Htrace::Type::Type;
+use Htrace::{HTrace, HTraceError};
 use HGE::components::color::color;
 use HGE::components::corners::corner4;
 use HGE::components::event::{event_trait_add, event_type};
@@ -20,8 +21,13 @@ use HGE::components::interfacePosition::interfacePosition;
 use HGE::components::HGEC_offset;
 use HGE::configs::general::{HGEconfig_general, HGEconfig_general_font};
 use HGE::entities::Plane::Plane;
+use HGE::fronts::export::sdl2::event::Event;
+use HGE::fronts::export::sdl2::keyboard::Keycode;
+use HGE::fronts::export::sdl2::mouse::MouseButton;
 use HGE::fronts::sdl::front::HGEsdl;
+use HGE::fronts::sdl::sdl_UserDefinedEventOverride::sdl_UserDefinedEventOverride;
 use HGE::Animation::{Animation, AnimationUtils};
+use HGE::HGEMain::HGEMain;
 use HGE::Interface::ManagerInterface::ManagerInterface;
 use HGE::Interface::Text::Text;
 use HGE::Interface::UiButton::UiButton;
@@ -55,7 +61,7 @@ fn main()
 	HTracer::threadSetName("main");
 
 	let mut sdlFront = HGEsdl::new();
-	let mut engineEvent = sdlFront.events_mut();
+	let engineEvent = sdlFront.events_mut();
 	// loading resource used for this example after engine init
 	engineEvent.setFunc_PostInit(|| {
 		ManagerTexture::singleton().add("image", "image.png", None);
@@ -77,8 +83,7 @@ fn main()
 	});
 
 	// main loop using HGEwinit
-	sdlFront.run();
-	/*, Some(&mut Simple2dEvents {
+	HTraceError!(sdlFront.run(Some(&mut Simple2dDatas {
 		fpsall: 0,
 		fpsmin: 999999,
 		fpsmax: 0,
@@ -89,7 +94,7 @@ fn main()
 		mousemoved: false,
 		mouseleftclick: false,
 		mouseleftcliked: false,
-	}));*/
+	})));
 }
 
 fn build2D()
@@ -317,42 +322,53 @@ struct Simple2dDatas
 	mouseleftcliked: bool,
 }
 
-/*impl UserDefinedEventOverride for Simple2dDatas
+impl sdl_UserDefinedEventOverride for Simple2dDatas
 {
-	fn resumed(&mut self, eventloop: &ActiveEventLoop) {}
+	fn resumed(&mut self) {}
 
-	fn suspended(&mut self, eventloop: &ActiveEventLoop) {}
+	fn suspended(&mut self) {}
 
-	fn window_event(
-		&mut self,
-		eventloop: &ActiveEventLoop,
-		event: &WindowEvent,
-		window_id: WindowId,
-	)
+	fn event(&mut self, event: &Event) -> bool
 	{
 		match event
 		{
-			WindowEvent::MouseInput { button, state, .. } =>
+			Event::MouseButtonDown {
+				mouse_btn, clicks, ..
+			} =>
 			{
-				//println!("button {:?} : {:?}",button,state);
-				if (*button == MouseButton::Left)
+				if (*mouse_btn == MouseButton::Left)
 				{
-					self.mouseleftclick = *state == ElementState::Pressed;
+					self.mouseleftclick = true;
 				}
 			}
-			WindowEvent::CursorMoved { position, .. } =>
+			Event::MouseButtonUp {
+				mouse_btn, clicks, ..
+			} =>
 			{
-				self.mousex = position.x;
-				self.mousey = position.y;
+				if (*mouse_btn == MouseButton::Left)
+				{
+					self.mouseleftclick = false;
+				}
+			}
+			Event::MouseMotion { x, y, .. } =>
+			{
+				self.mousex = *x as f64;
+				self.mousey = *y as f64;
 				self.mousemoved = true;
+			}
+			Event::KeyDown {
+				keycode: Some(Keycode::Escape),
+				..
+			} =>
+			{
+				return true;
 			}
 			_ => (),
 		}
+		return false;
 	}
 
-	fn device_event(&mut self, _: &ActiveEventLoop, _: &DeviceEvent, _: DeviceId) {}
-
-	fn about_to_render(&mut self, eventloop: &ActiveEventLoop)
+	fn about_to_render(&mut self)
 	{
 		if (self.mousemoved || self.mouseleftclick)
 		{
@@ -366,16 +382,8 @@ struct Simple2dDatas
 		self.mousemoved = false;
 	}
 
-	fn about_to_wait(&mut self, eventloop: &ActiveEventLoop)
+	fn about_to_wait(&mut self)
 	{
-		if (HGEwinit::singleton()
-			.Inputs_getmut()
-			.getKeyboardStateAndSteal(KeyCode::Escape)
-			== ElementState::Pressed)
-		{
-			eventloop.exit();
-		}
-
 		let fps = HGEMain::singleton().getTimer().getFps() as u128;
 		if (self.start.elapsed().as_secs() > 3)
 		{
@@ -394,4 +402,3 @@ struct Simple2dDatas
 		//println!("fps : {} - {} - {}", self.fpsall / self.fpsnb, self.fpsmax, self.fpsmin);
 	}
 }
-*/

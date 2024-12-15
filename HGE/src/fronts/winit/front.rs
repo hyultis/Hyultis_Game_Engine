@@ -1,14 +1,12 @@
 use crate::configs::HGEconfig::HGEconfig;
 use crate::fronts::winit::internalWinitState::internalWinitState;
+use crate::fronts::winit::winit_UserDefinedEventOverride::winit_UserDefinedEventOverride;
 use crate::fronts::winit::Inputs::Inputs;
-use crate::fronts::winit::UserDefinedEventOverride::UserDefinedEventOverride;
 use crate::fronts::EngineEvent::EngineEvent;
-use crate::HGEMain::HGEMain;
-use parking_lot::lock_api::{RwLockReadGuard, RwLockWriteGuard};
-use parking_lot::{RawRwLock, RwLock};
-use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
-use std::any::Any;
-use std::sync::{Arc, OnceLock};
+use raw_window_handle::HasDisplayHandle;
+use std::sync::Arc;
+use vulkano::instance::{Instance, InstanceExtensions};
+use vulkano::swapchain::Surface;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Fullscreen, Window};
 use Hconfig::serde_json::Value as JsonValue;
@@ -17,84 +15,86 @@ use Htrace::{HTrace, HTraceError};
 
 pub struct HGEwinit
 {
-	_events: RwLock<EngineEvent>,
-	_inputsC: RwLock<Inputs>,
+	_events: EngineEvent,
+	_inputsC: Inputs,
+	_window: Option<Window>,
+	_instance_extensions: Option<InstanceExtensions>,
 }
-
-static SINGLETON: OnceLock<HGEwinit> = OnceLock::new();
 
 impl HGEwinit
 {
-	pub fn singleton() -> &'static Self
+	pub fn new() -> Self
 	{
-		return SINGLETON.get_or_init(|| Self::new());
+		Self {
+			_events: EngineEvent::new(),
+			_inputsC: Inputs::new(),
+			_window: None,
+			_instance_extensions: None,
+		}
 	}
 
 	/// change func called after engine initialization
-	pub fn event_mut(&self) -> RwLockWriteGuard<'_, RawRwLock, EngineEvent>
+	pub fn event(&self) -> &EngineEvent
 	{
-		self._events.write()
+		return &self._events;
 	}
 
-	pub fn Inputs_get(&self) -> RwLockReadGuard<'_, RawRwLock, Inputs>
+	/// change func called after engine initialization
+	pub fn event_mut(&mut self) -> &mut EngineEvent
 	{
-		self._inputsC.read()
+		return &mut self._events;
 	}
 
-	pub fn Inputs_getmut(&self) -> RwLockWriteGuard<'_, RawRwLock, Inputs>
+	pub fn Inputs_get(&self) -> &Inputs
 	{
-		return self._inputsC.write();
+		return &self._inputsC;
+	}
+
+	pub fn Inputs_getmut(&mut self) -> &mut Inputs
+	{
+		return &mut self._inputsC;
 	}
 
 	/// run winit event, HGE engine, and connect logic of your system
 	/// postEngineEvent is run between engine event and rendering
 	/// Should run on the main thread only
 	pub fn runDefinedLoop(
+		&mut self,
 		eventloop: EventLoop<()>,
-		userEvents: Option<&mut impl UserDefinedEventOverride>,
+		userEvents: Option<&mut impl winit_UserDefinedEventOverride>,
 	)
 	{
-		HTraceError!(eventloop.run_app(&mut internalWinitState::new(userEvents)));
+		HTraceError!(eventloop.run_app(&mut internalWinitState::new(self, userEvents)));
 	}
 
 	/// run winit event, HGE engine, and connect logic of your system
 	/// postEngineEvent is run between engine event and rendering
 	/// EventLoop::new() is defined to default value
 	/// Should run on the main thread only
-	pub fn run(userEvents: Option<&mut impl UserDefinedEventOverride>)
+	pub fn run(&mut self, userEvents: Option<&mut impl winit_UserDefinedEventOverride>)
 	{
 		let eventloop = EventLoop::new().unwrap();
-		Self::runDefinedLoop(eventloop, userEvents);
+		self.runDefinedLoop(eventloop, userEvents);
 	}
 
-	pub fn getWindow(func: impl FnOnce(&Window))
+	pub fn getWindow(&self) -> &Option<Window>
 	{
-		let surfaceBinding = HGEMain::singleton().getSurface();
-		if let Some(surface) = &*surfaceBinding
-		{
-			let tmp = surface.object().unwrap().downcast_ref::<Window>().unwrap();
-			func(tmp);
-		}
+		return &self._window;
 	}
 
-	pub(crate) fn inputs_get_mut<'a>() -> RwLockWriteGuard<'a, RawRwLock, Inputs>
+	pub fn getInstanceExtensions(&self) -> &Option<InstanceExtensions>
 	{
-		return Self::singleton()._inputsC.write();
+		return &self._instance_extensions;
 	}
 
-	//////////////////// PRIVATE /////////////////
-
-	fn new() -> Self
+	pub fn getSurface(&self, instance: Arc<Instance>) -> Arc<Surface>
 	{
-		Self {
-			_events: RwLock::new(EngineEvent::new()),
-			_inputsC: RwLock::new(Inputs::new()),
-		}
+		return unsafe {
+			Surface::from_window_ref(instance, self._window.as_ref().unwrap()).unwrap()
+		};
 	}
 
-	pub(crate) fn buildHandle(
-		eventloop: &ActiveEventLoop,
-	) -> Arc<impl HasWindowHandle + HasDisplayHandle + Any + Send + Sync>
+	pub fn rebuildWindow(&mut self, eventloop: &ActiveEventLoop)
 	{
 		let configBind = HGEconfig::singleton().general_get();
 
@@ -167,6 +167,10 @@ impl HGEwinit
 
 		let _ = config.save();
 
-		return Arc::new(window);
+		let instance_extensions =
+			Surface::required_extensions(&window.display_handle().unwrap()).unwrap();
+
+		self._instance_extensions = Some(instance_extensions);
+		self._window = Some(window);
 	}
 }

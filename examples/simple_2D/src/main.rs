@@ -27,7 +27,7 @@ use HGE::fronts::export::winit::event_loop::ActiveEventLoop;
 use HGE::fronts::export::winit::keyboard::KeyCode;
 use HGE::fronts::export::winit::window::WindowId;
 use HGE::fronts::winit::front::HGEwinit;
-use HGE::fronts::winit::UserDefinedEventOverride::UserDefinedEventOverride;
+use HGE::fronts::winit::winit_UserDefinedEventOverride::winit_UserDefinedEventOverride;
 use HGE::Animation::{Animation, AnimationUtils};
 use HGE::HGEMain::HGEMain;
 use HGE::Interface::ManagerInterface::ManagerInterface;
@@ -62,7 +62,8 @@ fn main()
 	.unwrap();
 	HTracer::threadSetName("main");
 
-	let mut engineEvent = HGEwinit::singleton().event_mut();
+	let mut hgeWinit = HGEwinit::new();
+	let mut engineEvent = hgeWinit.event_mut();
 	// loading resource used for this example after engine init
 	engineEvent.setFunc_PostInit(|| {
 		ManagerTexture::singleton().add("image", "image.png", None);
@@ -82,9 +83,8 @@ fn main()
 		},
 		..Default::default()
 	});
-	std::mem::drop(engineEvent);
 
-	HGEwinit::run(Some(&mut Simple2dDatas {
+	hgeWinit.run(Some(&mut Simple2dDatas {
 		fpsall: 0,
 		fpsmin: 999999,
 		fpsmax: 0,
@@ -323,14 +323,15 @@ struct Simple2dDatas
 	mouseleftcliked: bool,
 }
 
-impl UserDefinedEventOverride for Simple2dDatas
+impl winit_UserDefinedEventOverride for Simple2dDatas
 {
-	fn resumed(&mut self, eventloop: &ActiveEventLoop) {}
+	fn resumed(&mut self, _: &mut HGEwinit, _: &ActiveEventLoop) {}
 
-	fn suspended(&mut self, eventloop: &ActiveEventLoop) {}
+	fn suspended(&mut self, _: &mut HGEwinit, _: &ActiveEventLoop) {}
 
 	fn window_event(
 		&mut self,
+		root: &mut HGEwinit,
 		eventloop: &ActiveEventLoop,
 		event: &WindowEvent,
 		window_id: WindowId,
@@ -356,9 +357,11 @@ impl UserDefinedEventOverride for Simple2dDatas
 		}
 	}
 
-	fn device_event(&mut self, _: &ActiveEventLoop, _: &DeviceEvent, _: DeviceId) {}
+	fn device_event(&mut self, _: &mut HGEwinit, _: &ActiveEventLoop, _: &DeviceEvent, _: DeviceId)
+	{
+	}
 
-	fn about_to_render(&mut self, eventloop: &ActiveEventLoop)
+	fn about_to_render(&mut self, root: &mut HGEwinit, eventloop: &ActiveEventLoop)
 	{
 		if (self.mousemoved || self.mouseleftclick)
 		{
@@ -372,9 +375,9 @@ impl UserDefinedEventOverride for Simple2dDatas
 		self.mousemoved = false;
 	}
 
-	fn about_to_wait(&mut self, eventloop: &ActiveEventLoop)
+	fn about_to_wait(&mut self, root: &mut HGEwinit, eventloop: &ActiveEventLoop)
 	{
-		if (HGEwinit::singleton()
+		if (root
 			.Inputs_getmut()
 			.getKeyboardStateAndSteal(KeyCode::Escape)
 			== ElementState::Pressed)

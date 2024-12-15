@@ -2,11 +2,11 @@ extern crate vulkano;
 
 use crate::components::system::DeferredDatas::DeferredData;
 use crate::components::window::{window_infos, window_orientation};
-use crate::configs::general::HGEconfig_general;
 use crate::configs::HGEconfig::HGEconfig;
 use crate::Animation::Animation;
 use crate::BuilderDevice::BuilderDevice;
 use crate::Camera::Camera;
+use crate::HGEMain_preinit::{HGEMain_preinitState, Initial, Ready};
 use crate::HGErendering::HGErendering;
 use crate::HGEsubpass::HGEsubpassName;
 use crate::Interface::ManagerFont::ManagerFont;
@@ -32,29 +32,29 @@ use anyhow::anyhow;
 use arc_swap::{ArcSwap, ArcSwapOption, Guard};
 use dashmap::DashMap;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use singletonThread::SingletonThread;
-use std::any::Any;
 use std::ops::Range;
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
+use vulkano::command_buffer::allocator::{
+	StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo,
+};
 use vulkano::command_buffer::{CommandBufferInheritanceInfo, SecondaryAutoCommandBuffer};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
-use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions};
+use vulkano::instance::Instance;
 use vulkano::swapchain::{Surface, SurfaceCapabilities, SurfaceTransform};
 use vulkano::{
 	command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage},
-	Version, VulkanLibrary,
+	Version,
 };
 use HArcMut::HArcMut;
 use Hconfig::HConfigManager::HConfigManager;
-use Htrace::Type::Type;
 use Htrace::{namedThread, HTrace, HTraceError};
 
-const HGE_STRING: &str = "HGE";
-const HGE_VERSION: Version = Version {
-	major: 0,
-	minor: 1,
+pub(crate) const HGE_STRING: &str = "HGE";
+pub(crate) const HGE_VERSION: Version = Version {
+	major: 1,
+	minor: 0,
 	patch: 0,
 };
 
@@ -79,7 +79,8 @@ pub struct HGEMain
 	_appVersion: ArcSwap<Version>,
 
 	// tmp
-	_stdAllocSet: ArcSwap<StandardDescriptorSetAllocator>,
+	_stdCmdAllocSet: ArcSwap<StandardCommandBufferAllocator>,
+	_stdDescAllocSet: ArcSwap<StandardDescriptorSetAllocator>,
 	_cmdBufferTextures: DashMap<
 		HGEMain_secondarybuffer_type,
 		DeferredData<(
@@ -104,10 +105,6 @@ pub struct HGEMain
 }
 
 static SINGLETON: OnceLock<HGEMain> = OnceLock::new();
-pub struct preinit
-{
-	_init: bool,
-}
 
 impl HGEMain
 {
@@ -118,46 +115,29 @@ impl HGEMain
 			.unwrap_or_else(|| panic!("HGE have not been initialized"));
 	}
 
-	pub fn preinitialize(config: HGEconfig_general) -> anyhow::Result<preinit>
+	pub fn preInitialize() -> anyhow::Result<HGEMain_preinitState<Initial>>
 	{
 		if (SINGLETON.get().is_some())
 		{
 			return Err(anyhow!("HGE already initialized"));
 		}
 
-		if (config.defaultShaderLoader.is_none())
-		{
-			HTrace!((Type::ERROR) "general configuration for loading shader is empty in \"defaultShaderLoader\"");
-			return Err(anyhow!(
-				"general configuration for loading shader is empty in \"defaultShaderLoader\""
-			));
-		}
-		HGEconfig::defineGeneral(config);
-
-		Ok(preinit { _init: true })
+		return Ok(HGEMain_preinitState::new());
 	}
 
 	pub fn initialize(
-		required_extensions: InstanceExtensions,
-		rawWindow: Arc<impl HasWindowHandle + HasDisplayHandle + Any + Send + Sync>,
-		preinit: anyhow::Result<preinit>,
+		surface: Arc<Surface>,
+		preinit: anyhow::Result<HGEMain_preinitState<Ready>>,
 	) -> anyhow::Result<()>
 	{
-		match preinit
+		let instance = match preinit
 		{
-			Ok(_) =>
-			{}
+			Ok(preinitdata) => preinitdata.getInstance(),
 			Err(err) =>
 			{
 				return Err(anyhow!("toto {}", err));
 			}
 		};
-
-		HTrace!("Engine initialization ----");
-		let instance = Self::Init_Instance(required_extensions)?;
-
-		HTrace!("Engine initialization : surface build");
-		let surface = Self::Init_SurfaceReload(rawWindow, instance.clone())?;
 
 		HTrace!("Engine initialization : device build");
 		let builderDevice = Arc::new(BuilderDevice::new(instance.clone(), surface.clone()));
@@ -244,6 +224,11 @@ impl HGEMain
 		return self._surface.load();
 	}
 
+	pub fn getInstance(&self) -> Guard<Arc<Instance>>
+	{
+		return self._instance.load();
+	}
+
 	pub fn getTimer(&self) -> RwLockReadGuard<'_, ManagerInterpolate>
 	{
 		return self._ManagerInterpolate.read();
@@ -304,9 +289,14 @@ impl HGEMain
 		}
 	}
 
-	pub fn getAllocatorSet(&self) -> Arc<StandardDescriptorSetAllocator>
+	pub fn getCmdAllocatorSet(&self) -> Arc<StandardCommandBufferAllocator>
 	{
-		return self._stdAllocSet.load().clone();
+		return self._stdCmdAllocSet.load().clone();
+	}
+
+	pub fn getDescAllocatorSet(&self) -> Arc<StandardDescriptorSetAllocator>
+	{
+		return self._stdDescAllocSet.load().clone();
 	}
 
 	pub fn getDevice(&self) -> Guard<Arc<BuilderDevice>>
@@ -319,7 +309,7 @@ impl HGEMain
 	) -> AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>
 	{
 		AutoCommandBufferBuilder::secondary(
-			self._rendering.read().getAllocCmd(),
+			self.getCmdAllocatorSet(),
 			Self::singleton()
 				.getDevice()
 				.getQueueGraphic()
@@ -388,18 +378,14 @@ impl HGEMain
 		return Some(data);
 	}
 
-	pub fn engineResumed(
-		&self,
-		rawWindow: Arc<impl HasWindowHandle + HasDisplayHandle + Any + Send + Sync>,
-	) -> anyhow::Result<()>
+	pub fn engineResumed(&self, surface: Arc<Surface>) -> anyhow::Result<()>
 	{
 		HTrace!("Engine context creation ----");
-		let newsurface = Self::Init_SurfaceReload(rawWindow, self._instance.load().clone())?;
-		self._surface.swap(Some(newsurface.clone()));
+		self._surface.swap(Some(surface.clone()));
 
 		self._rendering
 			.write()
-			.recreate(self._builderDevice.load().clone(), newsurface);
+			.recreate(self._builderDevice.load().clone(), surface);
 
 		ManagerInterface::singleton().WindowRefreshed();
 		self._isSuspended.swap(Arc::new(false));
@@ -461,6 +447,11 @@ impl HGEMain
 			|| !**Self::singleton()._isSuspended.load(),
 		);
 
+		let stdAlloccommand = StandardCommandBufferAllocator::new(
+			builder_device.device.clone(),
+			Self::getDefaultAllocInfos(),
+		);
+
 		return Self {
 			_instance: ArcSwap::new(instance),
 			_surface: ArcSwapOption::new(Some(surface)),
@@ -469,7 +460,8 @@ impl HGEMain
 			_rendering: Arc::new(RwLock::new(rendering)),
 			_appName: ArcSwap::new(Arc::new(config.windowTitle.clone())),
 			_appVersion: ArcSwap::new(Arc::new(config.appVersion)),
-			_stdAllocSet: ArcSwap::new(stdAllocSet),
+			_stdCmdAllocSet: ArcSwap::new(Arc::new(stdAlloccommand)),
+			_stdDescAllocSet: ArcSwap::new(stdAllocSet),
 			_windowInfos: RwLock::new(window_infos::default()),
 			_timeAppStart: Instant::now(),
 			_lastFrameDuration: RwLock::new(Duration::from_nanos(0)),
@@ -531,16 +523,8 @@ impl HGEMain
 			orientation: window_orientation::from(surfaceCap.current_transform),
 			isWide: rawwidth > rawheight,
 			HDPI: hdpi,
+			surfaceCapabilities: Some(surfaceCap),
 		};
-	}
-
-	fn Init_SurfaceReload(
-		rawWindow: Arc<impl HasWindowHandle + HasDisplayHandle + Any + Send + Sync>,
-		instance: Arc<Instance>,
-	) -> anyhow::Result<Arc<Surface>>
-	{
-		let surface = Surface::from_window(instance, rawWindow).map_err(|e| anyhow!(e))?;
-		Ok(surface)
 	}
 
 	fn engineLoad(&self) -> anyhow::Result<()>
@@ -637,39 +621,6 @@ impl HGEMain
 		Ok(())
 	}
 
-	fn Init_Instance(mut required_extensions: InstanceExtensions) -> anyhow::Result<Arc<Instance>>
-	{
-		let library = VulkanLibrary::new().unwrap();
-		let mut debuglayer = Vec::new();
-		let config = HGEconfig::singleton().general_get();
-
-		if (cfg!(feature = "debuglayer"))
-		{
-			debuglayer.push("VK_LAYER_KHRONOS_validation".to_string());
-		}
-
-		required_extensions.ext_surface_maintenance1 = true;
-
-		// Now creating the instance.
-		let instance = Instance::new(
-			library,
-			InstanceCreateInfo {
-				application_name: Some(config.windowTitle.clone()),
-				application_version: config.appVersion,
-				engine_name: Some(HGE_STRING.to_string()),
-				engine_version: HGE_VERSION,
-				enabled_layers: debuglayer,
-				enabled_extensions: required_extensions,
-				// Enable enumerating devices that use non-conformant vulkan implementations. (ex. MoltenVK)
-				flags: InstanceCreateFlags::ENUMERATE_PORTABILITY,
-				..Default::default()
-			},
-		)
-		.map_err(|e| anyhow!("HGE cannot initialize instance because : {:?}", e))?;
-
-		Ok(instance)
-	}
-
 	fn getSurfaceCapability(&self) -> Option<SurfaceCapabilities>
 	{
 		let Some(surface) = &*self._surface.load()
@@ -688,5 +639,22 @@ impl HGEMain
 		}
 
 		return None;
+	}
+
+	fn getDefaultAllocInfos() -> StandardCommandBufferAllocatorCreateInfo
+	{
+		let mut stdACInfos = StandardCommandBufferAllocatorCreateInfo {
+			secondary_buffer_count: 32,
+			..Default::default()
+		};
+		if (cfg!(target_os = "android"))
+		{
+			stdACInfos = StandardCommandBufferAllocatorCreateInfo {
+				primary_buffer_count: 8,
+				secondary_buffer_count: 8,
+				..Default::default()
+			};
+		}
+		return stdACInfos;
 	}
 }

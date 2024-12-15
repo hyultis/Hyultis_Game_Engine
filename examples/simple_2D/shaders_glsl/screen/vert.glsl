@@ -1,8 +1,8 @@
 #version 450
 
 layout(push_constant) uniform PushConstants {
-	float time;
-	vec4 window;
+    vec4 window;
+    float time;
 } uniforms;
 
 layout(location = 0) in vec2 position;

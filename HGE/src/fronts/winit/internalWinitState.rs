@@ -1,22 +1,30 @@
 use crate::fronts::winit::front::HGEwinit;
-use crate::fronts::winit::UserDefinedEventOverride::UserDefinedEventOverride;
+use crate::fronts::winit::winit_UserDefinedEventOverride::winit_UserDefinedEventOverride;
+use crate::HGEMain::HGEMain;
 use winit::application::ApplicationHandler;
 use winit::event::{DeviceEvent, DeviceId, ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::WindowId;
+use Htrace::HTrace;
+use Htrace::Type::Type;
 
 pub struct internalWinitState<'a>
 {
-	events: Option<Box<&'a mut dyn UserDefinedEventOverride>>,
+	events: Option<Box<&'a mut dyn winit_UserDefinedEventOverride>>,
+	winit_root: &'a mut HGEwinit,
 }
 
 impl<'a> internalWinitState<'a>
 {
-	pub fn new(userEvents: Option<&'a mut impl UserDefinedEventOverride>) -> Self
+	pub fn new(
+		winit_root: &'a mut HGEwinit,
+		userEvents: Option<&'a mut impl winit_UserDefinedEventOverride>,
+	) -> Self
 	{
 		Self {
-			events: userEvents.map(|e| Box::new(e as &'a mut dyn UserDefinedEventOverride)),
+			events: userEvents.map(|e| Box::new(e as &'a mut dyn winit_UserDefinedEventOverride)),
+			winit_root,
 		}
 	}
 }
@@ -25,41 +33,58 @@ impl<'a> ApplicationHandler<()> for internalWinitState<'a>
 {
 	fn resumed(&mut self, eventloop: &ActiveEventLoop)
 	{
-		let mut tmp = HGEwinit::singleton().event_mut();
-		if (!tmp.isInitialized())
+		let tmpWinit = &mut self.winit_root;
+		if (!tmpWinit.event_mut().isInitialized())
 		{
-			let preinit = tmp.preInit();
-			let window = HGEwinit::buildHandle(eventloop);
-			tmp.init(window, preinit);
+			let preinit = tmpWinit.event_mut().preInit();
+
+			tmpWinit.rebuildWindow(eventloop);
+			match preinit
+			{
+				Ok(preinitcontent) =>
+				{
+					let instanceExtensions = tmpWinit.getInstanceExtensions().unwrap();
+					let preinit = preinitcontent.setInstance(instanceExtensions);
+					let surface =
+						tmpWinit.getSurface(preinit.as_ref().unwrap().getInstance().clone());
+					tmpWinit.event_mut().init(surface, preinit);
+				}
+				Err(err) =>
+				{
+					HTrace!((Type::ERROR) err);
+					panic!("{}", err);
+				}
+			}
 
 			return;
 		}
 
-		let window = HGEwinit::buildHandle(eventloop);
-		HGEwinit::singleton().event_mut().resume(window);
+		tmpWinit.rebuildWindow(eventloop);
+		let tmpsurface = tmpWinit.getSurface(HGEMain::singleton().getInstance().clone());
+		tmpWinit.event_mut().resume(tmpsurface);
 
 		if let Some(tmp) = &mut self.events
 		{
-			tmp.resumed(eventloop);
+			tmp.resumed(self.winit_root, eventloop);
 		}
 	}
 
 	fn suspended(&mut self, eventloop: &ActiveEventLoop)
 	{
-		if (!HGEwinit::singleton().event_mut().suspend())
+		if (!self.winit_root.event_mut().suspend())
 		{
 			return;
 		}
 
 		if let Some(tmp) = &mut self.events
 		{
-			tmp.suspended(eventloop);
+			tmp.suspended(self.winit_root, eventloop);
 		}
 	}
 
 	fn window_event(&mut self, eventloop: &ActiveEventLoop, window_id: WindowId, event: WindowEvent)
 	{
-		if (!HGEwinit::singleton().event_mut().isInitialized())
+		if (!self.winit_root.event_mut().isInitialized())
 		{
 			return;
 		}
@@ -71,13 +96,13 @@ impl<'a> ApplicationHandler<()> for internalWinitState<'a>
 				//println!("key input : {:?}",input);
 				if let PhysicalKey::Code(key) = input.physical_key
 				{
-					let mut inputsC = HGEwinit::inputs_get_mut();
+					let inputsC = self.winit_root.Inputs_getmut();
 					inputsC.updateFromKeyboard(key, input.state);
 				}
 			}
 			WindowEvent::Resized(winsize) =>
 			{
-				HGEwinit::singleton()
+				self.winit_root
 					.event_mut()
 					.window_eventResize(winsize.width.max(1), winsize.height.max(1));
 			}
@@ -87,7 +112,7 @@ impl<'a> ApplicationHandler<()> for internalWinitState<'a>
 			}
 			WindowEvent::Destroyed =>
 			{
-				HGEwinit::singleton().event_mut().window_eventClose();
+				self.winit_root.event_mut().window_eventClose();
 				eventloop.exit();
 			}
 			WindowEvent::RedrawRequested =>
@@ -96,13 +121,12 @@ impl<'a> ApplicationHandler<()> for internalWinitState<'a>
 			{
 				if let Some(tmp) = &mut self.events
 				{
-					tmp.about_to_render(eventloop);
+					tmp.about_to_render(self.winit_root, eventloop);
 				}
 
-				HGEwinit::singleton().event_mut().window_draw(|| {
-					HGEwinit::getWindow(|window| {
-						window.pre_present_notify();
-					});
+				let window = self.winit_root.getWindow().as_ref().unwrap();
+				self.winit_root.event().window_draw(|| {
+					window.pre_present_notify();
 				});
 			}
 			_ => (),
@@ -112,43 +136,47 @@ impl<'a> ApplicationHandler<()> for internalWinitState<'a>
 		{
 			if let Some(tmp) = &mut self.events
 			{
-				tmp.window_event(eventloop, &event, window_id);
+				tmp.window_event(self.winit_root, eventloop, &event, window_id);
 			}
 		}
 	}
 
 	fn device_event(&mut self, eventloop: &ActiveEventLoop, device_id: DeviceId, event: DeviceEvent)
 	{
-		if (!HGEwinit::singleton().event_mut().isInitialized())
+		if (!self.winit_root.event_mut().isInitialized())
 		{
 			return;
 		}
 
 		if let Some(tmp) = &mut self.events
 		{
-			tmp.device_event(eventloop, &event, device_id);
+			tmp.device_event(self.winit_root, eventloop, &event, device_id);
 		}
 	}
 
 	fn about_to_wait(&mut self, eventloop: &ActiveEventLoop)
 	{
-		if (!HGEwinit::singleton().event_mut().isInitialized())
+		if (!self.winit_root.event_mut().isInitialized())
 		{
 			return;
 		}
 
-		HGEwinit::singleton().event_mut().runService();
-		HGEwinit::getWindow(|window| {
+		self.winit_root.event_mut().runService();
+		if let Some(window) = self.winit_root.getWindow()
+		{
 			window.request_redraw();
-		});
+		}
 
 		if let Some(tmp) = &mut self.events
 		{
-			tmp.about_to_wait(eventloop);
+			tmp.about_to_wait(self.winit_root, eventloop);
 		}
 		else
 		{
-			if (HGEwinit::inputs_get_mut().getKeyboardStateAndSteal(KeyCode::Escape)
+			if (self
+				.winit_root
+				.Inputs_getmut()
+				.getKeyboardStateAndSteal(KeyCode::Escape)
 				== ElementState::Pressed)
 			{
 				eventloop.exit();

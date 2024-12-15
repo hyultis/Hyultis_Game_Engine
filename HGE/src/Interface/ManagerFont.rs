@@ -1,39 +1,42 @@
-use std::sync::{Arc, OnceLock};
-use ab_glyph::FontArc;
-use ahash::AHashMap;
-use anyhow::anyhow;
-use arc_swap::ArcSwap;
-use dashmap::DashMap;
-use glyph_brush::{BrushAction, BrushError, GlyphBrush, GlyphBrushBuilder, GlyphVertex, OwnedSection, Rectangle};
-use glyph_brush_layout::FontId;
-use Htrace::HTrace;
-use Htrace::HTracer::HTracer;
-use image::{GrayImage, Rgba, RgbaImage};
-use parking_lot::{Mutex, RwLock, RwLockReadGuard};
-use vulkano::image::sampler::{Filter, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode};
+use crate::assetStreamReader::assetManager;
 use crate::Interface::Text::{Extra, TextCacheUpdater};
 use crate::Shaders::HGE_shader_2Dsimple::HGE_shader_2Dsimple_def;
 use crate::Textures::generate::emptyTexture;
+use crate::Textures::textureLoader::textureLoader_fromRaw;
 use crate::Textures::Manager::ManagerTexture;
+use crate::Textures::Order::Order;
 use crate::Textures::Orders::Order_load::Order_load;
 use crate::Textures::Orders::Order_partialTextureUpdate::Order_partialTextureUpdate;
 use crate::Textures::Orders::Order_resize::Order_resize;
-use crate::Textures::textureLoader::textureLoader_fromRaw;
+use ab_glyph::FontArc;
+use anyhow::anyhow;
+use arc_swap::ArcSwap;
+use dashmap::DashMap;
+use foldhash::{HashMap, HashMapExt};
+use glyph_brush::{
+	BrushAction, BrushError, GlyphBrush, GlyphBrushBuilder, GlyphVertex, OwnedSection, Rectangle,
+};
+use glyph_brush_layout::FontId;
+use image::{GrayImage, Rgba, RgbaImage};
+use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use singletonThread::SingletonThread;
-use crate::assetStreamReader::assetManager;
-use crate::Textures::Order::Order;
+use std::sync::{Arc, OnceLock};
+use vulkano::image::sampler::{Filter, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode};
+use Htrace::HTrace;
+use Htrace::HTracer::HTracer;
 
 #[derive(Clone)]
 pub struct ManagerFont_verticestmp
 {
 	pub textId: u128,
 	pub vertex: Vec<HGE_shader_2Dsimple_def>,
-	pub indices: Vec<u32>
+	pub indices: Vec<u32>,
 }
 
 impl PartialEq for ManagerFont_verticestmp
 {
-	fn eq(&self, other: &Self) -> bool {
+	fn eq(&self, other: &Self) -> bool
+	{
 		self.textId == self.textId && self.vertex.len() == other.vertex.len()
 	}
 }
@@ -49,77 +52,95 @@ pub struct ManagerFont
 	_fontEngine: RwLock<Option<GlyphBrush<ManagerFont_verticestmp, Extra>>>,
 	_fontEngineTextureSize: ArcSwap<[u32; 2]>,
 	_threadLoading: Mutex<SingletonThread>,
-	_updateNeed: RwLock<bool>
+	_updateNeed: RwLock<bool>,
 }
 
 static SINGLETON: OnceLock<ManagerFont> = OnceLock::new();
-
 
 impl ManagerFont
 {
 	fn new() -> ManagerFont
 	{
-		ManagerTexture::singleton().addSampler("fontsampler", SamplerCreateInfo {
-			mag_filter: Filter::Linear,
-			min_filter: Filter::Linear,
-			address_mode: [SamplerAddressMode::ClampToEdge; 3],
-			lod: 0.0..=16.0,
-			anisotropy: Some(16.0),
-			mipmap_mode: SamplerMipmapMode::Linear,
-			..Default::default()
-		});
-		
+		ManagerTexture::singleton().addSampler(
+			"fontsampler",
+			SamplerCreateInfo {
+				mag_filter: Filter::Linear,
+				min_filter: Filter::Linear,
+				address_mode: [SamplerAddressMode::ClampToEdge; 3],
+				lod: 0.0..=16.0,
+				anisotropy: Some(16.0),
+				mipmap_mode: SamplerMipmapMode::Linear,
+				..Default::default()
+			},
+		);
+
 		let texture = emptyTexture(DEFAULTTEXTURESIZE, DEFAULTTEXTURESIZE);
-		ManagerTexture::singleton().texture_load("font", Order_load::newPrioritize(
-			textureLoader_fromRaw {
+		ManagerTexture::singleton().texture_load(
+			"font",
+			Order_load::newPrioritize(textureLoader_fromRaw {
 				raw: texture.to_vec(),
 				width: texture.width(),
 				height: texture.height(),
 				canReload: false,
-			}), Some("fontsampler"));
-		
-		let mut thread = SingletonThread::newFiltered(|| {
-			HTracer::threadSetName("ManagerFont");
-			ManagerFont::singleton().FontEngine_internalCacheUpdate();
-		}, || -> bool {
-			return *ManagerFont::singleton()._updateNeed.read();
-		});
+			}),
+			Some("fontsampler"),
+		);
+
+		let mut thread = SingletonThread::newFiltered(
+			|| {
+				HTracer::threadSetName("ManagerFont");
+				ManagerFont::singleton().FontEngine_internalCacheUpdate();
+			},
+			|| -> bool {
+				return *ManagerFont::singleton()._updateNeed.read();
+			},
+		);
 		thread.setDuration_FPS(144);
-		
+
 		return ManagerFont {
 			_uniqId: RwLock::new(0),
 			_storeText: Default::default(),
 			_storeCallBack: Default::default(),
 			_storeFontId: Default::default(),
 			_fontEngine: Default::default(),
-			_fontEngineTextureSize: ArcSwap::new(Arc::new([DEFAULTTEXTURESIZE, DEFAULTTEXTURESIZE])),
+			_fontEngineTextureSize: ArcSwap::new(Arc::new([
+				DEFAULTTEXTURESIZE,
+				DEFAULTTEXTURESIZE,
+			])),
 			_threadLoading: Mutex::new(thread),
 			_updateNeed: RwLock::new(false),
 		};
 	}
-	
+
 	pub fn singleton() -> &'static ManagerFont
 	{
-		return SINGLETON.get_or_init(|| {
-			ManagerFont::new()
-		});
+		return SINGLETON.get_or_init(|| ManagerFont::new());
 	}
-	
-	pub fn Text_add(&self, newtext: OwnedSection<Extra>, callback: impl Fn(TextCacheUpdater) + Send + Sync + 'static, id: u128)
+
+	pub fn Text_add(
+		&self,
+		newtext: OwnedSection<Extra>,
+		callback: impl Fn(TextCacheUpdater) + Send + Sync + 'static,
+		id: u128,
+	)
 	{
 		self._storeText.insert(id, newtext);
 		self._storeCallBack.insert(id, Arc::new(callback));
 		*self._updateNeed.write() = true;
 	}
-	
+
 	pub fn Text_remove(&self, id: u128)
 	{
 		self._storeText.remove(&id);
 		self._storeCallBack.remove(&id);
 	}
-	
-	
-	pub fn FontLoad(&self, fileUser: String, fileUniversel: String, fileBold: String) -> anyhow::Result<()>
+
+	pub fn FontLoad(
+		&self,
+		fileUser: String,
+		fileUniversel: String,
+		fileBold: String,
+	) -> anyhow::Result<()>
 	{
 		let fontUser = self.loadFond(fileUser)?;
 		let fontUser = FontArc::try_from_vec(fontUser)?;
@@ -127,43 +148,45 @@ impl ManagerFont
 		let fontUniversel = FontArc::try_from_vec(fontUniversel)?;
 		let fontBold = self.loadFond(fileBold)?;
 		let fontBold = FontArc::try_from_vec(fontBold)?;
-		
-		let mut glyph_brush = GlyphBrushBuilder::using_fonts([fontUser,fontUniversel,fontBold].into())
-			.cache_redraws(false)
-			.draw_cache_position_tolerance(2.0) // ignore subpixel differences totally
-			.draw_cache_scale_tolerance(3.0) // ignore scale differences
-			.build();
-		self._storeFontId.insert("user".to_string(),FontId(0));
-		self._storeFontId.insert("normal".to_string(),FontId(1));
-		self._storeFontId.insert("bold".to_string(),FontId(2));
+
+		let mut glyph_brush =
+			GlyphBrushBuilder::using_fonts([fontUser, fontUniversel, fontBold].into())
+				.cache_redraws(false)
+				.draw_cache_position_tolerance(2.0) // ignore subpixel differences totally
+				.draw_cache_scale_tolerance(3.0) // ignore scale differences
+				.build();
+		self._storeFontId.insert("user".to_string(), FontId(0));
+		self._storeFontId.insert("normal".to_string(), FontId(1));
+		self._storeFontId.insert("bold".to_string(), FontId(2));
 		let tmp = *self._fontEngineTextureSize.load_full();
 		glyph_brush.resize_texture(tmp[0], tmp[1]);
-		
+
 		*self._fontEngine.write() = Some(glyph_brush);
-		
+
 		return Ok(());
 	}
-	
+
 	pub fn FontIdGet(&self, name: &str) -> Option<FontId>
 	{
-		return match self._storeFontId.get(name) {
+		return match self._storeFontId.get(name)
+		{
 			None => None,
-			Some(font) => {
-				Some(font.value().clone())
-			}
+			Some(font) => Some(font.value().clone()),
 		};
 	}
-	
-	pub fn FontEngineGet(&self) -> RwLockReadGuard<'_, Option<GlyphBrush<ManagerFont_verticestmp, Extra>>>
+
+	pub fn FontEngineGet(
+		&self,
+	) -> RwLockReadGuard<'_, Option<GlyphBrush<ManagerFont_verticestmp, Extra>>>
 	{
 		self._fontEngine.read()
 	}
-	
+
 	pub fn FontEngine_CacheUpdate(&self)
 	{
 		self._threadLoading.lock().thread_launch();
 	}
-	
+
 	pub fn getUniqId(&self) -> u128
 	{
 		let mut binding = self._uniqId.write();
@@ -171,201 +194,234 @@ impl ManagerFont
 		*binding += 1;
 		return returned;
 	}
-	
+
 	//////////// PRIVATE //////////////
-	
+
 	fn loadFond(&self, file: impl Into<String>) -> anyhow::Result<Vec<u8>>
 	{
 		let file = file.into();
 		let returning = match assetManager::singleton().readFile(file.clone())
 		{
-			None => { Err(anyhow!(format!("Cannot read font file {}", file))) },
-			Some(result) => {
-				Ok(result.into_inner())
-			}
+			None => Err(anyhow!(format!("Cannot read font file {}", file))),
+			Some(result) => Ok(result.into_inner()),
 		};
-		
+
 		return returning;
 	}
-	
-	
+
 	fn FontEngine_internalCacheUpdate(&self)
 	{
 		HTracer::threadSetName("FontEngine");
 		if let Some(FontEngine) = self._fontEngine.write().as_mut()
 		{
-			if ManagerTexture::singleton().descriptorSet_getIdTexture(["HGE_set0"],"font").is_none()
+			if ManagerTexture::singleton()
+				.descriptorSet_getIdTexture(["HGE_set0"], "font")
+				.is_none()
 			{
 				return;
 			}
-			
+
 			self._storeText.iter().for_each(|item| {
 				let tmp = item.value().clone();
 				FontEngine.queue(tmp.to_borrowed());
 			});
-			
+
 			let mut textureUpdate: Vec<Box<dyn Order + Send + Sync>> = Vec::new();
-			
+
 			let result = FontEngine.process_queued(
 				|rect, tex_data| {
-					textureUpdate.push(Box::new(self.processInternal_textureUpdate(rect, tex_data)));
+					textureUpdate
+						.push(Box::new(self.processInternal_textureUpdate(rect, tex_data)));
 				},
-				|vertex_data| {
-					self.processInternal_vertexConvert(vertex_data)
-				},
+				|vertex_data| self.processInternal_vertexConvert(vertex_data),
 			);
-			
+
 			match result
 			{
 				Ok(BrushAction::Draw(mut vertices)) =>
+				{
+					if (vertices.len() > 0)
 					{
-						if (vertices.len() > 0)
-						{
-							let mut storage = AHashMap::new();
-							//println!("ManagerFont : text vertices to update : {}", vertices.len());
-							vertices.iter_mut().for_each(|x|
-								{
-									if (!storage.contains_key(&x.textId))
-									{
-										storage.insert(x.textId, vec![]);
-									}
-									
-									storage.get_mut(&x.textId).unwrap().push(TextCacheUpdater {
-										vertex: x.vertex.drain(0..).collect(),
-										indices: x.indices.drain(0..).collect(),
-										isUpdated: true,
-									});
-								});
-							
-							// storage converter
-							let mut storageToCache = AHashMap::new();
-							storage.into_iter().for_each(|(textid, cache)| {
-								let mut finalCache = TextCacheUpdater { vertex: vec![], indices: vec![], isUpdated: true };
-								
-								cache.into_iter().for_each(|mut x| {
-									let oldMaxIndice = finalCache.vertex.len() as u32;
-									finalCache.vertex.append(&mut x.vertex);
-									finalCache.indices.append(&mut x.indices.iter().map(|x| { x + oldMaxIndice }).collect());
-								});
-								
-								if let Some(callback) = ManagerFont::singleton()._storeCallBack.get(&textid)
-								{
-									let func = callback.value().clone();
-									storageToCache.insert(textid, move ||{
-										func(finalCache);
-									});
-								}
-							});
-							
-							ManagerTexture::singleton().texture_update("font", textureUpdate);
-							storageToCache.into_iter().for_each(|(_, func)|
+						let mut storage = HashMap::new();
+						//println!("ManagerFont : text vertices to update : {}", vertices.len());
+						vertices.iter_mut().for_each(|x| {
+							if (!storage.contains_key(&x.textId))
 							{
-								func();
+								storage.insert(x.textId, vec![]);
+							}
+
+							storage.get_mut(&x.textId).unwrap().push(TextCacheUpdater {
+								vertex: x.vertex.drain(0..).collect(),
+								indices: x.indices.drain(0..).collect(),
+								isUpdated: true,
 							});
-							*ManagerFont::singleton()._updateNeed.write() = false;
-						}
+						});
+
+						// storage converter
+						let mut storageToCache = HashMap::new();
+						storage.into_iter().for_each(|(textid, cache)| {
+							let mut finalCache = TextCacheUpdater {
+								vertex: vec![],
+								indices: vec![],
+								isUpdated: true,
+							};
+
+							cache.into_iter().for_each(|mut x| {
+								let oldMaxIndice = finalCache.vertex.len() as u32;
+								finalCache.vertex.append(&mut x.vertex);
+								finalCache.indices.append(
+									&mut x.indices.iter().map(|x| x + oldMaxIndice).collect(),
+								);
+							});
+
+							if let Some(callback) =
+								ManagerFont::singleton()._storeCallBack.get(&textid)
+							{
+								let func = callback.value().clone();
+								storageToCache.insert(textid, move || {
+									func(finalCache);
+								});
+							}
+						});
+
+						ManagerTexture::singleton().texture_update("font", textureUpdate);
+						storageToCache.into_iter().for_each(|(_, func)| {
+							func();
+						});
+						*ManagerFont::singleton()._updateNeed.write() = false;
 					}
+				}
 				Err(BrushError::TextureTooSmall { suggested }) =>
-					{
-						HTrace!("Resizing font texture {:?}", suggested);
-						FontEngine.resize_texture(suggested.0, suggested.1);
-						self._fontEngineTextureSize.swap(Arc::new([suggested.0, suggested.1]));
-						
-						ManagerTexture::singleton().texture_update("font", vec![Box::new(Order_resize {
+				{
+					HTrace!("Resizing font texture {:?}", suggested);
+					FontEngine.resize_texture(suggested.0, suggested.1);
+					self._fontEngineTextureSize
+						.swap(Arc::new([suggested.0, suggested.1]));
+
+					ManagerTexture::singleton().texture_update(
+						"font",
+						vec![Box::new(Order_resize {
 							newWidth: suggested.0,
 							newHeight: suggested.1,
 							sameThread: true,
-						})]);
-					}
-				Ok(BrushAction::ReDraw) => {}
+						})],
+					);
+				}
+				Ok(BrushAction::ReDraw) =>
+				{}
 			}
 		}
 	}
-	
-	fn processInternal_textureUpdate(&self, rect: Rectangle<u32>, tex_data: &[u8]) -> Order_partialTextureUpdate
+
+	fn processInternal_textureUpdate(
+		&self,
+		rect: Rectangle<u32>,
+		tex_data: &[u8],
+	) -> Order_partialTextureUpdate
 	{
 		let gray = GrayImage::from_raw(rect.width(), rect.height(), tex_data.to_vec()).unwrap();
-		let mut finalchar = RgbaImage::from_pixel(rect.width(), rect.height(), Rgba([255, 255, 255, 0])); // Rgba([255,255,255,0]
-		
+		let mut finalchar =
+			RgbaImage::from_pixel(rect.width(), rect.height(), Rgba([255, 255, 255, 0])); // Rgba([255,255,255,0]
+
 		for (x, y, pixel) in finalchar.enumerate_pixels_mut()
 		{
 			let graypixel = gray.get_pixel(x, y);
 			pixel.0[3] = graypixel.0[0];
 		}
-		
+
 		Order_partialTextureUpdate {
 			raw: finalchar,
 			offset: [rect.min[0], rect.min[1]],
 			sameThread: true,
 		}
 	}
-	
-	fn processInternal_vertexConvert(&self, vertex_data: GlyphVertex<Extra>) -> ManagerFont_verticestmp
+
+	fn processInternal_vertexConvert(
+		&self,
+		vertex_data: GlyphVertex<Extra>,
+	) -> ManagerFont_verticestmp
 	{
 		let mut gl_rect = ab_glyph::Rect {
-			min: ab_glyph::point(vertex_data.pixel_coords.min.x, vertex_data.pixel_coords.min.y),
-			max: ab_glyph::point(vertex_data.pixel_coords.max.x, vertex_data.pixel_coords.max.y),
+			min: ab_glyph::point(
+				vertex_data.pixel_coords.min.x,
+				vertex_data.pixel_coords.min.y,
+			),
+			max: ab_glyph::point(
+				vertex_data.pixel_coords.max.x,
+				vertex_data.pixel_coords.max.y,
+			),
 		};
 		let mut tex_coords = ab_glyph::Rect {
 			min: ab_glyph::point(vertex_data.tex_coords.min.x, vertex_data.tex_coords.min.y),
 			max: ab_glyph::point(vertex_data.tex_coords.max.x, vertex_data.tex_coords.max.y),
 		};
-		
+
 		// handle overlapping bounds, modify uv_rect to preserve texture aspect
-		if gl_rect.max.x > vertex_data.bounds.max.x {
+		if gl_rect.max.x > vertex_data.bounds.max.x
+		{
 			let old_width = gl_rect.width();
 			gl_rect.max.x = vertex_data.bounds.max.x;
 			tex_coords.max.x = tex_coords.min.x + tex_coords.width() * gl_rect.width() / old_width;
 		}
-		if gl_rect.min.x < vertex_data.bounds.min.x {
+		if gl_rect.min.x < vertex_data.bounds.min.x
+		{
 			let old_width = gl_rect.width();
 			gl_rect.min.x = vertex_data.bounds.min.x;
 			tex_coords.min.x = tex_coords.max.x - tex_coords.width() * gl_rect.width() / old_width;
 		}
-		if gl_rect.max.y > vertex_data.bounds.max.y {
+		if gl_rect.max.y > vertex_data.bounds.max.y
+		{
 			let old_height = gl_rect.height();
 			gl_rect.max.y = vertex_data.bounds.max.y;
-			tex_coords.max.y = tex_coords.min.y + tex_coords.height() * gl_rect.height() / old_height;
+			tex_coords.max.y =
+				tex_coords.min.y + tex_coords.height() * gl_rect.height() / old_height;
 		}
-		if gl_rect.min.y < vertex_data.bounds.min.y {
+		if gl_rect.min.y < vertex_data.bounds.min.y
+		{
 			let old_height = gl_rect.height();
 			gl_rect.min.y = vertex_data.bounds.min.y;
-			tex_coords.min.y = tex_coords.max.y - tex_coords.height() * gl_rect.height() / old_height;
+			tex_coords.min.y =
+				tex_coords.max.y - tex_coords.height() * gl_rect.height() / old_height;
 		}
-		
-		let vertex = vec![HGE_shader_2Dsimple_def {
-			position: [gl_rect.min.x, gl_rect.min.y, 0.0],
-			ispixel: 1,
-			texture: Some("font".to_string()),
-			uvcoord: [tex_coords.min.x, tex_coords.min.y],
-			color: vertex_data.extra.color,
-			color_blend_type: 0,
-		}, HGE_shader_2Dsimple_def {
-			position: [gl_rect.max.x, gl_rect.min.y, 0.0],
-			ispixel: 1,
-			texture: Some("font".to_string()),
-			uvcoord: [tex_coords.max.x, tex_coords.min.y],
-			color: vertex_data.extra.color,
-			color_blend_type: 0,
-		}, HGE_shader_2Dsimple_def {
-			position: [gl_rect.min.x, gl_rect.max.y, 0.0],
-			ispixel: 1,
-			texture: Some("font".to_string()),
-			uvcoord: [tex_coords.min.x, tex_coords.max.y],
-			color: vertex_data.extra.color,
-			color_blend_type: 0,
-		}, HGE_shader_2Dsimple_def {
-			position: [gl_rect.max.x, gl_rect.max.y, 0.0],
-			ispixel: 1,
-			texture: Some("font".to_string()),
-			uvcoord: [tex_coords.max.x, tex_coords.max.y],
-			color: vertex_data.extra.color,
-			color_blend_type: 0,
-		}];
-		
+
+		let vertex = vec![
+			HGE_shader_2Dsimple_def {
+				position: [gl_rect.min.x, gl_rect.min.y, 0.0],
+				ispixel: 1,
+				texture: Some("font".to_string()),
+				uvcoord: [tex_coords.min.x, tex_coords.min.y],
+				color: vertex_data.extra.color,
+				color_blend_type: 0,
+			},
+			HGE_shader_2Dsimple_def {
+				position: [gl_rect.max.x, gl_rect.min.y, 0.0],
+				ispixel: 1,
+				texture: Some("font".to_string()),
+				uvcoord: [tex_coords.max.x, tex_coords.min.y],
+				color: vertex_data.extra.color,
+				color_blend_type: 0,
+			},
+			HGE_shader_2Dsimple_def {
+				position: [gl_rect.min.x, gl_rect.max.y, 0.0],
+				ispixel: 1,
+				texture: Some("font".to_string()),
+				uvcoord: [tex_coords.min.x, tex_coords.max.y],
+				color: vertex_data.extra.color,
+				color_blend_type: 0,
+			},
+			HGE_shader_2Dsimple_def {
+				position: [gl_rect.max.x, gl_rect.max.y, 0.0],
+				ispixel: 1,
+				texture: Some("font".to_string()),
+				uvcoord: [tex_coords.max.x, tex_coords.max.y],
+				color: vertex_data.extra.color,
+				color_blend_type: 0,
+			},
+		];
+
 		//let mut tmp = StructAllCache::new();
 		//tmp.set(vertex, [0, 1, 2, 1, 3, 2].to_vec());
-		
+
 		return ManagerFont_verticestmp {
 			textId: vertex_data.extra.textId,
 			vertex: vertex,

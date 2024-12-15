@@ -1,8 +1,7 @@
 use crate::configs::general::HGEconfig_general;
-use crate::HGEMain::{preinit, HGEMain};
+use crate::HGEMain::HGEMain;
+use crate::HGEMain_preinit::{Configured, HGEMain_preinitState, Ready};
 use anyhow::anyhow;
-use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
-use std::any::Any;
 use std::sync::Arc;
 use vulkano::swapchain::Surface;
 use Htrace::HTraceError;
@@ -62,20 +61,22 @@ impl EngineEvent
 		return true;
 	}
 
-	pub fn preInit(&mut self) -> anyhow::Result<preinit>
+	pub fn preInit(&mut self) -> anyhow::Result<HGEMain_preinitState<Configured>>
 	{
 		if (self._initialized)
 		{
 			return Err(anyhow!("already initialized"));
 		}
 
-		return HGEMain::preinitialize(self.config.clone());
+		let tmp = HGEMain::preInitialize();
+		let tmp = tmp?.setConfig(self.config.clone());
+		return tmp;
 	}
 
 	pub fn init(
 		&mut self,
-		window: Arc<impl HasWindowHandle + HasDisplayHandle + Any + Send + Sync>,
-		preinit: anyhow::Result<preinit>,
+		surface: Arc<Surface>,
+		preinit: anyhow::Result<HGEMain_preinitState<Ready>>,
 	)
 	{
 		if (self._initialized)
@@ -83,11 +84,7 @@ impl EngineEvent
 			return;
 		}
 
-		HTraceError!(HGEMain::initialize(
-			Surface::required_extensions(&window.display_handle().unwrap()).unwrap(),
-			window,
-			preinit
-		));
+		HTraceError!(HGEMain::initialize(surface, preinit));
 		self._initialized = true;
 		let func = &mut self._funcPostInit;
 		func();
@@ -95,17 +92,14 @@ impl EngineEvent
 
 	/// HGE action when resume (or first launch)
 	/// return true if initialized just happened
-	pub fn resume(
-		&mut self,
-		window: Arc<impl HasWindowHandle + HasDisplayHandle + Any + Send + Sync>,
-	)
+	pub fn resume(&mut self, surface: Arc<Surface>)
 	{
 		if (!self._initialized)
 		{
 			return;
 		}
 
-		HTraceError!(HGEMain::singleton().engineResumed(window));
+		HTraceError!(HGEMain::singleton().engineResumed(surface));
 	}
 
 	/// when window resize
@@ -148,7 +142,7 @@ impl EngineEvent
 	/**
 	 * @param func : function called just before image swap
 	 */
-	pub fn window_draw(&mut self, func: impl Fn())
+	pub fn window_draw(&self, func: impl Fn())
 	{
 		if (!self._initialized)
 		{

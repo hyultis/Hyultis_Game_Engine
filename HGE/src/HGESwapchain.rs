@@ -56,7 +56,7 @@ impl HGESwapchain
 		});
 		HTrace!("surface image format : {:?}", image_formats);
 
-		let (swapchain, images) = Swapchain::new(
+		let (swapchain, images) = match Swapchain::new(
 			builderDevice.device.clone(),
 			surface.clone(),
 			SwapchainCreateInfo {
@@ -74,7 +74,10 @@ impl HGESwapchain
 				..Default::default()
 			},
 		)
-		.unwrap();
+		{
+			Ok(x) => x,
+			Err(err) => panic!("vulkan validation error : {}", err),
+		};
 
 		let images = images
 			.into_iter()
@@ -134,8 +137,7 @@ impl HGESwapchain
 		{
 			Ok(ok) =>
 			{
-				let presentmodes = ok.collect::<Vec<_>>();
-				if (presentmodes.contains(&presentmode))
+				if (ok.contains(&presentmode))
 				{
 					return true;
 				}
@@ -169,40 +171,58 @@ impl HGESwapchain
 	fn internal_recreate(&mut self, withconfig: bool) -> anyhow::Result<()>
 	{
 		let window = HGEMain::singleton().getWindowInfos();
-		println!("info win : {:?}", window.raw());
+		let surfaceCap = match &window.surfaceCapabilities
+		{
+			None => return Err(anyhow!("no surface capabilities found")),
+			Some(x) => x.clone(),
+		};
+
+		println!(
+			"info win : {:?} {:?} {:?}",
+			window.raw(),
+			surfaceCap.min_image_extent,
+			surfaceCap.max_image_extent
+		);
+
 		let (mut presentmode, mut fpslimiter) = self.getDefaults();
 		HGEconfig::singleton().loadSwapchainFromConfig(presentmode, fpslimiter);
-		let mut nbimg = self._surfaceMinImage;
+		let mut nbimg = surfaceCap.min_image_count;
 
 		if (withconfig)
 		{
 			let loadedconfig = HGEconfig::singleton().swapchain_get();
 			presentmode = loadedconfig.presentmode;
 			fpslimiter = loadedconfig.fpslimiter;
-			nbimg = match loadedconfig.presentmode
+			nbimg = match &loadedconfig.presentmode
 			{
-				PresentMode::Immediate => self._surfaceMinImage,
-				PresentMode::Mailbox => self._surfaceMinImage + 1,
-				_ =>
-				{
-					let mut img = self._surfaceMinImage;
-					if cfg!(target_os = "android")
-					{
-						if (img < 3)
-						{
-							img = 3;
-						}
-					}
-					img
-				}
+				PresentMode::Immediate => 1,
+				PresentMode::Mailbox => 3,
+				_ => surfaceCap.min_image_count,
 			};
+		}
 
-			if (nbimg > self._surfaceMaxImage)
+		println!(
+			"image_count : {:?} {} {} {:?} {:?}",
+			presentmode,
+			nbimg,
+			surfaceCap.min_image_count,
+			surfaceCap.max_image_count,
+			surfaceCap.compatible_present_modes
+		);
+		if (nbimg < surfaceCap.min_image_count + 1)
+		{
+			nbimg = surfaceCap.min_image_count + 1;
+		}
+
+		if let Some(max_image_count) = surfaceCap.max_image_count
+		{
+			if (nbimg > max_image_count)
 			{
-				nbimg = self._surfaceMaxImage;
+				nbimg = max_image_count;
 			}
 		}
 
+		println!("swapchain recreate");
 		match self._swapChain.recreate(SwapchainCreateInfo {
 			min_image_count: nbimg,
 			image_extent: window.raw(),
@@ -213,6 +233,7 @@ impl HGESwapchain
 		{
 			Ok((new_swapchain, new_images)) =>
 			{
+				println!("swapchain recreated");
 				self._swapChain = new_swapchain;
 				self._images = new_images
 					.into_iter()
@@ -228,6 +249,7 @@ impl HGESwapchain
 			}
 			Err(e) =>
 			{
+				println!("swapchain error");
 				return match e
 				{
 					Validated::Error(err) => Err(anyhow!("vulkan error : {}", err)),
@@ -235,7 +257,7 @@ impl HGESwapchain
 					{
 						Err(anyhow!("vulkan validation error : {}", err))
 					}
-				}
+				};
 			}
 		};
 	}

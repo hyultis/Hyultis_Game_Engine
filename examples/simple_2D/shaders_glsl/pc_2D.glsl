@@ -1,5 +1,5 @@
 layout(push_constant) uniform PushConstants {
-	vec2 window;
-	float time;
-	mat4 world;
+    mat4 world;
+    vec2 window;
+    float time;
 } globals;
