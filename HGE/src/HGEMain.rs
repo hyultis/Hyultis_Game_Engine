@@ -177,7 +177,10 @@ impl HGEMain
 		let mut tmp = self._rendering.write();
 		if (tmp.rendering(durationFromLast, preSwapFunc))
 		{
-			tmp.drawStats();
+			if (HGEconfig::singleton().general_get().debug_showTimer)
+			{
+				println!("Stats : {}", TimeStatsStorage::singleton());
+			}
 			Self::singleton()._ManagerInterpolate.write().update();
 		}
 	}

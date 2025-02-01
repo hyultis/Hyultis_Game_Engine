@@ -26,20 +26,18 @@ pub struct HGEconfig_general
 	/// set true if the running device is android
 	pub isAndroid: bool,
 	pub defaultShaderLoader: Option<Arc<dyn Fn() + Sync + Send>>,
-	pub fonts: HGEconfig_general_font
+	pub fonts: HGEconfig_general_font,
+	pub debug_showTimer: bool,
 }
 
 impl Default for HGEconfig_general
 {
-	fn default() -> Self {
-		Self{
+	fn default() -> Self
+	{
+		Self {
 			startFullscreen: true,
 			windowTitle: "HGE default title".to_string(),
-			appVersion: Version {
-				major: 0,
-				minor: 0,
-				patch: 0,
-			},
+			appVersion: Version { major: 0, minor: 0, patch: 0 },
 			configName: "HGE".to_string(),
 			isSteamdeck: false,
 			isAndroid: false,
@@ -49,6 +47,7 @@ impl Default for HGEconfig_general
 				path_fileUniversel: "".to_string(),
 				path_fileBold: "".to_string(),
 			},
+			debug_showTimer: false,
 		}
 	}
 }

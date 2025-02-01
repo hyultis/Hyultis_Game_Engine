@@ -55,11 +55,6 @@ impl HGErendering
 		})
 	}
 
-	pub fn drawStats(&self)
-	{
-		println!("Stats : {}", TimeStatsStorage::singleton());
-	}
-
 	pub fn recreate(&mut self, builderDevice: Arc<BuilderDevice>, surface: Arc<Surface>)
 	{
 		self._swapChainC = HGESwapchain::new(builderDevice.clone(), surface.clone());
@@ -195,7 +190,6 @@ impl HGErendering
 		TimeStatsStorage::update("R_CrtTex");
 
 		TimeStatsStorage::forceNow("R_CmdDrain");
-		println!("drain-pre");
 		let mut callbackCmdBuffer = Vec::new();
 		if let Some(mut entry) = HGEMain::SecondaryCmdBuffer_drain(HGEMain_secondarybuffer_type::TEXTURE)
 		{
@@ -205,7 +199,6 @@ impl HGErendering
 			}
 			callbackCmdBuffer.append(&mut entry.1);
 		}
-		println!("drain-post");
 
 		// execute callback of updated cmdBuffer
 		let _ = namedThread!(move || {
@@ -239,16 +232,20 @@ impl HGErendering
 		HGEsubpass::singleton().ExecAllPass(self._renderpassC.clone(), &mut cmdBuf, &self._Frame, HGEMain::singleton().getCmdAllocatorSet());
 		HTraceError!(cmdBuf.end_render_pass(SubpassEndInfo::default()));
 
-		let future = future.then_signal_fence()
-		                   .then_execute(queueGraphic.clone(), cmdBuf.build().unwrap())
-		                   .unwrap();
+		let future = future.then_signal_semaphore().then_execute(queueGraphic.clone(), cmdBuf.build().unwrap()).unwrap();
 		TimeStatsStorage::update("R_AllPass");
 
 		self.dynamic_resolution_try_apply(future, queueGraphic, image_index, swapchain, preSwapFunc);
-
 	}
 
-	fn dynamic_resolution_try_apply<T: GpuFuture + Send + Sync + 'static>(&mut self, future: CommandBufferExecFuture<T>, queueGraphic: Arc<Queue>, image_index: u32, swapchain: Arc<Swapchain>, preSwapFunc: impl Fn())
+	fn dynamic_resolution_try_apply<T: GpuFuture + Send + Sync + 'static>(
+		&mut self,
+		future: CommandBufferExecFuture<T>,
+		queueGraphic: Arc<Queue>,
+		image_index: u32,
+		swapchain: Arc<Swapchain>,
+		preSwapFunc: impl Fn(),
+	)
 	{
 		if (cfg!(feature = "dynamicresolution"))
 		{
@@ -270,7 +267,7 @@ impl HGErendering
 
 			//println!("HGEMain: fence");
 			let future = future
-				.then_signal_fence()
+				.then_signal_semaphore()
 				.then_execute(queueGraphic.clone(), cmdBufDynamicRes.build().unwrap())
 				.unwrap();
 			TimeStatsStorage::update("R_DynRes");
@@ -282,7 +279,14 @@ impl HGErendering
 		}
 	}
 
-	fn rendering_end<T: GpuFuture + Send + Sync + 'static>(&mut self, future: CommandBufferExecFuture<T>, queueGraphic: Arc<Queue>, image_index: u32, swapchain: Arc<Swapchain>, preSwapFunc: impl Fn())
+	fn rendering_end<T: GpuFuture + Send + Sync + 'static>(
+		&mut self,
+		future: CommandBufferExecFuture<T>,
+		queueGraphic: Arc<Queue>,
+		image_index: u32,
+		swapchain: Arc<Swapchain>,
+		preSwapFunc: impl Fn(),
+	)
 	{
 		// func to execute something just before prsent
 		TimeStatsStorage::forceNow("R_preSwapFunc");
@@ -290,14 +294,9 @@ impl HGErendering
 		TimeStatsStorage::update("R_preSwapFunc");
 
 		TimeStatsStorage::forceNow("R_swapchain");
-
-		println!("tata01");
 		let future = future
-			.then_swapchain_present(queueGraphic.clone(), SwapchainPresentInfo::swapchain_image_index(swapchain, image_index));
-
-		println!("tata02");
-		let future = future.then_signal_fence_and_flush();
-		println!("tata03");
+			.then_swapchain_present(queueGraphic.clone(), SwapchainPresentInfo::swapchain_image_index(swapchain, image_index))
+			.then_signal_fence_and_flush();
 		TimeStatsStorage::update("R_swapchain");
 
 		/*let Some(fence) = self.fence_result(fence)
@@ -317,19 +316,20 @@ impl HGErendering
 		match future.map_err(Validated::unwrap)
 		{
 			Ok(future) =>
-				{
-					self._previousFrameEnd = Some(future.boxed_send_sync());
-				}
+			{
+				self._previousFrameEnd = Some(future.boxed_send_sync());
+			}
 			Err(VulkanError::OutOfDate) =>
-				{
-					self._recreatSwapChain = true;
-					self._previousFrameEnd = Some(sync::now(self._builderDevice.device.clone()).boxed_send_sync());
-				}
+			{
+				self._recreatSwapChain = true;
+				self._previousFrameEnd = Some(sync::now(self._builderDevice.device.clone()).boxed_send_sync());
+			}
 			Err(e) =>
-				{
-					panic!("failed to flush future: {e}");
-					// previous_frame_end = Some(sync::now(device.clone()).boxed());
-				}
+			{
+				HTrace!((Type::ERROR) "failed to flush future: {:?}", e);
+				self._recreatSwapChain = true;
+				self._previousFrameEnd = Some(sync::now(self._builderDevice.device.clone()).boxed_send_sync());
+			}
 		}
 	}
 

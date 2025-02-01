@@ -79,6 +79,7 @@ fn main()
 			path_fileUniversel: "fonts/NotoSans-SemiBold.ttf".to_string(),
 			path_fileBold: "fonts/NotoSans-SemiBold.ttf".to_string(),
 		},
+		debug_showTimer: false, // true to show in console all rendering step in microsecond. (R_main combining all)
 		..Default::default()
 	});
 
