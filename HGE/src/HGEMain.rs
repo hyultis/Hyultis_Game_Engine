@@ -376,7 +376,6 @@ impl HGEMain
 				}*/
 
 				Self::singleton()._cameraAnimation.write().retain_mut(|anim| !anim.ticks());
-				Self::singleton()._cmdBufferTextures.iter().for_each(|x| x.thread_launch());
 
 				ManagerInterface::singleton().tickUpdate();
 				ManagerModels::singleton().tickUpdate();
@@ -385,6 +384,8 @@ impl HGEMain
 				ManagerAnimation::singleton().ticksAll();
 
 				ShaderDrawer_Manager::allholder_Update();
+				
+				Self::singleton()._cmdBufferTextures.iter().for_each(|x| x.thread_launch());
 			},
 			|| !**Self::singleton()._isSuspended.load(),
 		);

@@ -6,7 +6,7 @@ edition = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-HGE = { path = "../../HGE", features = ["debuglayer", "dynamicresolution", "front_winit"] }
+HGE = { path = "../../HGE", features = [ "front_winit"] } # "dynamicresolution","debuglayer",
 Hconfig = { workspace = true }
 Htrace = { workspace = true }
 vulkano = { workspace = true }

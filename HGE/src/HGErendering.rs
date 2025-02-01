@@ -8,13 +8,13 @@ use crate::Pipeline::ManagerPipeline::ManagerPipeline;
 use std::sync::Arc;
 use std::time::Duration;
 use vulkano::command_buffer::{
-	AutoCommandBufferBuilder, BlitImageInfo, CommandBufferInheritanceInfo, CommandBufferUsage,
-	ImageBlit, SecondaryAutoCommandBuffer, SubpassEndInfo,
+	AutoCommandBufferBuilder, BlitImageInfo, CommandBufferExecFuture, CommandBufferInheritanceInfo, CommandBufferUsage, ImageBlit, SecondaryAutoCommandBuffer, SubpassEndInfo,
 };
+use vulkano::device::Queue;
 use vulkano::image::sampler::Filter;
 use vulkano::image::ImageLayout;
 use vulkano::render_pass::RenderPass;
-use vulkano::swapchain::{Surface, SwapchainPresentInfo};
+use vulkano::swapchain::{Surface, Swapchain, SwapchainPresentInfo};
 use vulkano::sync::GpuFuture;
 use vulkano::{sync, Validated, VulkanError};
 use Htrace::Type::Type;
@@ -77,8 +77,7 @@ impl HGErendering
 
 	pub fn window_size_dependent_setup(&mut self)
 	{
-		self._Frame
-			.replace(self._swapChainC.getImages(), self._renderpassC.clone());
+		self._Frame.replace(self._swapChainC.getImages(), self._renderpassC.clone());
 		ManagerPipeline::singleton().pipelineRefresh(self._renderpassC.clone());
 	}
 
@@ -93,6 +92,14 @@ impl HGErendering
 		{
 			return false;
 		}
+
+		// clear last rendering
+		TimeStatsStorage::forceNow("R_Clean");
+		if let Some(x) = &mut self._previousFrameEnd
+		{
+			x.cleanup_finished();
+		}
+		TimeStatsStorage::update("R_Clean");
 
 		// Whenever the window resizes we need to recreate everything dependent on the window size.
 		// In this example that includes the swapchain, the framebuffers and the dynamic state viewport.
@@ -123,15 +130,6 @@ impl HGErendering
 
 	fn SwapchainGenerateImg(&mut self, preSwapFunc: impl Fn())
 	{
-		//{ self._previousFrameEnd.take(); }
-
-		TimeStatsStorage::forceNow("R_Clean");
-		if let Some(x) = &mut self._previousFrameEnd
-		{
-			x.cleanup_finished();
-		}
-		TimeStatsStorage::update("R_Clean");
-
 		TimeStatsStorage::forceNow("R_Clones");
 		let queueGraphic = self._builderDevice.getQueueGraphic();
 		let device = self._builderDevice.device.clone();
@@ -147,32 +145,37 @@ impl HGErendering
 		// after which the function call will return an error.
 
 		TimeStatsStorage::forceNow("R_NextImg");
-		let (image_index, acquire_future) =
-			match vulkano::swapchain::acquire_next_image(swapchain.clone(), None)
-				.map_err(Validated::unwrap)
+		let (image_index, acquire_future) = match vulkano::swapchain::acquire_next_image(swapchain.clone(), None).map_err(Validated::unwrap)
+		{
+			Ok((image_index, suboptimal, acquire_future)) =>
 			{
-				Ok((image_index, suboptimal, acquire_future)) =>
-				{
-					// acquire_next_image can be successful, but suboptimal. This means that the swapchain image
-					if suboptimal
-					{
-						self._recreatSwapChain = true;
-					}
-					(image_index, acquire_future)
-				}
-				Err(VulkanError::OutOfDate) =>
+				// acquire_next_image can be successful, but suboptimal. This means that the swapchain image
+				if suboptimal
 				{
 					self._recreatSwapChain = true;
-					return;
 				}
-				Err(e) =>
-				{
-					self._recreatSwapChain = true;
-					HTrace!((Type::WARNING) "acquire_next_image {}", e);
-					return;
-				}
-			};
+				(image_index, acquire_future)
+			}
+			Err(VulkanError::OutOfDate) =>
+			{
+				self._recreatSwapChain = true;
+				return;
+			}
+			Err(e) =>
+			{
+				self._recreatSwapChain = true;
+				HTrace!((Type::WARNING) "acquire_next_image {}", e);
+				return;
+			}
+		};
 		TimeStatsStorage::update("R_NextImg");
+		
+		let future = match self._previousFrameEnd.take()
+		{
+			None => sync::now(device.clone()).boxed_send_sync(),
+			Some(x) => x,
+		};
+		let future = future.join(acquire_future);
 
 		//println!("HGEMain: SecondaryCmdBuffer");
 		TimeStatsStorage::forceNow("R_CrtTex");
@@ -192,9 +195,9 @@ impl HGErendering
 		TimeStatsStorage::update("R_CrtTex");
 
 		TimeStatsStorage::forceNow("R_CmdDrain");
+		println!("drain-pre");
 		let mut callbackCmdBuffer = Vec::new();
-		if let Some(mut entry) =
-			HGEMain::SecondaryCmdBuffer_drain(HGEMain_secondarybuffer_type::TEXTURE)
+		if let Some(mut entry) = HGEMain::SecondaryCmdBuffer_drain(HGEMain_secondarybuffer_type::TEXTURE)
 		{
 			for x in entry.0.drain(0..)
 			{
@@ -202,6 +205,7 @@ impl HGErendering
 			}
 			callbackCmdBuffer.append(&mut entry.1);
 		}
+		println!("drain-post");
 
 		// execute callback of updated cmdBuffer
 		let _ = namedThread!(move || {
@@ -210,6 +214,8 @@ impl HGErendering
 				func();
 			}
 		});
+		
+		let future = future.then_execute(queueGraphic.clone(), cmdBufTexture.build().unwrap()).unwrap();
 		TimeStatsStorage::update("R_CmdDrain");
 
 		TimeStatsStorage::forceNow("R_CrtDraw");
@@ -230,89 +236,101 @@ impl HGErendering
 
 		TimeStatsStorage::forceNow("R_AllPass");
 		self._Frame.clearBuffer(&mut cmdBuf, image_index);
-		HGEsubpass::singleton().ExecAllPass(
-			self._renderpassC.clone(),
-			&mut cmdBuf,
-			&self._Frame,
-			HGEMain::singleton().getCmdAllocatorSet(),
-		);
+		HGEsubpass::singleton().ExecAllPass(self._renderpassC.clone(), &mut cmdBuf, &self._Frame, HGEMain::singleton().getCmdAllocatorSet());
 		HTraceError!(cmdBuf.end_render_pass(SubpassEndInfo::default()));
+		
+		let future = future.then_signal_fence()
+		                   .then_execute(queueGraphic.clone(), cmdBuf.build().unwrap())
+		                   .unwrap();
 		TimeStatsStorage::update("R_AllPass");
 
-		//println!("HGEMain: future take");
-		let future = match self._previousFrameEnd.take()
-		{
-			None => sync::now(device.clone()).boxed_send_sync(),
-			Some(x) => x,
-		};
+		self.dynamic_resolution_try_apply(future, queueGraphic, image_index, swapchain, preSwapFunc);
 
-		//println!("HGEMain: future commands");
-		TimeStatsStorage::forceNow("R_Join");
-		let future = future
-			.join(acquire_future)
-			.then_execute(queueGraphic.clone(), cmdBufTexture.build().unwrap())
-			.unwrap()
-			.then_execute(queueGraphic.clone(), cmdBuf.build().unwrap())
-			.unwrap();
-		TimeStatsStorage::update("R_Join");
+	}
 
-		//println!("HGEMain: semaphore");
-		TimeStatsStorage::forceNow("R_DynRes");
-		let semaphore = future.then_signal_semaphore();
-		let mut cmdBufDynamicRes = match AutoCommandBufferBuilder::primary(
-			HGEMain::singleton().getCmdAllocatorSet(),
-			queueGraphic.queue_family_index(),
-			CommandBufferUsage::OneTimeSubmit,
-		)
-		{
-			Ok(r) => r,
-			Err(err) =>
-			{
-				HTrace!(
-					"Cannot crate primary command buffer dynamic resolution : {}",
-					err
-				);
-				return;
-			}
-		};
+	fn dynamic_resolution_try_apply<T: GpuFuture + Send + Sync + 'static>(&mut self, future: CommandBufferExecFuture<T>, queueGraphic: Arc<Queue>, image_index: u32, swapchain: Arc<Swapchain>, preSwapFunc: impl Fn())
+	{
 		if (cfg!(feature = "dynamicresolution"))
 		{
-			let _ = cmdBufDynamicRes
-				.execute_commands(self.dynamic_resolution(image_index).build().unwrap());
+			TimeStatsStorage::forceNow("R_DynRes");
+			let mut cmdBufDynamicRes = match AutoCommandBufferBuilder::primary(
+				HGEMain::singleton().getCmdAllocatorSet(),
+				queueGraphic.queue_family_index(),
+				CommandBufferUsage::OneTimeSubmit,
+			)
+			{
+				Ok(r) => r,
+				Err(err) =>
+				{
+					HTrace!("Cannot crate primary command buffer dynamic resolution : {}", err);
+					return;
+				}
+			};
+			let _ = cmdBufDynamicRes.execute_commands(self.dynamic_resolution(image_index).build().unwrap());
+
+			//println!("HGEMain: fence");
+			let future = future
+				.then_signal_fence()
+				.then_execute(queueGraphic.clone(), cmdBufDynamicRes.build().unwrap())
+				.unwrap();
+			TimeStatsStorage::update("R_DynRes");
+			self.rendering_end(future, queueGraphic, image_index, swapchain, preSwapFunc);
 		}
-
-		//println!("HGEMain: fence");
-		let fence = semaphore
-			.then_execute(queueGraphic.clone(), cmdBufDynamicRes.build().unwrap())
-			.unwrap();
-		TimeStatsStorage::update("R_DynRes");
-
+		else
+		{
+			self.rendering_end(future, queueGraphic, image_index, swapchain, preSwapFunc);
+		}
+	}
+	
+	fn rendering_end<T: GpuFuture + Send + Sync + 'static>(&mut self, future: CommandBufferExecFuture<T>, queueGraphic: Arc<Queue>, image_index: u32, swapchain: Arc<Swapchain>, preSwapFunc: impl Fn())
+	{
 		// func to execute something just before prsent
 		TimeStatsStorage::forceNow("R_preSwapFunc");
 		preSwapFunc();
 		TimeStatsStorage::update("R_preSwapFunc");
-
+		
 		TimeStatsStorage::forceNow("R_swapchain");
-		let fence = fence
-			.then_swapchain_present(
-				queueGraphic.clone(),
-				SwapchainPresentInfo::swapchain_image_index(swapchain, image_index),
-			)
-			.then_signal_fence_and_flush();
+		
+		println!("tata01");
+		let future = future
+			.then_swapchain_present(queueGraphic.clone(), SwapchainPresentInfo::swapchain_image_index(swapchain, image_index));
+		
+		println!("tata02");
+		let future = future.then_signal_fence_and_flush();
+		println!("tata03");
 		TimeStatsStorage::update("R_swapchain");
-
-		let Some(fence) = self.fence_result(fence)
+		
+		/*let Some(fence) = self.fence_result(fence)
 		else
 		{
 			return;
 		};
-		if (cfg!(target_os = "linux") && self._builderDevice.isNvidia)
+		//(cfg!(target_os = "linux") &&
+		if (self._builderDevice.isNvidia)  // multiple platform problem
 		{
 			TimeStatsStorage::forceNow("R_Nvidiafix");
 			let _ = fence.wait(None); // if not present, make cleanup_finished() crash.
 			TimeStatsStorage::update("R_Nvidiafix");
 		}
-		self._previousFrameEnd = Some(fence.boxed_send_sync());
+		self._previousFrameEnd = Some(fence.boxed_send_sync());*/
+		
+		match future.map_err(Validated::unwrap)
+		{
+			Ok(future) =>
+				{
+					self._previousFrameEnd = Some(future.boxed_send_sync());
+				}
+			Err(VulkanError::OutOfDate) =>
+				{
+					self._recreatSwapChain = true;
+					self._previousFrameEnd = Some(sync::now(self._builderDevice.device.clone()).boxed_send_sync());
+				}
+			Err(e) =>
+				{
+					panic!("failed to flush future: {e}");
+					// previous_frame_end = Some(sync::now(device.clone()).boxed());
+				}
+		}
 	}
 
 	fn fence_result<T>(&mut self, result: Result<T, Validated<VulkanError>>) -> Option<T>
@@ -337,18 +355,13 @@ impl HGErendering
 	}
 
 	/// applied dynamic resolution system (move last image to swapimage with blit operation, return true if something gone wrong
-	fn dynamic_resolution(
-		&self,
-		image_index: u32,
-	) -> AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>
+	fn dynamic_resolution(&self, image_index: u32) -> AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>
 	{
 		let mut cmdBuffer = AutoCommandBufferBuilder::secondary(
 			HGEMain::singleton().getCmdAllocatorSet(),
 			self._builderDevice.getQueueGraphic().queue_family_index(),
 			CommandBufferUsage::OneTimeSubmit,
-			CommandBufferInheritanceInfo {
-				..Default::default()
-			},
+			CommandBufferInheritanceInfo { ..Default::default() },
 		)
 		.unwrap();
 
@@ -380,10 +393,7 @@ impl HGErendering
 		return cmdBuffer;
 	}
 
-	fn define_renderpass(
-		builderdevice: &BuilderDevice,
-		swapchain: &HGESwapchain,
-	) -> anyhow::Result<Arc<RenderPass>>
+	fn define_renderpass(builderdevice: &BuilderDevice, swapchain: &HGESwapchain) -> anyhow::Result<Arc<RenderPass>>
 	{
 		let depthformat = builderdevice.depthformat;
 		let imageformat = swapchain.getImageFormat();
