@@ -13,9 +13,7 @@ use anyhow::anyhow;
 use arc_swap::ArcSwap;
 use dashmap::DashMap;
 use foldhash::{HashMap, HashMapExt};
-use glyph_brush::{
-	BrushAction, BrushError, GlyphBrush, GlyphBrushBuilder, GlyphVertex, OwnedSection, Rectangle,
-};
+use glyph_brush::{BrushAction, BrushError, GlyphBrush, GlyphBrushBuilder, GlyphVertex, OwnedSection, Rectangle};
 use glyph_brush_layout::FontId;
 use image::{GrayImage, Rgba, RgbaImage};
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
@@ -103,10 +101,7 @@ impl ManagerFont
 			_storeCallBack: Default::default(),
 			_storeFontId: Default::default(),
 			_fontEngine: Default::default(),
-			_fontEngineTextureSize: ArcSwap::new(Arc::new([
-				DEFAULTTEXTURESIZE,
-				DEFAULTTEXTURESIZE,
-			])),
+			_fontEngineTextureSize: ArcSwap::new(Arc::new([DEFAULTTEXTURESIZE, DEFAULTTEXTURESIZE])),
 			_threadLoading: Mutex::new(thread),
 			_updateNeed: RwLock::new(false),
 		};
@@ -117,12 +112,7 @@ impl ManagerFont
 		return SINGLETON.get_or_init(|| ManagerFont::new());
 	}
 
-	pub fn Text_add(
-		&self,
-		newtext: OwnedSection<Extra>,
-		callback: impl Fn(TextCacheUpdater) + Send + Sync + 'static,
-		id: u128,
-	)
+	pub fn Text_add(&self, newtext: OwnedSection<Extra>, callback: impl Fn(TextCacheUpdater) + Send + Sync + 'static, id: u128)
 	{
 		self._storeText.insert(id, newtext);
 		self._storeCallBack.insert(id, Arc::new(callback));
@@ -135,12 +125,7 @@ impl ManagerFont
 		self._storeCallBack.remove(&id);
 	}
 
-	pub fn FontLoad(
-		&self,
-		fileUser: String,
-		fileUniversel: String,
-		fileBold: String,
-	) -> anyhow::Result<()>
+	pub fn FontLoad(&self, fileUser: String, fileUniversel: String, fileBold: String) -> anyhow::Result<()>
 	{
 		let fontUser = self.loadFond(fileUser)?;
 		let fontUser = FontArc::try_from_vec(fontUser)?;
@@ -149,12 +134,11 @@ impl ManagerFont
 		let fontBold = self.loadFond(fileBold)?;
 		let fontBold = FontArc::try_from_vec(fontBold)?;
 
-		let mut glyph_brush =
-			GlyphBrushBuilder::using_fonts([fontUser, fontUniversel, fontBold].into())
-				.cache_redraws(false)
-				.draw_cache_position_tolerance(2.0) // ignore subpixel differences totally
-				.draw_cache_scale_tolerance(3.0) // ignore scale differences
-				.build();
+		let mut glyph_brush = GlyphBrushBuilder::using_fonts([fontUser, fontUniversel, fontBold].into())
+			.cache_redraws(false)
+			.draw_cache_position_tolerance(2.0) // ignore subpixel differences totally
+			.draw_cache_scale_tolerance(3.0) // ignore scale differences
+			.build();
 		self._storeFontId.insert("user".to_string(), FontId(0));
 		self._storeFontId.insert("normal".to_string(), FontId(1));
 		self._storeFontId.insert("bold".to_string(), FontId(2));
@@ -175,16 +159,17 @@ impl ManagerFont
 		};
 	}
 
-	pub fn FontEngineGet(
-		&self,
-	) -> RwLockReadGuard<'_, Option<GlyphBrush<ManagerFont_verticestmp, Extra>>>
+	pub fn FontEngineGet(&self) -> RwLockReadGuard<'_, Option<GlyphBrush<ManagerFont_verticestmp, Extra>>>
 	{
 		self._fontEngine.read()
 	}
 
 	pub fn FontEngine_CacheUpdate(&self)
 	{
-		self._threadLoading.lock().thread_launch();
+		if let Some(mut t) = self._threadLoading.try_lock()
+		{
+			t.thread_launch();
+		}
 	}
 
 	pub fn getUniqId(&self) -> u128
@@ -214,9 +199,7 @@ impl ManagerFont
 		HTracer::threadSetName("FontEngine");
 		if let Some(FontEngine) = self._fontEngine.write().as_mut()
 		{
-			if ManagerTexture::singleton()
-				.descriptorSet_getIdTexture(["HGE_set0"], "font")
-				.is_none()
+			if ManagerTexture::singleton().descriptorSet_getIdTexture(["HGE_set0"], "font").is_none()
 			{
 				return;
 			}
@@ -230,8 +213,7 @@ impl ManagerFont
 
 			let result = FontEngine.process_queued(
 				|rect, tex_data| {
-					textureUpdate
-						.push(Box::new(self.processInternal_textureUpdate(rect, tex_data)));
+					textureUpdate.push(Box::new(self.processInternal_textureUpdate(rect, tex_data)));
 				},
 				|vertex_data| self.processInternal_vertexConvert(vertex_data),
 			);
@@ -269,13 +251,10 @@ impl ManagerFont
 							cache.into_iter().for_each(|mut x| {
 								let oldMaxIndice = finalCache.vertex.len() as u32;
 								finalCache.vertex.append(&mut x.vertex);
-								finalCache.indices.append(
-									&mut x.indices.iter().map(|x| x + oldMaxIndice).collect(),
-								);
+								finalCache.indices.append(&mut x.indices.iter().map(|x| x + oldMaxIndice).collect());
 							});
 
-							if let Some(callback) =
-								ManagerFont::singleton()._storeCallBack.get(&textid)
+							if let Some(callback) = ManagerFont::singleton()._storeCallBack.get(&textid)
 							{
 								let func = callback.value().clone();
 								storageToCache.insert(textid, move || {
@@ -295,8 +274,7 @@ impl ManagerFont
 				{
 					HTrace!("Resizing font texture {:?}", suggested);
 					FontEngine.resize_texture(suggested.0, suggested.1);
-					self._fontEngineTextureSize
-						.swap(Arc::new([suggested.0, suggested.1]));
+					self._fontEngineTextureSize.swap(Arc::new([suggested.0, suggested.1]));
 
 					ManagerTexture::singleton().texture_update(
 						"font",
@@ -313,15 +291,10 @@ impl ManagerFont
 		}
 	}
 
-	fn processInternal_textureUpdate(
-		&self,
-		rect: Rectangle<u32>,
-		tex_data: &[u8],
-	) -> Order_partialTextureUpdate
+	fn processInternal_textureUpdate(&self, rect: Rectangle<u32>, tex_data: &[u8]) -> Order_partialTextureUpdate
 	{
 		let gray = GrayImage::from_raw(rect.width(), rect.height(), tex_data.to_vec()).unwrap();
-		let mut finalchar =
-			RgbaImage::from_pixel(rect.width(), rect.height(), Rgba([255, 255, 255, 0])); // Rgba([255,255,255,0]
+		let mut finalchar = RgbaImage::from_pixel(rect.width(), rect.height(), Rgba([255, 255, 255, 0])); // Rgba([255,255,255,0]
 
 		for (x, y, pixel) in finalchar.enumerate_pixels_mut()
 		{
@@ -336,20 +309,11 @@ impl ManagerFont
 		}
 	}
 
-	fn processInternal_vertexConvert(
-		&self,
-		vertex_data: GlyphVertex<Extra>,
-	) -> ManagerFont_verticestmp
+	fn processInternal_vertexConvert(&self, vertex_data: GlyphVertex<Extra>) -> ManagerFont_verticestmp
 	{
 		let mut gl_rect = ab_glyph::Rect {
-			min: ab_glyph::point(
-				vertex_data.pixel_coords.min.x,
-				vertex_data.pixel_coords.min.y,
-			),
-			max: ab_glyph::point(
-				vertex_data.pixel_coords.max.x,
-				vertex_data.pixel_coords.max.y,
-			),
+			min: ab_glyph::point(vertex_data.pixel_coords.min.x, vertex_data.pixel_coords.min.y),
+			max: ab_glyph::point(vertex_data.pixel_coords.max.x, vertex_data.pixel_coords.max.y),
 		};
 		let mut tex_coords = ab_glyph::Rect {
 			min: ab_glyph::point(vertex_data.tex_coords.min.x, vertex_data.tex_coords.min.y),
@@ -373,15 +337,13 @@ impl ManagerFont
 		{
 			let old_height = gl_rect.height();
 			gl_rect.max.y = vertex_data.bounds.max.y;
-			tex_coords.max.y =
-				tex_coords.min.y + tex_coords.height() * gl_rect.height() / old_height;
+			tex_coords.max.y = tex_coords.min.y + tex_coords.height() * gl_rect.height() / old_height;
 		}
 		if gl_rect.min.y < vertex_data.bounds.min.y
 		{
 			let old_height = gl_rect.height();
 			gl_rect.min.y = vertex_data.bounds.min.y;
-			tex_coords.min.y =
-				tex_coords.max.y - tex_coords.height() * gl_rect.height() / old_height;
+			tex_coords.min.y = tex_coords.max.y - tex_coords.height() * gl_rect.height() / old_height;
 		}
 
 		let vertex = vec![

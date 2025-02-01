@@ -169,7 +169,7 @@ impl HGErendering
 			}
 		};
 		TimeStatsStorage::update("R_NextImg");
-		
+
 		let future = match self._previousFrameEnd.take()
 		{
 			None => sync::now(device.clone()).boxed_send_sync(),
@@ -214,7 +214,7 @@ impl HGErendering
 				func();
 			}
 		});
-		
+
 		let future = future.then_execute(queueGraphic.clone(), cmdBufTexture.build().unwrap()).unwrap();
 		TimeStatsStorage::update("R_CmdDrain");
 
@@ -238,7 +238,7 @@ impl HGErendering
 		self._Frame.clearBuffer(&mut cmdBuf, image_index);
 		HGEsubpass::singleton().ExecAllPass(self._renderpassC.clone(), &mut cmdBuf, &self._Frame, HGEMain::singleton().getCmdAllocatorSet());
 		HTraceError!(cmdBuf.end_render_pass(SubpassEndInfo::default()));
-		
+
 		let future = future.then_signal_fence()
 		                   .then_execute(queueGraphic.clone(), cmdBuf.build().unwrap())
 		                   .unwrap();
@@ -281,25 +281,25 @@ impl HGErendering
 			self.rendering_end(future, queueGraphic, image_index, swapchain, preSwapFunc);
 		}
 	}
-	
+
 	fn rendering_end<T: GpuFuture + Send + Sync + 'static>(&mut self, future: CommandBufferExecFuture<T>, queueGraphic: Arc<Queue>, image_index: u32, swapchain: Arc<Swapchain>, preSwapFunc: impl Fn())
 	{
 		// func to execute something just before prsent
 		TimeStatsStorage::forceNow("R_preSwapFunc");
 		preSwapFunc();
 		TimeStatsStorage::update("R_preSwapFunc");
-		
+
 		TimeStatsStorage::forceNow("R_swapchain");
-		
+
 		println!("tata01");
 		let future = future
 			.then_swapchain_present(queueGraphic.clone(), SwapchainPresentInfo::swapchain_image_index(swapchain, image_index));
-		
+
 		println!("tata02");
 		let future = future.then_signal_fence_and_flush();
 		println!("tata03");
 		TimeStatsStorage::update("R_swapchain");
-		
+
 		/*let Some(fence) = self.fence_result(fence)
 		else
 		{
@@ -313,7 +313,7 @@ impl HGErendering
 			TimeStatsStorage::update("R_Nvidiafix");
 		}
 		self._previousFrameEnd = Some(fence.boxed_send_sync());*/
-		
+
 		match future.map_err(Validated::unwrap)
 		{
 			Ok(future) =>

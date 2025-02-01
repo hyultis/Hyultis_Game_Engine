@@ -23,13 +23,9 @@ use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::command_buffer::CopyBufferToImageInfo;
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 use vulkano::format::Format;
-use vulkano::image::sampler::{
-	Filter, Sampler, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode,
-};
+use vulkano::image::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode};
 use vulkano::image::view::{ImageView, ImageViewCreateInfo, ImageViewType};
-use vulkano::image::{
-	Image, ImageAspects, ImageCreateInfo, ImageSubresourceRange, ImageType, ImageUsage,
-};
+use vulkano::image::{Image, ImageAspects, ImageCreateInfo, ImageSubresourceRange, ImageType, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use HArcMut::HArcMut;
 use Htrace::HTrace;
@@ -96,12 +92,7 @@ impl ManagerTexture
 		}
 	}
 
-	pub fn texture_load(
-		&self,
-		name: impl Into<String>,
-		loadOrder: Order_load,
-		sampler: Option<&str>,
-	)
+	pub fn texture_load(&self, name: impl Into<String>, loadOrder: Order_load, sampler: Option<&str>)
 	{
 		let name: String = name.into();
 		let sampler = sampler.unwrap_or("default").to_string();
@@ -115,8 +106,7 @@ impl ManagerTexture
 				..Texture::default()
 			}),
 		);
-		self._texturesOrder
-			.insert(name.clone(), HArcMut::new(Vec::new()));
+		self._texturesOrder.insert(name.clone(), HArcMut::new(Vec::new()));
 		*self._NbTotalTexture.write() += 1;
 
 		if (loadOrder.isSameThread())
@@ -135,11 +125,7 @@ impl ManagerTexture
 		}
 	}
 
-	pub fn texture_update(
-		&self,
-		name: impl Into<String>,
-		mut updateOrders: Vec<Box<dyn Order + Sync + Send + 'static>>,
-	)
+	pub fn texture_update(&self, name: impl Into<String>, mut updateOrders: Vec<Box<dyn Order + Sync + Send + 'static>>)
 	{
 		let name = name.into();
 		if let Some(bind) = self._textures.get(&name)
@@ -209,43 +195,20 @@ impl ManagerTexture
 		}
 	}
 
-	pub fn texture_setCallback(
-		&self,
-		name: impl Into<String>,
-		func: impl Fn(&mut Texture) + Send + Sync + 'static,
-	)
+	pub fn texture_setCallback(&self, name: impl Into<String>, func: impl Fn(&mut Texture) + Send + Sync + 'static)
 	{
 		if let Some(texture) = self._textures.get(&name.into())
 		{
-			self._texturesCallback
-				.insert(texture.key().clone(), Box::new(func));
+			self._texturesCallback.insert(texture.key().clone(), Box::new(func));
 		}
 	}
 
-	pub fn add(
-		&self,
-		name: impl Into<String>,
-		texturePath: impl Into<String>,
-		sampler: Option<&str>,
-	)
+	pub fn add(&self, name: impl Into<String>, texturePath: impl Into<String>, sampler: Option<&str>)
 	{
-		self.texture_load(
-			name.into(),
-			Order_load::new(textureLoader_fromFile {
-				path: texturePath.into(),
-			}),
-			sampler,
-		);
+		self.texture_load(name.into(), Order_load::new(textureLoader_fromFile { path: texturePath.into() }), sampler);
 	}
 
-	pub fn addRawPrioritize(
-		&self,
-		name: &str,
-		textureRaw: Vec<u8>,
-		width: u32,
-		height: u32,
-		sampler: Option<&str>,
-	)
+	pub fn addRawPrioritize(&self, name: &str, textureRaw: Vec<u8>, width: u32, height: u32, sampler: Option<&str>)
 	{
 		self.texture_load(
 			name,
@@ -272,28 +235,15 @@ impl ManagerTexture
 
 	pub fn getState(&self, name: impl Into<String>) -> Option<TextureState>
 	{
-		return self
-			._textures
-			.get(&name.into())
-			.map(|x| x.get().state.clone());
+		return self._textures.get(&name.into()).map(|x| x.get().state.clone());
 	}
 
-	pub fn texture_loadPart(
-		&self,
-		name: impl Into<String>,
-		partLoader: impl texturePart + Sync + Send + 'static,
-	)
+	pub fn texture_loadPart(&self, name: impl Into<String>, partLoader: impl texturePart + Sync + Send + 'static)
 	{
-		self.orderAdd(
-			name.into(),
-			vec![Box::new(Order_loadPart {
-				from: Box::new(partLoader),
-			})],
-		);
+		self.orderAdd(name.into(), vec![Box::new(Order_loadPart { from: Box::new(partLoader) })]);
 	}
 
-	pub fn getPart(&self, name: impl Into<String>, part: impl Into<String>)
-		-> Option<Texture_part>
+	pub fn getPart(&self, name: impl Into<String>, part: impl Into<String>) -> Option<Texture_part>
 	{
 		let texture = self._textures.get(&name.into());
 		match texture
@@ -305,37 +255,28 @@ impl ManagerTexture
 
 	pub fn launchThreads(&self)
 	{
-		self._threadLoading.lock().thread_launch();
-		self._threadUpdateDescriptorSets.lock().thread_launch();
+		if let Some(mut t) = self._threadLoading.try_lock()
+		{
+			t.thread_launch();
+		}
+		if let Some(mut t) = self._threadUpdateDescriptorSets.try_lock()
+		{
+			t.thread_launch();
+		}
 	}
 
-	pub fn descriptorSet_create(
-		&self,
-		descriptorSetName: impl Into<String>,
-		textureDescriptor: TextureDescriptor,
-	)
+	pub fn descriptorSet_create(&self, descriptorSetName: impl Into<String>, textureDescriptor: TextureDescriptor)
 	{
-		self._descriptorSets
-			.insert(descriptorSetName.into(), textureDescriptor);
+		self._descriptorSets.insert(descriptorSetName.into(), textureDescriptor);
 	}
 
-	pub fn descriptorSet_getVulkanCache(
-		&self,
-		descriptorSetName: impl Into<String>,
-	) -> Option<Arc<DescriptorSet>>
+	pub fn descriptorSet_getVulkanCache(&self, descriptorSetName: impl Into<String>) -> Option<Arc<DescriptorSet>>
 	{
 		let descriptorSetName = descriptorSetName.into();
-		return self
-			._descriptorSets
-			.get(&descriptorSetName)
-			.map(|x| x.value().getDescriptor().clone());
+		return self._descriptorSets.get(&descriptorSetName).map(|x| x.value().getDescriptor().clone());
 	}
 
-	pub fn descriptorSet_getIdTexture(
-		&self,
-		descriptorSetNames: impl IntoIterator<Item = impl Into<String>>,
-		textureName: impl Into<String>,
-	) -> Option<TextureChannel>
+	pub fn descriptorSet_getIdTexture(&self, descriptorSetNames: impl IntoIterator<Item = impl Into<String>>, textureName: impl Into<String>) -> Option<TextureChannel>
 	{
 		let descriptorSetNames = descriptorSetNames.into_iter();
 		let textureName = textureName.into();
@@ -360,11 +301,7 @@ impl ManagerTexture
 
 	pub fn getNbLoadedTexture(&self) -> u32
 	{
-		return self
-			._textures
-			.iter()
-			.filter(|x| x.get().state == TextureState::LOADED)
-			.count() as u32;
+		return self._textures.iter().filter(|x| x.get().state == TextureState::LOADED).count() as u32;
 	}
 
 	///////////// PRIVATE ///////////
@@ -428,11 +365,7 @@ impl ManagerTexture
 
 	fn defaultSampler() -> Arc<Sampler>
 	{
-		return Sampler::new(
-			HGEMain::singleton().getDevice().device.clone(),
-			SamplerCreateInfo::simple_repeat_linear(),
-		)
-		.unwrap();
+		return Sampler::new(HGEMain::singleton().getDevice().device.clone(), SamplerCreateInfo::simple_repeat_linear()).unwrap();
 	}
 
 	fn emptyDescriptor(set: usize) -> Arc<DescriptorSet>
@@ -446,8 +379,7 @@ impl ManagerTexture
 				..Default::default()
 			},
 			AllocationCreateInfo {
-				memory_type_filter: MemoryTypeFilter::PREFER_HOST
-					| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+				memory_type_filter: MemoryTypeFilter::PREFER_HOST | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
 				..Default::default()
 			},
 			vec![0, 0, 0, 0],
@@ -467,12 +399,7 @@ impl ManagerTexture
 		)
 		.unwrap();
 
-		combuilder
-			.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
-				upload_buffer,
-				image.clone(),
-			))
-			.unwrap();
+		combuilder.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(upload_buffer, image.clone())).unwrap();
 
 		let tmp = match set
 		{
@@ -494,21 +421,11 @@ impl ManagerTexture
 			_ => ImageView::new_default(image).unwrap(),
 		};
 
-		HGEMain::SecondaryCmdBuffer_add(
-			HGEMain_secondarybuffer_type::TEXTURE,
-			combuilder.build().unwrap(),
-			|| {},
-		);
+		HGEMain::SecondaryCmdBuffer_add(HGEMain_secondarybuffer_type::TEXTURE, combuilder.build().unwrap(), || {});
 		let returned = DescriptorSet::new(
 			HGEMain::singleton().getDescAllocatorSet(),
-			ManagerPipeline::singleton()
-				.layoutGetDescriptor(HGE_shader_3Dsimple_holder::pipelineName(), set)
-				.unwrap(),
-			[WriteDescriptorSet::image_view_sampler(
-				0,
-				tmp,
-				Self::defaultSampler(),
-			)],
+			ManagerPipeline::singleton().layoutGetDescriptor(HGE_shader_3Dsimple_holder::pipelineName(), set).unwrap(),
+			[WriteDescriptorSet::image_view_sampler(0, tmp, Self::defaultSampler())],
 			[],
 		)
 		.unwrap();
@@ -539,11 +456,7 @@ impl ManagerTexture
 
 		// exiting but with checking if new order have been added
 		let mut tmp = Self::singleton()._haveOneOrderUpdate.write();
-		if (Self::singleton()
-			._texturesOrder
-			.iter()
-			.find(|textureOrders| textureOrders.get().len() > 0)
-			.is_none())
+		if (Self::singleton()._texturesOrder.iter().find(|textureOrders| textureOrders.get().len() > 0).is_none())
 		{
 			*tmp = false;
 		}
@@ -733,11 +646,7 @@ impl ManagerTexture
 		}
 	}
 
-	fn order_execute_texture_exec(
-		&self,
-		orders: &Vec<Box<dyn Order + Sync + Send>>,
-		texture: &mut Texture,
-	)
+	fn order_execute_texture_exec(&self, orders: &Vec<Box<dyn Order + Sync + Send>>, texture: &mut Texture)
 	{
 		for oneorder in orders.iter()
 		{

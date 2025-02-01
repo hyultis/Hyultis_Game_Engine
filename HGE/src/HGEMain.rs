@@ -159,7 +159,10 @@ impl HGEMain
 	pub fn runService(&self)
 	{
 		TimeStatsStorage::forceNow("R_service");
-		Self::singleton()._thread_runService.lock().thread_launch();
+		if let Some(mut t) = self._thread_runService.try_lock()
+		{
+			t.thread_launch();
+		}
 		TimeStatsStorage::update("R_service");
 	}
 
@@ -370,12 +373,12 @@ impl HGEMain
 
 		let threadService = SingletonThread::newFiltered(
 			|| {
-				/*if (**Self::singleton()._isSuspended.load())
-				{
-					return;
-				}*/
-
-				Self::singleton()._cameraAnimation.write().retain_mut(|anim| !anim.ticks());
+				namedThread!(|| {
+					if let Some(mut manager) = Self::singleton()._cameraAnimation.try_write()
+					{
+						manager.retain_mut(|anim| !anim.ticks());
+					}
+				});
 
 				ManagerInterface::singleton().tickUpdate();
 				ManagerModels::singleton().tickUpdate();
@@ -384,7 +387,7 @@ impl HGEMain
 				ManagerAnimation::singleton().ticksAll();
 
 				ShaderDrawer_Manager::allholder_Update();
-				
+
 				Self::singleton()._cmdBufferTextures.iter().for_each(|x| x.thread_launch());
 			},
 			|| !**Self::singleton()._isSuspended.load(),
