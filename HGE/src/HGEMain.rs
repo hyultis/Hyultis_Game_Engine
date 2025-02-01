@@ -1,6 +1,7 @@
 extern crate vulkano;
 
 use crate::components::system::DeferredDatas::DeferredData;
+use crate::components::system::TimeStats::TimeStatsStorage;
 use crate::components::window::{window_infos, window_orientation};
 use crate::configs::HGEconfig::HGEconfig;
 use crate::Animation::Animation;
@@ -15,9 +16,7 @@ use crate::InterpolateTimer::ManagerInterpolate;
 use crate::ManagerAnimation::{AnimationHolder, ManagerAnimation};
 use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Models3D::ManagerModels::ManagerModels;
-use crate::Shaders::HGE_shader_2Dsimple::{
-	HGE_shader_2Dline_holder, HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder,
-};
+use crate::Shaders::HGE_shader_2Dsimple::{HGE_shader_2Dline_holder, HGE_shader_2Dsimple, HGE_shader_2Dsimple_holder};
 use crate::Shaders::HGE_shader_3Dinstance::{HGE_shader_3Dinstance, HGE_shader_3Dinstance_holder};
 use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple, HGE_shader_3Dsimple_holder};
 use crate::Shaders::HGE_shader_screen::HGE_shader_screen;
@@ -25,9 +24,7 @@ use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
 use crate::Shaders::ShaderStruct::{ShaderStruct, ShaderStructHolder};
 use crate::Textures::Manager::ManagerTexture;
 use crate::Textures::TextureDescriptor::TextureDescriptor;
-use crate::Textures::TextureDescriptor_type::{
-	TextureDescriptor_exclude, TextureDescriptor_process, TextureDescriptor_type,
-};
+use crate::Textures::TextureDescriptor_type::{TextureDescriptor_exclude, TextureDescriptor_process, TextureDescriptor_type};
 use anyhow::anyhow;
 use arc_swap::{ArcSwap, ArcSwapOption, Guard};
 use dashmap::DashMap;
@@ -36,9 +33,7 @@ use singletonThread::SingletonThread;
 use std::ops::Range;
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
-use vulkano::command_buffer::allocator::{
-	StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo,
-};
+use vulkano::command_buffer::allocator::{StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo};
 use vulkano::command_buffer::{CommandBufferInheritanceInfo, SecondaryAutoCommandBuffer};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::instance::Instance;
@@ -52,11 +47,7 @@ use Hconfig::HConfigManager::HConfigManager;
 use Htrace::{namedThread, HTrace, HTraceError};
 
 pub(crate) const HGE_STRING: &str = "HGE";
-pub(crate) const HGE_VERSION: Version = Version {
-	major: 1,
-	minor: 0,
-	patch: 0,
-};
+pub(crate) const HGE_VERSION: Version = Version { major: 1, minor: 0, patch: 0 };
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone)]
 pub enum HGEMain_secondarybuffer_type
@@ -81,13 +72,7 @@ pub struct HGEMain
 	// tmp
 	_stdCmdAllocSet: ArcSwap<StandardCommandBufferAllocator>,
 	_stdDescAllocSet: ArcSwap<StandardDescriptorSetAllocator>,
-	_cmdBufferTextures: DashMap<
-		HGEMain_secondarybuffer_type,
-		DeferredData<(
-			Vec<Arc<SecondaryAutoCommandBuffer>>,
-			Vec<Arc<dyn Fn() + Send + Sync>>,
-		)>,
-	>,
+	_cmdBufferTextures: DashMap<HGEMain_secondarybuffer_type, DeferredData<(Vec<Arc<SecondaryAutoCommandBuffer>>, Vec<Arc<dyn Fn() + Send + Sync>>)>>,
 
 	//cache data
 	_windowInfos: RwLock<window_infos>,
@@ -110,9 +95,7 @@ impl HGEMain
 {
 	pub fn singleton() -> &'static Self
 	{
-		return SINGLETON
-			.get()
-			.unwrap_or_else(|| panic!("HGE have not been initialized"));
+		return SINGLETON.get().unwrap_or_else(|| panic!("HGE have not been initialized"));
 	}
 
 	pub fn preInitialize() -> anyhow::Result<HGEMain_preinitState<Initial>>
@@ -125,10 +108,7 @@ impl HGEMain
 		return Ok(HGEMain_preinitState::new());
 	}
 
-	pub fn initialize(
-		surface: Arc<Surface>,
-		preinit: anyhow::Result<HGEMain_preinitState<Ready>>,
-	) -> anyhow::Result<()>
+	pub fn initialize(surface: Arc<Surface>, preinit: anyhow::Result<HGEMain_preinitState<Ready>>) -> anyhow::Result<()>
 	{
 		let instance = match preinit
 		{
@@ -143,28 +123,19 @@ impl HGEMain
 		let builderDevice = Arc::new(BuilderDevice::new(instance.clone(), surface.clone()));
 
 		/// user information
-		let mut config = HConfigManager::singleton()
-			.get(HGEconfig::singleton().general_get().configName.clone());
+		let mut config = HConfigManager::singleton().get(HGEconfig::singleton().general_get().configName.clone());
 		config.set(
 			"system/swapchain/presentmode_allowed",
 			builderDevice
 				.surfaceCapabilities
 				.as_ref()
-				.map(|s| {
-					s.compatible_present_modes
-						.iter()
-						.map(|p| format!("{:?}", p))
-						.collect::<Vec<String>>()
-				})
+				.map(|s| s.compatible_present_modes.iter().map(|p| format!("{:?}", p)).collect::<Vec<String>>())
 				.unwrap_or(vec!["fifo".to_string()]),
 		);
 
 		HTrace!("Engine initialization : Memory allocator build");
 		ManagerMemoryAllocator::singleton().update(builderDevice.device.clone());
-		let stdAllocSet = Arc::new(StandardDescriptorSetAllocator::new(
-			builderDevice.device.clone(),
-			Default::default(),
-		));
+		let stdAllocSet = Arc::new(StandardDescriptorSetAllocator::new(builderDevice.device.clone(), Default::default()));
 
 		HTrace!("Engine initialization : rendering build");
 		let rendering = HGErendering::new(builderDevice.clone(), surface.clone())?;
@@ -187,7 +158,9 @@ impl HGEMain
 
 	pub fn runService(&self)
 	{
+		TimeStatsStorage::forceNow("R_service");
 		Self::singleton()._thread_runService.lock().thread_launch();
+		TimeStatsStorage::update("R_service");
 	}
 
 	pub fn runRendering(&self, preSwapFunc: impl Fn())
@@ -197,10 +170,7 @@ impl HGEMain
 			return;
 		}
 
-		let durationFromLast = Self::singleton()
-			._ManagerInterpolate
-			.read()
-			.getNowFromLast();
+		let durationFromLast = Self::singleton()._ManagerInterpolate.read().getNowFromLast();
 		let mut tmp = self._rendering.write();
 		if (tmp.rendering(durationFromLast, preSwapFunc))
 		{
@@ -304,36 +274,23 @@ impl HGEMain
 		return self._builderDevice.load();
 	}
 
-	pub fn SecondaryCmdBuffer_generate(
-		&self,
-	) -> AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>
+	pub fn SecondaryCmdBuffer_generate(&self) -> AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>
 	{
 		AutoCommandBufferBuilder::secondary(
 			self.getCmdAllocatorSet(),
-			Self::singleton()
-				.getDevice()
-				.getQueueGraphic()
-				.queue_family_index(),
+			Self::singleton().getDevice().getQueueGraphic().queue_family_index(),
 			CommandBufferUsage::OneTimeSubmit,
-			CommandBufferInheritanceInfo {
-				..Default::default()
-			},
+			CommandBufferInheritanceInfo { ..Default::default() },
 		)
 		.unwrap()
 	}
 
-	pub fn SecondaryCmdBuffer_add(
-		sbtype: HGEMain_secondarybuffer_type,
-		cmdBuffer: Arc<SecondaryAutoCommandBuffer>,
-		callback: impl Fn() + Send + Sync + 'static,
-	)
+	pub fn SecondaryCmdBuffer_add(sbtype: HGEMain_secondarybuffer_type, cmdBuffer: Arc<SecondaryAutoCommandBuffer>, callback: impl Fn() + Send + Sync + 'static)
 	{
 		let _ = namedThread!(move || {
 			if (!Self::singleton()._cmdBufferTextures.contains_key(&sbtype))
 			{
-				Self::singleton()
-					._cmdBufferTextures
-					.insert(sbtype, DeferredData::new());
+				Self::singleton()._cmdBufferTextures.insert(sbtype, DeferredData::new());
 			}
 
 			let Some(binding) = Self::singleton()._cmdBufferTextures.get_mut(&sbtype)
@@ -357,12 +314,7 @@ impl HGEMain
 		});
 	}
 
-	pub(crate) fn SecondaryCmdBuffer_drain(
-		typed: HGEMain_secondarybuffer_type,
-	) -> Option<(
-		Vec<Arc<SecondaryAutoCommandBuffer>>,
-		Vec<Arc<dyn Fn() + Send + Sync>>,
-	)>
+	pub(crate) fn SecondaryCmdBuffer_drain(typed: HGEMain_secondarybuffer_type) -> Option<(Vec<Arc<SecondaryAutoCommandBuffer>>, Vec<Arc<dyn Fn() + Send + Sync>>)>
 	{
 		let Some(dataBinding) = Self::singleton()._cmdBufferTextures.get(&typed)
 		else
@@ -383,9 +335,7 @@ impl HGEMain
 		HTrace!("Engine context creation ----");
 		self._surface.swap(Some(surface.clone()));
 
-		self._rendering
-			.write()
-			.recreate(self._builderDevice.load().clone(), surface);
+		self._rendering.write().recreate(self._builderDevice.load().clone(), surface);
 
 		ManagerInterface::singleton().WindowRefreshed();
 		self._isSuspended.swap(Arc::new(false));
@@ -414,27 +364,19 @@ impl HGEMain
 
 	///////////// PRIVATE
 
-	fn new(
-		instance: Arc<Instance>,
-		builder_device: Arc<BuilderDevice>,
-		surface: Arc<Surface>,
-		stdAllocSet: Arc<StandardDescriptorSetAllocator>,
-		rendering: HGErendering,
-	) -> Self
+	fn new(instance: Arc<Instance>, builder_device: Arc<BuilderDevice>, surface: Arc<Surface>, stdAllocSet: Arc<StandardDescriptorSetAllocator>, rendering: HGErendering) -> Self
 	{
 		let config = HGEconfig::singleton().general_get();
 
-		let threadService = SingletonThread::newFiltered(
+		let mut threadService = SingletonThread::newFiltered(
 			|| {
-				Self::singleton()
-					._cameraAnimation
-					.write()
-					.retain_mut(|anim| !anim.ticks());
+				/*if (**Self::singleton()._isSuspended.load())
+				{
+					return;
+				}*/
 
-				Self::singleton()
-					._cmdBufferTextures
-					.iter()
-					.for_each(|x| x.thread_launch());
+				Self::singleton()._cameraAnimation.write().retain_mut(|anim| !anim.ticks());
+				Self::singleton()._cmdBufferTextures.iter().for_each(|x| x.thread_launch());
 
 				ManagerInterface::singleton().tickUpdate();
 				ManagerModels::singleton().tickUpdate();
@@ -446,11 +388,9 @@ impl HGEMain
 			},
 			|| !**Self::singleton()._isSuspended.load(),
 		);
+		//threadService.setLoop(true);
 
-		let stdAlloccommand = StandardCommandBufferAllocator::new(
-			builder_device.device.clone(),
-			Self::getDefaultAllocInfos(),
-		);
+		let stdAlloccommand = StandardCommandBufferAllocator::new(builder_device.device.clone(), Self::getDefaultAllocInfos());
 
 		return Self {
 			_instance: ArcSwap::new(instance),
@@ -542,20 +482,13 @@ impl HGEMain
 		};*/
 		// https://github.com/vulkano-rs/vulkano/commit/fe01ddd5e3f178b971ed102dd5fdd93cee5d87b9#diff-d246486211c651344a5f0381a9258a41abeea7678bb10c3e4c855372f8b9b8e4
 
-		let loadingdExternalShader = HGEconfig::singleton()
-			.general_get()
-			.defaultShaderLoader
-			.clone()
-			.unwrap();
+		let loadingdExternalShader = HGEconfig::singleton().general_get().defaultShaderLoader.clone().unwrap();
 		loadingdExternalShader();
 
-		ShaderDrawer_Manager::singleton()
-			.register::<HGE_shader_2Dsimple_holder>(HGEsubpassName::UI);
+		ShaderDrawer_Manager::singleton().register::<HGE_shader_2Dsimple_holder>(HGEsubpassName::UI);
 		ShaderDrawer_Manager::singleton().register::<HGE_shader_2Dline_holder>(HGEsubpassName::UI);
-		ShaderDrawer_Manager::singleton()
-			.register::<HGE_shader_3Dsimple_holder>(HGEsubpassName::WORLDSOLID);
-		ShaderDrawer_Manager::singleton()
-			.register::<HGE_shader_3Dinstance_holder>(HGEsubpassName::WORLDSOLID);
+		ShaderDrawer_Manager::singleton().register::<HGE_shader_3Dsimple_holder>(HGEsubpassName::WORLDSOLID);
+		ShaderDrawer_Manager::singleton().register::<HGE_shader_3Dinstance_holder>(HGEsubpassName::WORLDSOLID);
 
 		HGE_shader_3Dinstance::createPipeline()?;
 		HGE_shader_3Dsimple::createPipeline()?;
@@ -586,10 +519,7 @@ impl HGEMain
 		ManagerTexture::singleton().descriptorSet_create(
 			"HGE_set1",
 			TextureDescriptor::new(
-				TextureDescriptor_type::SIZE_DEPENDENT(
-					0..512,
-					TextureDescriptor_process::RESIZE(texturesize, texturesize),
-				),
+				TextureDescriptor_type::SIZE_DEPENDENT(0..512, TextureDescriptor_process::RESIZE(texturesize, texturesize)),
 				TextureDescriptor_exclude::ARRAY(vec!["font".to_string()]),
 				HGE_shader_2Dsimple_holder::pipelineName(),
 				1,
@@ -599,10 +529,7 @@ impl HGEMain
 		ManagerTexture::singleton().descriptorSet_create(
 			"HGE_set2",
 			TextureDescriptor::new(
-				TextureDescriptor_type::SIZE_MIN(
-					512..,
-					TextureDescriptor_process::RESIZE(texturesizebig, texturesizebig),
-				),
+				TextureDescriptor_type::SIZE_MIN(512.., TextureDescriptor_process::RESIZE(texturesizebig, texturesizebig)),
 				TextureDescriptor_exclude::ARRAY(vec!["font".to_string()]),
 				HGE_shader_2Dsimple_holder::pipelineName(),
 				2,
@@ -611,11 +538,7 @@ impl HGEMain
 		);
 
 		let tmp = HGEconfig::singleton().general_get();
-		HTraceError!(ManagerFont::singleton().FontLoad(
-			tmp.fonts.path_fileUser.clone(),
-			tmp.fonts.path_fileUniversel.clone(),
-			tmp.fonts.path_fileBold.clone()
-		));
+		HTraceError!(ManagerFont::singleton().FontLoad(tmp.fonts.path_fileUser.clone(), tmp.fonts.path_fileUniversel.clone(), tmp.fonts.path_fileBold.clone()));
 
 		HTrace!("Engine load internal end ----");
 		Ok(())
@@ -630,10 +553,7 @@ impl HGEMain
 		};
 
 		let builderDevice = self._builderDevice.load();
-		if let Ok(result) = builderDevice
-			.device
-			.physical_device()
-			.surface_capabilities(surface, Default::default())
+		if let Ok(result) = builderDevice.device.physical_device().surface_capabilities(surface, Default::default())
 		{
 			return Some(result);
 		}

@@ -77,14 +77,8 @@ pub fn loadShaders()
 {
 	let device = HGEMain::singleton().getDevice().device.clone();
 	let mut shaders = BTreeMap::new();
-	shaders.insert(
-		Shader_type::VERTEX,
-		HGE_rawshader_2Dsimple_vert::load(device.clone()).unwrap(),
-	);
-	shaders.insert(
-		Shader_type::FRAGMENT,
-		HGE_rawshader_2Dsimple_frag::load(device.clone()).unwrap(),
-	);
+	shaders.insert(Shader_type::VERTEX, HGE_rawshader_2Dsimple_vert::load(device.clone()).unwrap());
+	shaders.insert(Shader_type::FRAGMENT, HGE_rawshader_2Dsimple_frag::load(device.clone()).unwrap());
 	Manager::ManagerShaders::singleton().add(
 		names::simple2D,
 		ShaderContent {
@@ -96,10 +90,7 @@ pub fn loadShaders()
 				let uniform_data = HGE_rawshader_2Dsimple_vert::PushConstants {
 					world: worldMatrix.into(),
 					window: windowdim.into(),
-					time: HGEMain::singleton()
-						.getDurationFromStart()
-						.as_secs_f32()
-						.into(),
+					time: HGEMain::singleton().getDurationFromStart().as_secs_f32().into(),
 				};
 				HTraceError!(cmdBuilder.push_constants(pipeline_layout, offset, uniform_data));
 			}),
@@ -107,9 +98,7 @@ pub fn loadShaders()
 		},
 	);
 
-	let func = |cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>,
-	            pipeline_layout: Arc<PipelineLayout>,
-	            offset: u32| {
+	let func = |cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipeline_layout: Arc<PipelineLayout>, offset: u32| {
 		let bindingcameraC = HGEMain::singleton().getCamera();
 		let cameraC = bindingcameraC.get();
 		let windowdim = HGEMain::singleton().getWindowInfos();
@@ -123,24 +112,15 @@ pub fn loadShaders()
 		let uniform_data = HGE_rawshader_3Dsimple_vert::PushConstants {
 			projviewworld: tmp.into(),
 			window: windowdim.into(),
-			time: HGEMain::singleton()
-				.getDurationFromStart()
-				.as_secs_f32()
-				.into(),
+			time: HGEMain::singleton().getDurationFromStart().as_secs_f32().into(),
 		};
 
 		HTraceError!(cmdBuilder.push_constants(pipeline_layout, offset, uniform_data));
 	};
 
 	let mut shaders = BTreeMap::new();
-	shaders.insert(
-		Shader_type::VERTEX,
-		HGE_rawshader_3Dinstance_vertex::load(device.clone()).unwrap(),
-	);
-	shaders.insert(
-		Shader_type::FRAGMENT,
-		HGE_rawshader_3Dinstance_frag::load(device.clone()).unwrap(),
-	);
+	shaders.insert(Shader_type::VERTEX, HGE_rawshader_3Dinstance_vertex::load(device.clone()).unwrap());
+	shaders.insert(Shader_type::FRAGMENT, HGE_rawshader_3Dinstance_frag::load(device.clone()).unwrap());
 	Manager::ManagerShaders::singleton().add(
 		names::instance3D,
 		ShaderContent {
@@ -150,14 +130,8 @@ pub fn loadShaders()
 		},
 	);
 	let mut shaders = BTreeMap::new();
-	shaders.insert(
-		Shader_type::VERTEX,
-		HGE_rawshader_3Dsimple_vert::load(device.clone()).unwrap(),
-	);
-	shaders.insert(
-		Shader_type::FRAGMENT,
-		HGE_rawshader_3Dsimple_frag::load(device.clone()).unwrap(),
-	);
+	shaders.insert(Shader_type::VERTEX, HGE_rawshader_3Dsimple_vert::load(device.clone()).unwrap());
+	shaders.insert(Shader_type::FRAGMENT, HGE_rawshader_3Dsimple_frag::load(device.clone()).unwrap());
 	Manager::ManagerShaders::singleton().add(
 		names::simple3D,
 		ShaderContent {
@@ -168,33 +142,17 @@ pub fn loadShaders()
 	);
 
 	let mut shaders = BTreeMap::new();
-	shaders.insert(
-		Shader_type::VERTEX,
-		HGE_rawshader_screen_vert::load(device.clone()).unwrap(),
-	);
-	shaders.insert(
-		Shader_type::FRAGMENT,
-		HGE_rawshader_screen_frag::load(device.clone()).unwrap(),
-	);
+	shaders.insert(Shader_type::VERTEX, HGE_rawshader_screen_vert::load(device.clone()).unwrap());
+	shaders.insert(Shader_type::FRAGMENT, HGE_rawshader_screen_frag::load(device.clone()).unwrap());
 	Manager::ManagerShaders::singleton().add(
 		names::screen,
 		ShaderContent {
 			shader: shaders,
 			pushConstant_Func: Arc::new(|cmdBuilder, pipeline_layout, offset| {
-				let mut tmp = HGE_rawshader_screen_vert::PushConstants {
-					window: [0.0, 0.0, 0.0, 0.0],
-					time: 0.0.into(),
+				let tmp = HGE_rawshader_screen_vert::PushConstants {
+					window: HGEMain::singleton().getWindowInfos().into(),
+					time: HGEMain::singleton().getDurationFromStart().as_secs_f32().into(),
 				};
-				if (false)
-				{
-					tmp = HGE_rawshader_screen_vert::PushConstants {
-						window: HGEMain::singleton().getWindowInfos().into(),
-						time: HGEMain::singleton()
-							.getDurationFromStart()
-							.as_secs_f32()
-							.into(),
-					}
-				}
 
 				HTraceError!(cmdBuilder.push_constants(pipeline_layout, offset, tmp));
 			}),

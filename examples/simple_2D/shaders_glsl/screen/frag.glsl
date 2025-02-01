@@ -10,8 +10,8 @@ layout(push_constant) uniform PushConstants {
 } globals;
 
 // The `color_input` parameter of the `draw` method.
-layout(input_attachment_index = 0, set = 1, binding = 0) uniform subpassInput render_one;
-layout(input_attachment_index = 1, set = 1, binding = 1) uniform subpassInput render_two;
+layout(input_attachment_index = 0, set = 0, binding = 0) uniform subpassInput render_one;
+layout(input_attachment_index = 1, set = 0, binding = 1) uniform subpassInput render_two;
 
 layout(location = 0) out vec4 f_color;
 

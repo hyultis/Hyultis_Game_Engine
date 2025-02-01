@@ -26,18 +26,20 @@ use Htrace::HTraceError;
 
 // struct externe, a changer en HGE_shader_2Dsimple
 #[derive(Clone, Debug)]
-pub struct HGE_shader_2Dsimple_def {
+pub struct HGE_shader_2Dsimple_def
+{
 	pub position: [f32; 3],
 	pub ispixel: u32,
 	pub texture: Option<String>,
 	pub uvcoord: [f32; 2],
 	pub color: [f32; 4],
-	pub color_blend_type: u32 // 0 = mul, 1 = add
+	pub color_blend_type: u32, // 0 = mul, 1 = add
 }
 
 impl Default for HGE_shader_2Dsimple_def
 {
-	fn default() -> Self {
+	fn default() -> Self
+	{
 		Self {
 			position: [0.0, 0.0, 0.0],
 			ispixel: 0,
@@ -51,15 +53,20 @@ impl Default for HGE_shader_2Dsimple_def
 
 impl IntoVertexted<HGE_shader_2Dsimple> for HGE_shader_2Dsimple_def
 {
-	fn IntoVertexted(&self, _: bool) -> Option<HGE_shader_2Dsimple> {
+	fn IntoVertexted(&self, _: bool) -> Option<HGE_shader_2Dsimple>
+	{
 		let mut textureid = 0;
-		
+
 		if let Some(texture) = &self.texture
 		{
-			let Some(id) = ManagerTexture::singleton().descriptorSet_getIdTexture(["HGE_set0", "HGE_set1", "HGE_set2"], texture.clone()) else { return None; };
+			let Some(id) = ManagerTexture::singleton().descriptorSet_getIdTexture(["HGE_set0", "HGE_set1", "HGE_set2"], texture.clone())
+			else
+			{
+				return None;
+			};
 			textureid = id.into();
 		}
-		
+
 		return Some(HGE_shader_2Dsimple {
 			position: self.position,
 			ispixel: self.ispixel,
@@ -71,11 +78,11 @@ impl IntoVertexted<HGE_shader_2Dsimple> for HGE_shader_2Dsimple_def
 	}
 }
 
-
 // struct internal, a changer en HGE_shader_2Dsimple_raw, remove pub ?
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Vertex, BufferContents)]
-pub struct HGE_shader_2Dsimple {
+pub struct HGE_shader_2Dsimple
+{
 	#[format(R32G32B32_SFLOAT)]
 	pub position: [f32; 3],
 	#[format(R32_UINT)]
@@ -87,12 +94,13 @@ pub struct HGE_shader_2Dsimple {
 	#[format(R32G32B32A32_SFLOAT)]
 	pub color: [f32; 4],
 	#[format(R32_UINT)]
-	pub color_blend_type: u32 // 0 = mul, 1 = add
+	pub color_blend_type: u32, // 0 = mul, 1 = add
 }
 
 impl Default for HGE_shader_2Dsimple
 {
-	fn default() -> Self {
+	fn default() -> Self
+	{
 		Self {
 			position: [0.0, 0.0, 0.0],
 			ispixel: 0,
@@ -104,32 +112,45 @@ impl Default for HGE_shader_2Dsimple
 	}
 }
 
-impl ShaderStruct for HGE_shader_2Dsimple {
+impl ShaderStruct for HGE_shader_2Dsimple
+{
 	fn createPipeline() -> anyhow::Result<()>
 	{
-		if ManagerShaders::singleton().get(names::instance3D).is_none()
+		if ManagerShaders::singleton().get(names::simple2D).is_none()
 		{
-			return Err(anyhow!("missing shader \"{}\"",names::simple2D));
+			return Err(anyhow!("missing shader \"{}\"", names::simple2D));
 		}
-		
-		ManagerPipeline::singleton().addFunc(HGE_shader_2Dsimple_holder::pipelineName(), |renderpass, transparency| {
-			EnginePipelines::singleton().pipelineCreation(names::simple2D,
-				transparency,
-				renderpass.clone(),
-				HGEsubpassName::UI.getSubpassID(),
-				HGE_shader_2Dsimple::per_vertex()
-			)
-		}, PrimitiveTopology::TriangleList, true);
-		
-		ManagerPipeline::singleton().addFunc(HGE_shader_2Dline_holder::pipelineName(), |renderpass, transparency| {
-			EnginePipelines::singleton().pipelineCreationLine(names::simple2D,
-				transparency,
-				renderpass.clone(),
-				HGEsubpassName::UI.getSubpassID(),
-				HGE_shader_2Dsimple::per_vertex()
-			)
-		}, PrimitiveTopology::LineList, true);
-		
+
+		ManagerPipeline::singleton().addFunc(
+			HGE_shader_2Dsimple_holder::pipelineName(),
+			|renderpass, transparency| {
+				EnginePipelines::singleton().pipelineCreation(
+					names::simple2D,
+					transparency,
+					renderpass,
+					HGEsubpassName::UI.getSubpassID(),
+					HGE_shader_2Dsimple::per_vertex(),
+				)
+			},
+			PrimitiveTopology::TriangleList,
+			true,
+		);
+
+		ManagerPipeline::singleton().addFunc(
+			HGE_shader_2Dline_holder::pipelineName(),
+			|renderpass, transparency| {
+				EnginePipelines::singleton().pipelineCreationLine(
+					names::simple2D,
+					transparency,
+					renderpass,
+					HGEsubpassName::UI.getSubpassID(),
+					HGE_shader_2Dsimple::per_vertex(),
+				)
+			},
+			PrimitiveTopology::LineList,
+			true,
+		);
+
 		return Ok(());
 	}
 }
@@ -138,7 +159,7 @@ impl ShaderStruct for HGE_shader_2Dsimple {
 
 pub struct HGE_shader_2Dline_holder
 {
-	_content: HGE_shader_2Dsimple_holder
+	_content: HGE_shader_2Dsimple_holder,
 }
 
 impl HGE_shader_2Dline_holder
@@ -147,7 +168,7 @@ impl HGE_shader_2Dline_holder
 	{
 		self._content.insert(uuid, structure);
 	}
-	
+
 	pub fn remove(&self, uuid: cacheInfos)
 	{
 		self._content.remove(uuid);
@@ -156,30 +177,33 @@ impl HGE_shader_2Dline_holder
 
 impl ShaderStructHolder for HGE_shader_2Dline_holder
 {
-	fn init() -> Self {
+	fn init() -> Self
+	{
 		Self {
 			_content: HGE_shader_2Dsimple_holder::init(),
 		}
 	}
-	
-	fn pipelineName() -> String {
+
+	fn pipelineName() -> String
+	{
 		format!("{}_line", HGE_shader_2Dsimple_holder::pipelineName())
 	}
-	
-	fn pipelineNameResolve(&self) -> String {
+
+	fn pipelineNameResolve(&self) -> String
+	{
 		Self::pipelineName()
 	}
-	
+
 	fn reset(&self)
 	{
 		self._content.reset();
 	}
-	
+
 	fn update(&self)
 	{
 		self._content.update();
 	}
-	
+
 	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
 	{
 		self._content.draw(cmdBuilder, pipelinename);
@@ -190,7 +214,7 @@ pub struct HGE_shader_2Dsimple_holder
 {
 	_datas: DashMap<Uuid, ShaderDrawerImplStruct<Box<dyn IntoVertexted<HGE_shader_2Dsimple> + Send + Sync>>>,
 	_haveUpdate: AtomicBool,
-	_cacheDraw: ArcSwapOption<ShaderStructCache<HGE_shader_2Dsimple>>
+	_cacheDraw: ArcSwapOption<ShaderStructCache<HGE_shader_2Dsimple>>,
 }
 
 impl HGE_shader_2Dsimple_holder
@@ -200,111 +224,122 @@ impl HGE_shader_2Dsimple_holder
 		ShaderStructHolder_utils::insert(uuid.into(), structure, &self._datas);
 		self._haveUpdate.store(true, Ordering::Release);
 	}
-	
+
 	pub fn remove(&self, uuid: cacheInfos)
 	{
 		self._datas.remove(&uuid.into());
 		self._haveUpdate.store(true, Ordering::Release);
 	}
-	
+
 	fn compileData(&self) -> (Vec<HGE_shader_2Dsimple>, Vec<u32>, bool)
 	{
 		let mut vertex = Vec::new();
 		let mut indices = Vec::new();
 		let mut atleastone = false;
-		
-		for content in self._datas.iter() // (_,one)
+
+		for content in self._datas.iter()
+		// (_,one)
 		{
 			let mut stop = false;
 			let mut tmpvertex = Vec::new();
 			let oldindices = vertex.len() as u32;
-			for x in &content.vertex {
-				let Some(unwraped) = x.IntoVertexted(false) else {
+			for x in &content.vertex
+			{
+				let Some(unwraped) = x.IntoVertexted(false)
+				else
+				{
 					stop = true;
 					break;
 				};
 				tmpvertex.push(unwraped);
 			}
-			
+
 			if (!stop)
 			{
 				vertex.append(&mut tmpvertex);
-				for x in &content.indices {
+				for x in &content.indices
+				{
 					indices.push(*x + oldindices);
 				}
 				atleastone = true;
 			}
-		};
-		
+		}
+
 		return (vertex, indices, atleastone);
 	}
 }
 
 impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 {
-	fn init() -> Self {
+	fn init() -> Self
+	{
 		Self {
 			_datas: DashMap::new(),
 			_haveUpdate: AtomicBool::new(false),
 			_cacheDraw: Default::default(),
 		}
 	}
-	
-	fn pipelineName() -> String {
+
+	fn pipelineName() -> String
+	{
 		names::simple2D.to_string()
 	}
-	
-	fn pipelineNameResolve(&self) -> String {
+
+	fn pipelineNameResolve(&self) -> String
+	{
 		Self::pipelineName()
 	}
-	
+
 	fn reset(&self)
 	{
 		self._datas.clear();
 		self._haveUpdate.store(false, Ordering::Release);
 		self._cacheDraw.store(None);
 	}
-	
+
 	fn update(&self)
 	{
 		if (!self._haveUpdate.load(Ordering::Acquire))
 		{
 			return;
 		}
-		
+
 		let (vertex, indices, atleastone) = self.compileData();
 		if (!atleastone)
 		{
 			self._cacheDraw.store(None);
 			return;
 		}
-		
+
 		let mut newcache = ShaderStructCache::new();
 		newcache.update(vertex, indices);
 		self._cacheDraw.store(Some(Arc::new(newcache)));
-		
+
 		self._haveUpdate.store(false, Ordering::Release);
 	}
-	
+
 	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
 	{
-		let Some(pipelineLayout) = ManagerPipeline::singleton().layoutGet(&pipelinename) else { return; };
+		let Some(pipelineLayout) = ManagerPipeline::singleton().layoutGet(&pipelinename)
+		else
+		{
+			return;
+		};
 		if (ManagerShaders::singleton().push_constants(names::simple2D, cmdBuilder, pipelineLayout.clone(), 0) == false)
 		{
 			return;
 		}
-		
+
 		for setid in 0..3
 		{
-			let Some(descriptorCache) = ManagerTexture::singleton().descriptorSet_getVulkanCache(format!("HGE_set{}", setid)) else { return; };
-			HTraceError!(cmdBuilder.bind_descriptor_sets(
-				PipelineBindPoint::Graphics,
-				pipelineLayout.clone(),
-				setid,
-				descriptorCache,
-			));
+			let Some(descriptorCache) = ManagerTexture::singleton().descriptorSet_getVulkanCache(format!("HGE_set{}", setid))
+			else
+			{
+				return;
+			};
+			HTraceError!(cmdBuilder.bind_descriptor_sets(PipelineBindPoint::Graphics, pipelineLayout.clone(), setid, descriptorCache,));
 		}
-		
+
 		if let Some(cache) = &*self._cacheDraw.load()
 		{
 			cache.draw(cmdBuilder, pipelinename);

@@ -7,15 +7,15 @@ use crate::Shaders::names;
 use crate::Shaders::HGE_shader_screen::HGE_shader_screen;
 use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
+use crate::Textures::Manager::ManagerTexture;
 use parking_lot::RwLock;
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
 use vulkano::command_buffer::{
-	AutoCommandBufferBuilder, CommandBufferInheritanceInfo, CommandBufferInheritanceRenderPassInfo,
-	CommandBufferInheritanceRenderPassType, CommandBufferUsage, PrimaryAutoCommandBuffer,
-	SecondaryAutoCommandBuffer, SubpassBeginInfo, SubpassContents, SubpassEndInfo,
+	AutoCommandBufferBuilder, CommandBufferInheritanceInfo, CommandBufferInheritanceRenderPassInfo, CommandBufferInheritanceRenderPassType, CommandBufferUsage,
+	PrimaryAutoCommandBuffer, SecondaryAutoCommandBuffer, SubpassBeginInfo, SubpassContents, SubpassEndInfo,
 };
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
@@ -45,11 +45,7 @@ impl HGEsubpassName
 
 	pub fn getByOrder() -> [HGEsubpassName; 3]
 	{
-		[
-			HGEsubpassName::UI,
-			HGEsubpassName::WORLDSOLID,
-			HGEsubpassName::FINAL,
-		]
+		[HGEsubpassName::UI, HGEsubpassName::WORLDSOLID, HGEsubpassName::FINAL]
 	}
 }
 
@@ -91,12 +87,7 @@ impl HGEsubpass
 			//let lastinstant = Instant::now();
 			let thispass = &AllSubpass[nbpass];
 			primaryCommandBuffer = primaryCommandBuffer
-				.execute_commands(self.passExec(
-					thispass,
-					render_pass.clone(),
-					HGEFrameC,
-					stdAllocCommand.clone(),
-				))
+				.execute_commands(self.passExec(thispass, render_pass.clone(), HGEFrameC, stdAllocCommand.clone()))
 				.unwrap();
 			if (nbpass < length - 1)
 			{
@@ -125,18 +116,13 @@ impl HGEsubpass
 		let subpass = Subpass::from(render_pass, thispass.getSubpassID()).unwrap();
 		let mut cmdBuilder = AutoCommandBufferBuilder::secondary(
 			stdAllocCommand,
-			HGEMain::singleton()
-				.getDevice()
-				.getQueueGraphic()
-				.queue_family_index(),
+			HGEMain::singleton().getDevice().getQueueGraphic().queue_family_index(),
 			CommandBufferUsage::OneTimeSubmit,
 			CommandBufferInheritanceInfo {
-				render_pass: Some(CommandBufferInheritanceRenderPassType::BeginRenderPass(
-					CommandBufferInheritanceRenderPassInfo {
-						subpass: { subpass },
-						framebuffer: None,
-					},
-				)),
+				render_pass: Some(CommandBufferInheritanceRenderPassType::BeginRenderPass(CommandBufferInheritanceRenderPassInfo {
+					subpass: { subpass },
+					framebuffer: None,
+				})),
 				..Default::default()
 			},
 		)
@@ -152,17 +138,21 @@ impl HGEsubpass
 		return ManagerBuilder::builderEnd(cmdBuilder);
 	}
 
-	fn pass_Final(
-		&self,
-		cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>,
-		HGEFrameC: &HGEFrame,
-	)
+	fn pass_Final(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, HGEFrameC: &HGEFrame)
 	{
-		let Ok(descriptor_set) = DescriptorSet::new(
+		let Some(pipelineLayout) = ManagerPipeline::singleton().layoutGet(names::screen)
+		else
+		{
+			return;
+		};
+		if (ManagerShaders::singleton().push_constants(names::screen, cmdBuilder, pipelineLayout.clone(), 0) == false)
+		{
+			return;
+		}
+
+		let Ok(descriptorCache) = DescriptorSet::new(
 			HGEMain::singleton().getDescAllocatorSet(),
-			ManagerPipeline::singleton()
-				.layoutGetDescriptor(names::screen, 1)
-				.unwrap(),
+			ManagerPipeline::singleton().layoutGetDescriptor(names::screen, 0).unwrap(),
 			[
 				WriteDescriptorSet::image_view(0, HGEFrameC.getImgUI()),
 				WriteDescriptorSet::image_view(1, HGEFrameC.getImgWS()),
@@ -173,47 +163,14 @@ impl HGEsubpass
 		{
 			return;
 		};
-
-		HTraceError!(cmdBuilder.bind_descriptor_sets(
-			PipelineBindPoint::Graphics,
-			ManagerPipeline::singleton()
-				.layoutGet(names::screen)
-				.unwrap(),
-			1,
-			descriptor_set,
-		));
-
-		if (ManagerShaders::singleton().push_constants(
-			names::screen,
-			cmdBuilder,
-			ManagerPipeline::singleton()
-				.layoutGet(names::screen)
-				.unwrap(),
-			0,
-		) == false)
-		{
-			return;
-		}
-
-		/*
-		HGE_rawshader_screen_vert::PushConstants {
-				time: self._startApp.elapsed().as_secs_f32().into(),
-				rush: HGEMain::singleton().getRushEffect().into(),
-				freeze: HGEMain::singleton().getFreezeEffect().into(),
-				window: HGEMain::singleton().getWindowInfos().into()
-			}
-		 */
+		HTraceError!(cmdBuilder.bind_descriptor_sets(PipelineBindPoint::Graphics, pipelineLayout.clone(), 0, descriptorCache));
 
 		ManagerBuilder::builderAddPipeline(cmdBuilder, names::screen);
 
 		let vertexTPR = self.getMonoVertex();
 		let vertexlen = vertexTPR.len();
 		unsafe {
-			cmdBuilder
-				.bind_vertex_buffers(0, vertexTPR)
-				.unwrap()
-				.draw(vertexlen as u32, 1, 0, 0)
-				.unwrap();
+			cmdBuilder.bind_vertex_buffers(0, vertexTPR).unwrap().draw(vertexlen as u32, 1, 0, 0).unwrap();
 		}
 	}
 
@@ -232,8 +189,7 @@ impl HGEsubpass
 					..Default::default()
 				},
 				AllocationCreateInfo {
-					memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-						| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+					memory_type_filter: MemoryTypeFilter::PREFER_DEVICE | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
 					..Default::default()
 				},
 				vertices,
