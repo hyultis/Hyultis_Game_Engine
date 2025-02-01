@@ -377,10 +377,7 @@ impl HGEMain
 		let threadService = SingletonThread::newFiltered(
 			|| {
 				namedThread!(|| {
-					if let Some(mut manager) = Self::singleton()._cameraAnimation.try_write()
-					{
-						manager.retain_mut(|anim| !anim.ticks());
-					}
+					Self::singleton()._cameraAnimation.write().retain_mut(|anim| !anim.ticks());
 				});
 
 				ManagerInterface::singleton().tickUpdate();
