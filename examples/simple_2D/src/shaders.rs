@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
-use vulkano::padded::Padded;
 use vulkano::pipeline::PipelineLayout;
 use Htrace::HTraceError;
 use HGE::components::cgmath::{Deg, Matrix3, Matrix4};

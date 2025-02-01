@@ -7,7 +7,6 @@ use crate::Shaders::names;
 use crate::Shaders::HGE_shader_screen::HGE_shader_screen;
 use crate::Shaders::Manager::ManagerShaders;
 use crate::Shaders::ShaderDrawer::ShaderDrawer_Manager;
-use crate::Textures::Manager::ManagerTexture;
 use parking_lot::RwLock;
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;

@@ -30,3 +30,9 @@ pub mod components;
 pub mod configs;
 pub mod entities;
 pub mod fronts;
+
+pub mod export
+{
+	pub extern crate vulkano;
+	pub extern crate vulkano_shaders;
+}

@@ -10,7 +10,7 @@ HGE = { path = "../../HGE", features = ["debuglayer", "dynamicresolution", "fron
 Hconfig = { workspace = true }
 Htrace = { workspace = true }
 vulkano = { workspace = true }
-vulkano-shaders = "0.34.0"
+vulkano-shaders = { workspace = true }
 HArcMut = { workspace = true }
 glyph_brush = "0.7.8"
 glyph_brush_layout = "0.2.3"

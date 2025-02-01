@@ -368,7 +368,7 @@ impl HGEMain
 	{
 		let config = HGEconfig::singleton().general_get();
 
-		let mut threadService = SingletonThread::newFiltered(
+		let threadService = SingletonThread::newFiltered(
 			|| {
 				/*if (**Self::singleton()._isSuspended.load())
 				{

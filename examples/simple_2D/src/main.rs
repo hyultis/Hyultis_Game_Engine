@@ -20,9 +20,7 @@ use HGE::components::interfacePosition::interfacePosition;
 use HGE::components::HGEC_offset;
 use HGE::configs::general::{HGEconfig_general, HGEconfig_general_font};
 use HGE::entities::Plane::Plane;
-use HGE::fronts::export::winit::event::{
-	DeviceEvent, DeviceId, ElementState, MouseButton, WindowEvent,
-};
+use HGE::fronts::export::winit::event::{DeviceEvent, DeviceId, ElementState, MouseButton, WindowEvent};
 use HGE::fronts::export::winit::event_loop::ActiveEventLoop;
 use HGE::fronts::export::winit::keyboard::KeyCode;
 use HGE::fronts::export::winit::window::WindowId;
@@ -63,7 +61,7 @@ fn main()
 	HTracer::threadSetName("main");
 
 	let mut hgeWinit = HGEwinit::new();
-	let mut engineEvent = hgeWinit.event_mut();
+	let engineEvent = hgeWinit.event_mut();
 	// loading resource used for this example after engine init
 	engineEvent.setFunc_PostInit(|| {
 		ManagerTexture::singleton().add("image", "image.png", None);
@@ -106,19 +104,13 @@ fn build2D()
 		false
 	});
 	let mut blackBackground = Plane::new();
-	blackBackground.setSquare(
-		interfacePosition::new_percent(0.0, 0.0),
-		interfacePosition::new_percent(1.0, 1.0),
-	);
+	blackBackground.setSquare(interfacePosition::new_percent(0.0, 0.0), interfacePosition::new_percent(1.0, 1.0));
 	blackBackground.setColor(corner4::same(color::from([0.0, 0.0, 0.0, 1.0])));
 	blackBackground.components_mut().origin_mut().setZ(0);
 	page.add("bg", blackBackground);
 
 	let mut image = Plane::new();
-	image.setSquare(
-		interfacePosition::new_pixel(-100, -100),
-		interfacePosition::new_pixel(100, 100),
-	);
+	image.setSquare(interfacePosition::new_pixel(-100, -100), interfacePosition::new_pixel(100, 100));
 	image.components_mut().texture_mut().set("image");
 	*image.components_mut().origin_mut() = interfacePosition::new_percent_z(0.5, 0.5, 200);
 	let imagecontent = page.add("image", image);
@@ -128,22 +120,15 @@ fn build2D()
 		let step = (x - 5) * 5;
 		let name = format!("alpha_test{}", x);
 		let mut alphaimage = Plane::new();
-		alphaimage.setSquare(
-			interfacePosition::new_pixel(-75 + step, -75 + step),
-			interfacePosition::new_pixel(75 + step, 75 + step),
-		);
+		alphaimage.setSquare(interfacePosition::new_pixel(-75 + step, -75 + step), interfacePosition::new_pixel(75 + step, 75 + step));
 		alphaimage.components_mut().texture_mut().set("alpha_test");
 		alphaimage.components_mut().texture_mut().color_mut().a = 0.3;
-		*alphaimage.components_mut().origin_mut() =
-			interfacePosition::new_percent_z(0.5, 0.5, (300 + x) as u16);
+		*alphaimage.components_mut().origin_mut() = interfacePosition::new_percent_z(0.5, 0.5, (300 + x) as u16);
 		page.add(name, alphaimage);
 	}
 
 	let mut buttoncontent = Plane::new();
-	buttoncontent.setSquare(
-		interfacePosition::new_pixel(0, 0),
-		interfacePosition::new_pixel(100, 100),
-	);
+	buttoncontent.setSquare(interfacePosition::new_pixel(0, 0), interfacePosition::new_pixel(100, 100));
 	buttoncontent.setColor(corner4::same(color::from([1.0, 1.0, 1.0, 1.0])));
 	buttoncontent.components_mut().origin_mut().setZ(100);
 
@@ -157,11 +142,7 @@ fn build2D()
 
 	let mut text = Text::new();
 	let start = Arc::new(RwLock::new(0u8));
-	text.addText(
-		OwnedText::new("Test")
-			.with_scale(24.0)
-			.with_color([1.0, 1.0, 0.0, 1.0]),
-	);
+	text.addText(OwnedText::new("Test").with_scale(24.0).with_color([1.0, 1.0, 0.0, 1.0]));
 	text.setLayout(Layout::default_single_line().h_align(HorizontalAlign::Center));
 	*text.components_mut().origin_mut() = interfacePosition::new_percent_z(0.5, 0.1, 300);
 	text.event_add(event_type::EACH_SECOND, move |x| {
@@ -172,11 +153,7 @@ fn build2D()
 		{
 			points = points.add(".");
 		}
-		x.addText(
-			OwnedText::new(format!("Test{}", points))
-				.with_scale(24.0)
-				.with_color([1.0, 1.0, 0.0, 1.0]),
-		);
+		x.addText(OwnedText::new(format!("Test{}", points)).with_scale(24.0).with_color([1.0, 1.0, 0.0, 1.0]));
 
 		if (max == 3)
 		{
@@ -193,11 +170,7 @@ fn build2D()
 	let pos = Arc::new(RwLock::new(0.0));
 	let mut text = Text::new();
 	let movepos = pos.clone();
-	text.addText(
-		OwnedText::new("Test")
-			.with_scale(16.0)
-			.with_color([1.0, 1.0, 0.0, 1.0]),
-	);
+	text.addText(OwnedText::new("Test").with_scale(16.0).with_color([1.0, 1.0, 0.0, 1.0]));
 	text.setLayout(Layout::default_single_line().h_align(HorizontalAlign::Center));
 	*text.components_mut().origin_mut() = interfacePosition::new_percent_z(0.5, 0.15, 300);
 	text.event_add(event_type::EACH_TICK, move |x| {
@@ -213,10 +186,7 @@ fn build2D()
 	build2DAnimation(imagecontent, pos);
 
 	let mut fontshow = Plane::new();
-	fontshow.setSquare(
-		interfacePosition::new_percent(0.0, 0.5),
-		interfacePosition::new_percent(0.5, 1.0),
-	);
+	fontshow.setSquare(interfacePosition::new_percent(0.0, 0.5), interfacePosition::new_percent(0.5, 1.0));
 	fontshow.components_mut().texture_mut().set("font");
 	fontshow.components_mut().origin_mut().setZ(100);
 	page.add("fontshow", fontshow);
@@ -230,10 +200,7 @@ fn build2D()
 		false
 	});
 	let mut blackBackground = Plane::new();
-	blackBackground.setSquare(
-		interfacePosition::new_percent(0.0, 0.0),
-		interfacePosition::new_percent(1.0, 1.0),
-	);
+	blackBackground.setSquare(interfacePosition::new_percent(0.0, 0.0), interfacePosition::new_percent(1.0, 1.0));
 	blackBackground.setColor(corner4::same(color::from([0.0, 0.0, 1.0, 1.0])));
 	blackBackground.components_mut().origin_mut().setZ(0);
 	page.add("bg", blackBackground);
@@ -243,10 +210,7 @@ fn build2D()
 		for y in 0..10
 		{
 			let mut buttoncontent = Plane::new();
-			buttoncontent.setSquare(
-				interfacePosition::new_pixel(x * 20, y * 20),
-				interfacePosition::new_pixel(15 + (x * 20), 15 + (y * 20)),
-			);
+			buttoncontent.setSquare(interfacePosition::new_pixel(x * 20, y * 20), interfacePosition::new_pixel(15 + (x * 20), 15 + (y * 20)));
 			buttoncontent.setColor(corner4::same(color::from([1.0, 1.0, 1.0, 1.0])));
 			buttoncontent.components_mut().origin_mut().setZ(100);
 
@@ -264,43 +228,29 @@ fn build2D()
 	ManagerInterface::singleton().UiPageAppend("second", page);
 }
 
-fn build2DAnimation(
-	imagecontent: HArcMut<Box<dyn UiPageContent + Sync + Send>>,
-	pos: Arc<RwLock<f32>>,
-)
+fn build2DAnimation(imagecontent: HArcMut<Box<dyn UiPageContent + Sync + Send>>, pos: Arc<RwLock<f32>>)
 {
-	let mut animcam = Animation::new(
-		Duration::from_secs(10),
-		imagecontent,
-		0.0,
-		1.0,
-		move |selfanim, progress| {
-			selfanim.source.update(|tmp| {
-				let posx = if (progress < 0.5)
-				{
-					let localprogress = progress * 2.0;
-					AnimationUtils::smoothstep(-0.4, 0.4, localprogress)
-				}
-				else
-				{
-					let localprogress = (progress - 0.5) * 2.0;
-					AnimationUtils::smoothstep(0.4, -0.4, localprogress)
-				};
+	let mut animcam = Animation::new(Duration::from_secs(10), imagecontent, 0.0, 1.0, move |selfanim, progress| {
+		selfanim.source.update(|tmp| {
+			let posx = if (progress < 0.5)
+			{
+				let localprogress = progress * 2.0;
+				AnimationUtils::smoothstep(-0.4, 0.4, localprogress)
+			}
+			else
+			{
+				let localprogress = (progress - 0.5) * 2.0;
+				AnimationUtils::smoothstep(0.4, -0.4, localprogress)
+			};
 
-				*pos.clone().write().unwrap() = posx;
+			*pos.clone().write().unwrap() = posx;
 
-				if let Some(movingimage) =
-					tmp.as_any_mut().downcast_mut::<Plane<interfacePosition>>()
-				{
-					movingimage
-						.components_mut()
-						.offset_mut()
-						.origin_mut()
-						.setX(posx);
-				}
-			});
-		},
-	);
+			if let Some(movingimage) = tmp.as_any_mut().downcast_mut::<Plane<interfacePosition>>()
+			{
+				movingimage.components_mut().offset_mut().origin_mut().setX(posx);
+			}
+		});
+	});
 	animcam.setModeRepeat();
 	ManagerAnimation::singleton().append(animcam);
 }
@@ -329,13 +279,7 @@ impl winit_UserDefinedEventOverride for Simple2dDatas
 
 	fn suspended(&mut self, _: &mut HGEwinit, _: &ActiveEventLoop) {}
 
-	fn window_event(
-		&mut self,
-		root: &mut HGEwinit,
-		eventloop: &ActiveEventLoop,
-		event: &WindowEvent,
-		window_id: WindowId,
-	)
+	fn window_event(&mut self, root: &mut HGEwinit, eventloop: &ActiveEventLoop, event: &WindowEvent, window_id: WindowId)
 	{
 		match event
 		{
@@ -357,19 +301,13 @@ impl winit_UserDefinedEventOverride for Simple2dDatas
 		}
 	}
 
-	fn device_event(&mut self, _: &mut HGEwinit, _: &ActiveEventLoop, _: &DeviceEvent, _: DeviceId)
-	{
-	}
+	fn device_event(&mut self, _: &mut HGEwinit, _: &ActiveEventLoop, _: &DeviceEvent, _: DeviceId) {}
 
 	fn about_to_render(&mut self, root: &mut HGEwinit, eventloop: &ActiveEventLoop)
 	{
 		if (self.mousemoved || self.mouseleftclick)
 		{
-			ManagerInterface::singleton().mouseUpdate(
-				self.mousex as u16,
-				self.mousey as u16,
-				(self.mouseleftclick ^ self.mouseleftcliked),
-			);
+			ManagerInterface::singleton().mouseUpdate(self.mousex as u16, self.mousey as u16, (self.mouseleftclick ^ self.mouseleftcliked));
 		}
 		self.mouseleftcliked = self.mouseleftclick;
 		self.mousemoved = false;
@@ -377,10 +315,7 @@ impl winit_UserDefinedEventOverride for Simple2dDatas
 
 	fn about_to_wait(&mut self, root: &mut HGEwinit, eventloop: &ActiveEventLoop)
 	{
-		if (root
-			.Inputs_getmut()
-			.getKeyboardStateAndSteal(KeyCode::Escape)
-			== ElementState::Pressed)
+		if (root.Inputs_getmut().getKeyboardStateAndSteal(KeyCode::Escape) == ElementState::Pressed)
 		{
 			eventloop.exit();
 		}
