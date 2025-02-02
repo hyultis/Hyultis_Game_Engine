@@ -48,9 +48,9 @@ impl ManagerModels
 
 	pub fn active_chunk_add(&self, mut add: Vec<[i32; 3]>)
 	{
-		let mut old = self._active.load_full().to_vec();
+		let mut old = self._active.load().to_vec();
 		old.append(&mut add);
-		self._active.swap(Arc::new(old));
+		self._active.store(Arc::new(old));
 	}
 
 	pub fn active_chunk_resetAndAdd(&self, add: Vec<[i32; 3]>)
@@ -72,7 +72,7 @@ impl ManagerModels
 
 	pub fn active_chunk_get(&self) -> Arc<Vec<[i32; 3]>>
 	{
-		self._active.load_full()
+		self._active.load().clone()
 	}
 
 	pub fn all_chunk_reset(&self)

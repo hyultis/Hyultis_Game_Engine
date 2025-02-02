@@ -49,18 +49,18 @@ impl chunk
 		return self._content.get(&name).map(|x|x.clone());
 	}
 	
-	pub fn cache_remove(&mut self)
+	pub fn cache_remove(&self)
 	{
-		self._content.iter_mut()
-			.for_each(|(_, elem)| {
-				elem.update(|content|content.cache_remove());
+		self._content.iter()
+			.for_each(|(_,elem)| {
+				let _ = elem.update(|content|content.cache_remove());
 			});
 	}
 	
-	pub fn cacheForceUpdate(&mut self)
+	pub fn cacheForceUpdate(&self)
 	{
-		self._content.iter().for_each(|(_, elem)| {
-			elem.update(|i| {
+		self._content.iter().for_each(|(_,elem)| {
+			let _ = elem.update(|i| {
 				i.cache_submit();
 			});
 		});
@@ -69,7 +69,7 @@ impl chunk
 	pub fn cache_checkupdate(&mut self)
 	{
 		let haveupdate = self._content.iter()
-			.any(|(_, elem)| elem.get().cache_mustUpdate() || elem.isWantDrop());
+			.any(|(_,elem)| elem.get().cache_mustUpdate() || elem.isWantDrop());
 		
 		if (!haveupdate)
 		{
@@ -77,14 +77,14 @@ impl chunk
 		}
 		
 		let havedrop = self._content.iter()
-			.any(|(_, elem)| elem.isWantDrop());
+			.any(|(_,elem)| elem.isWantDrop());
 		
 		if(havedrop)
 		{
 			self._content.retain(|_, item| !item.isWantDrop());
 		}
-			
-		self._content.iter().for_each(|(_, elem)| {
+		
+		self._content.iter().for_each(|(_,elem)| {
 			elem.updateIf(|i| {
 				let mut haveupdated = false;
 				if (i.cache_mustUpdate())
