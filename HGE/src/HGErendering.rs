@@ -294,7 +294,7 @@ impl HGErendering
 		TimeStatsStorage::update("R_preSwapFunc");
 
 		TimeStatsStorage::forceNow("R_swapchain");
-		let future = future
+		let future = future.then_signal_fence()
 			.then_swapchain_present(queueGraphic.clone(), SwapchainPresentInfo::swapchain_image_index(swapchain, image_index))
 			.then_signal_fence_and_flush();
 		TimeStatsStorage::update("R_swapchain");
