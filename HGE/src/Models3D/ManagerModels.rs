@@ -58,6 +58,7 @@ impl ManagerModels
 		let old = self._active.swap(Arc::new(add.clone()));
 		let old = Arc::unwrap_or_clone(old);
 
+		// remove stuff that no here anymore
 		for x in &old
 		{
 			if (!add.contains(&x))
@@ -65,6 +66,18 @@ impl ManagerModels
 				if let Some(mut chunk) = self._chunks.get_mut(x)
 				{
 					chunk.cache_remove();
+				}
+			}
+		}
+		
+		// force add stuff that just been added back
+		for x in &add
+		{
+			if (!old.contains(&x))
+			{
+				if let Some(mut chunk) = self._chunks.get_mut(x)
+				{
+					chunk.cacheForceUpdate();
 				}
 			}
 		}
