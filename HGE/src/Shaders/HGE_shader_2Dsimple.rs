@@ -299,7 +299,7 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 
 	fn update(&self)
 	{
-		if (!self._haveUpdate.load(Ordering::Acquire))
+		if (self._haveUpdate.compare_exchange(true, false, Ordering::Release, Ordering::Acquire).is_err())
 		{
 			return;
 		}
@@ -314,8 +314,6 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 		let mut newcache = ShaderStructCache::new();
 		newcache.update(vertex, indices);
 		self._cacheDraw.store(Some(Arc::new(newcache)));
-
-		self._haveUpdate.store(false, Ordering::Release);
 	}
 
 	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)

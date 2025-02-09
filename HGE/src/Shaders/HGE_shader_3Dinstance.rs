@@ -24,7 +24,8 @@ use Htrace::HTraceError;
 
 impl IntoVertexted<HGE_shader_3Dinstance> for HGE_shader_3Dsimple_def
 {
-	fn IntoVertexted(&self, _: bool) -> Option<HGE_shader_3Dinstance> {
+	fn IntoVertexted(&self, _: bool) -> Option<HGE_shader_3Dinstance>
+	{
 		return Some(HGE_shader_3Dinstance {
 			position: self.position,
 			color: self.color,
@@ -47,7 +48,8 @@ pub struct HGE_shader_3Dinstance
 
 impl Default for HGE_shader_3Dinstance
 {
-	fn default() -> Self {
+	fn default() -> Self
+	{
 		HGE_shader_3Dinstance {
 			position: [0.0, 0.0, 0.0],
 			texcoord: [0.0, 0.0],
@@ -62,25 +64,32 @@ impl ShaderStruct for HGE_shader_3Dinstance
 	{
 		if ManagerShaders::singleton().get(names::instance3D).is_none()
 		{
-			return Err(anyhow!("missing shader \"{}\"",names::instance3D));
+			return Err(anyhow!("missing shader \"{}\"", names::instance3D));
 		}
-		
-		ManagerPipeline::singleton().addFunc(HGE_shader_3Dinstance_holder::pipelineName(), |renderpass, transparency| {
-			EnginePipelines::singleton().pipelineCreation(names::instance3D,
-				transparency,
-				renderpass.clone(),
-				HGEsubpassName::WORLDSOLID.getSubpassID(),
-				[HGE_shader_3Dinstance::per_vertex(), HGE_shader_3Dinstance_data::per_instance()]
-			)
-		}, PrimitiveTopology::TriangleList, true);
-		
+
+		ManagerPipeline::singleton().addFunc(
+			HGE_shader_3Dinstance_holder::pipelineName(),
+			|renderpass, transparency| {
+				EnginePipelines::singleton().pipelineCreation(
+					names::instance3D,
+					transparency,
+					renderpass.clone(),
+					HGEsubpassName::WORLDSOLID.getSubpassID(),
+					[HGE_shader_3Dinstance::per_vertex(), HGE_shader_3Dinstance_data::per_instance()],
+				)
+			},
+			PrimitiveTopology::TriangleList,
+			true,
+		);
+
 		return Ok(());
 	}
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Vertex, BufferContents)]
-pub struct HGE_shader_3Dinstance_data {
+pub struct HGE_shader_3Dinstance_data
+{
 	#[format(R32G32B32_SFLOAT)]
 	pub instance_offset: [f32; 3],
 	#[format(R32G32B32_SFLOAT)]
@@ -95,8 +104,10 @@ pub struct HGE_shader_3Dinstance_data {
 	pub instance_texcoord_offset: [f32; 2],
 }
 
-impl Default for HGE_shader_3Dinstance_data {
-	fn default() -> Self {
+impl Default for HGE_shader_3Dinstance_data
+{
+	fn default() -> Self
+	{
 		HGE_shader_3Dinstance_data {
 			instance_offset: [0.0, 0.0, 0.0],
 			instance_scale: [1.0, 1.0, 1.0],
@@ -113,7 +124,7 @@ struct HGE_shader_3Dinstance_subholder
 	_model: ArcSwap<ShaderDrawerImplStruct<Box<dyn IntoVertexted<HGE_shader_3Dinstance> + Send + Sync>>>,
 	_haveUpdate: AtomicBool,
 	_instance: DashMap<String, HGE_shader_3Dinstance_data>,
-	_cacheDraw: ArcSwapOption<ShaderStructCacheInstanced<HGE_shader_3Dinstance, HGE_shader_3Dinstance_data>>
+	_cacheDraw: ArcSwapOption<ShaderStructCacheInstanced<HGE_shader_3Dinstance, HGE_shader_3Dinstance_data>>,
 }
 
 impl HGE_shader_3Dinstance_subholder
@@ -123,42 +134,46 @@ impl HGE_shader_3Dinstance_subholder
 		let mut vertex = Vec::new();
 		let mut indices = Vec::new();
 		let mut atleastone = false;
-		
+
 		let mut stop = false;
 		let mut tmpvertex = Vec::new();
 		let binding = self._model.load();
-		for x in &binding.vertex {
-			let Some(unwraped) = x.IntoVertexted(false) else {
+		for x in &binding.vertex
+		{
+			let Some(unwraped) = x.IntoVertexted(false)
+			else
+			{
 				stop = true;
 				break;
 			};
 			tmpvertex.push(unwraped);
 		}
-		
+
 		if (!stop)
 		{
 			vertex.append(&mut tmpvertex);
-			for x in &binding.indices {
+			for x in &binding.indices
+			{
 				indices.push(*x);
 			}
 			atleastone = true;
 		}
-		
+
 		return (vertex, indices, atleastone);
 	}
-	
+
 	pub fn cache_reset(&self)
 	{
 		self._cacheDraw.store(None);
 	}
-	
+
 	pub fn cache_update(&self, vertex: Vec<HGE_shader_3Dinstance>, indices: Vec<u32>, instance: Vec<HGE_shader_3Dinstance_data>)
 	{
 		let mut newcache = ShaderStructCacheInstanced::new();
 		newcache.update(vertex, indices, instance);
 		self._cacheDraw.store(Some(Arc::new(newcache)));
 	}
-	
+
 	pub fn cache_draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
 	{
 		if let Some(cache) = &*self._cacheDraw.load()
@@ -186,7 +201,7 @@ impl HGE_shader_3Dinstance_holder
 			self._haveUpdate.store(true, Ordering::Release);
 		}
 	}
-	
+
 	pub fn removeInstance(&self, modelname: impl Into<String>, instancename: impl Into<String>)
 	{
 		let modelname = modelname.into();
@@ -196,29 +211,33 @@ impl HGE_shader_3Dinstance_holder
 			self._haveUpdate.store(true, Ordering::Release);
 		}
 	}
-	
+
 	pub fn importModel(&self, modelname: impl Into<String>, mut model: ShaderDrawerImplStruct<impl IntoVertexted<HGE_shader_3Dinstance> + Send + Sync + 'static>)
 	{
 		let modelname = modelname.into();
 		if (!self._datas.contains_key(&modelname))
 		{
-			self._datas.insert(modelname.clone(), HGE_shader_3Dinstance_subholder {
-				_model: Default::default(),
-				_haveUpdate: AtomicBool::new(false),
-				_instance: Default::default(),
-				_cacheDraw: Default::default(),
-			});
+			self._datas.insert(
+				modelname.clone(),
+				HGE_shader_3Dinstance_subholder {
+					_model: Default::default(),
+					_haveUpdate: AtomicBool::new(false),
+					_instance: Default::default(),
+					_cacheDraw: Default::default(),
+				},
+			);
 		}
-		
+
 		if let Some(this) = self._datas.get(&modelname)
 		{
 			let mut newvertex = Vec::new();
-			
-			for x in model.vertex.drain(0..) {
+
+			for x in model.vertex.drain(0..)
+			{
 				let tmp: Box<dyn IntoVertexted<HGE_shader_3Dinstance> + Send + Sync> = Box::new(x);
 				newvertex.push(tmp);
 			}
-			
+
 			this._model.store(Arc::new(ShaderDrawerImplStruct {
 				vertex: newvertex,
 				indices: model.indices.clone(),
@@ -229,82 +248,81 @@ impl HGE_shader_3Dinstance_holder
 
 impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 {
-	fn init() -> Self {
+	fn init() -> Self
+	{
 		Self {
 			_haveUpdate: AtomicBool::new(false),
 			_datas: Default::default(),
 		}
 	}
-	
-	fn pipelineName() -> String {
+
+	fn pipelineName() -> String
+	{
 		names::instance3D.to_string()
 	}
-	
-	fn pipelineNameResolve(&self) -> String {
+
+	fn pipelineNameResolve(&self) -> String
+	{
 		Self::pipelineName()
 	}
-	
-	fn reset(&self) {
+
+	fn reset(&self)
+	{
 		self._datas.clear()
 	}
-	
+
 	fn update(&self)
 	{
-		if (!self._haveUpdate.load(Ordering::Acquire))
+		if (self._haveUpdate.compare_exchange(true, false, Ordering::Release, Ordering::Acquire).is_err())
 		{
 			return;
 		}
-		
-		let mut haveatleastone = false;
-		
-		self._datas.iter().filter(|selfdata| {
-			let tmp = selfdata._model.load();
-			tmp.vertex.len() != 0 && tmp.indices.len() != 0
-		}).for_each(|selfdata|
-			{
+
+		self._datas
+			.iter()
+			.filter(|selfdata| {
+				let tmp = selfdata._model.load();
+				tmp.vertex.len() != 0 && tmp.indices.len() != 0
+			})
+			.for_each(|selfdata| {
 				let (vertex, indices, atleastone) = selfdata.compileData();
 				if (atleastone)
 				{
-					let instances = selfdata._instance.iter().map(|x| {
-						x.value().clone()
-					}).collect::<Vec<HGE_shader_3Dinstance_data>>();
-					
+					let instances = selfdata._instance.iter().map(|x| x.value().clone()).collect::<Vec<HGE_shader_3Dinstance_data>>();
+
 					selfdata.cache_update(vertex, indices, instances);
-					
-					haveatleastone = true;
-				} else {
+				}
+				else
+				{
 					selfdata.cache_reset();
 				}
 			});
-		
-		if (haveatleastone)
-		{
-			self._haveUpdate.store(false, Ordering::Release);
-		}
 	}
-	
+
 	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
 	{
-		let Some(pipelineLayout) = ManagerPipeline::singleton().layoutGet(&pipelinename) else { return; };
+		let Some(pipelineLayout) = ManagerPipeline::singleton().layoutGet(&pipelinename)
+		else
+		{
+			return;
+		};
 		if (ManagerShaders::singleton().push_constants(names::instance3D, cmdBuilder, pipelineLayout.clone(), 0) == false)
 		{
 			return;
 		}
-		
+
 		for setid in 0..3
 		{
-			let Some(descriptorCache) = ManagerTexture::singleton().descriptorSet_getVulkanCache(format!("HGE_set{}", setid)) else { return; };
-			HTraceError!(cmdBuilder.bind_descriptor_sets(
-				PipelineBindPoint::Graphics,
-				pipelineLayout.clone(),
-				setid,
-				descriptorCache,
-			));
-		}
-		
-		self._datas.iter().for_each(|selfdata|
+			let Some(descriptorCache) = ManagerTexture::singleton().descriptorSet_getVulkanCache(format!("HGE_set{}", setid))
+			else
 			{
-				selfdata.cache_draw(cmdBuilder, pipelinename.clone());
-			});
+				return;
+			};
+			HTraceError!(cmdBuilder.bind_descriptor_sets(PipelineBindPoint::Graphics, pipelineLayout.clone(), setid, descriptorCache,));
+		}
+
+		self._datas.iter().for_each(|selfdata| {
+			selfdata.cache_draw(cmdBuilder, pipelinename.clone());
+		});
 	}
 }
