@@ -63,19 +63,19 @@ impl ManagerModels
 		{
 			if (!add.contains(&x))
 			{
-				if let Some(mut chunk) = self._chunks.get_mut(x)
+				if let Some(chunk) = self._chunks.get_mut(x)
 				{
 					chunk.cache_remove();
 				}
 			}
 		}
-		
+
 		// force add stuff that just been added back
 		for x in &add
 		{
 			if (!old.contains(&x))
 			{
-				if let Some(mut chunk) = self._chunks.get_mut(x)
+				if let Some(chunk) = self._chunks.get_mut(x)
 				{
 					chunk.cacheForceUpdate();
 				}

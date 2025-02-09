@@ -233,7 +233,7 @@ impl HGEMain
 
 	pub fn setWindowHDPI(&self, ratio: f32)
 	{
-		#[cfg(feature = "dynamicresolution")]
+		if (cfg!(feature = "dynamicresolution"))
 		{
 			self._windowInfos.write().HDPI = ratio.max(0.0);
 		}
@@ -376,7 +376,7 @@ impl HGEMain
 
 		let threadService = SingletonThread::newFiltered(
 			|| {
-				namedThread!(|| {
+				let _ = namedThread!(|| {
 					Self::singleton()._cameraAnimation.write().retain_mut(|anim| !anim.ticks());
 				});
 
