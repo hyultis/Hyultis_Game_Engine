@@ -10,7 +10,7 @@ The goal was to learn rust/vulkan and create a little game with it : [heatchain]
 
 ## structure
 
-The game is heavily based on multithreading.
+The engine is heavily based on multithreading.
 I have written 2 library to help me : [singletonThread](https://crates.io/crates/singletonThread) and [HArcMut](https://crates.io/crates/HArcMut)
 
 The main thread is used the engine for window inputs, rendering, calling services, audio, etc
@@ -26,7 +26,7 @@ Each component of the engine is split into a "service", a singleton that can be 
 * ManagerFont : a manager for front, based on the texture "font"
 * ManagerShaders : glsl shader system for HGE
 * ManagerPipeline : vulkan's pipeline storage
-* ManagerAudio : a optional service to play audio (need to initialized before the engine, on the main thread, to use it with init: use winit_UserDefinedEventOverride)
+* ManagerAudio : an optional service to play audio (need to initialized before the engine, on the main thread, to use it with init: use winit_UserDefinedEventOverride)
 * ManagerAnimation : a simple animation system (camera animation is done via HGEMain.Camera_addAnim() for optimisation)
 
 ### Directories
@@ -68,9 +68,13 @@ Vulkano shader need to be present a compile time, you need to copy the default o
 They can be modified be need to keep they default input/ouput.
 
 You can create new one if you want them to have different input, but in this case you also need to create new ShaderStructHolder for it.
-Different output implied subpass change, it's not supported but adding new pass is not complex.
+Different output implied subpass chcange, it's not supported but adding new pass is not complex.
 
 "screen" shaders is run on all the screen one time.
+
+### Android
+
+The engine support android (thank to winit), but limited to vulkan 1.1 version because of it.
 
 ### Example
 
