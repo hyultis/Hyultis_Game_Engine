@@ -5,8 +5,8 @@ use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use singletonThread::SingletonThread;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
-use std::thread;
 use std::thread::sleep;
 use std::time::Duration;
 use Htrace::namedThread;
@@ -19,6 +19,7 @@ pub struct ManagerInterface
 	_threadEachTickUpdate: RwLock<SingletonThread>,
 	_threadEachSecondUpdate: RwLock<SingletonThread>,
 	_threadRefreshwindows: RwLock<SingletonThread>,
+	_canChangePage: AtomicBool,
 }
 
 static SINGLETON: OnceLock<ManagerInterface> = OnceLock::new();
@@ -67,6 +68,7 @@ impl ManagerInterface
 			_threadEachTickUpdate: RwLock::new(threadEachTick),
 			_threadEachSecondUpdate: RwLock::new(threadEachSecond),
 			_threadRefreshwindows: RwLock::new(threadRefreshwindows),
+			_canChangePage: AtomicBool::new(true),
 		};
 	}
 
@@ -77,26 +79,32 @@ impl ManagerInterface
 
 	pub fn changeActivePage(&self, name: impl Into<String>)
 	{
+		if (self._canChangePage.compare_exchange(true, false, Ordering::Release, Ordering::Acquire).is_err())
+		{
+			return;
+		}
+
 		let name = name.into();
-		let _ = namedThread!(move || {
-			let oldpage = Arc::unwrap_or_clone(Self::singleton()._activePage.load_full());
-			if (name == oldpage)
+		let _ = namedThread!(|| {
+			let oldpage = (&*Self::singleton()._activePage.swap(Arc::new(name.clone()))).clone();
+
 			// si on change pas de page, on refresh juste
+			if (name == oldpage)
 			{
 				if let Some(mut page) = Self::singleton()._pageArray.get_mut(&name)
 				{
 					page.cache_checkupdate();
 				}
+
+				Self::singleton()._canChangePage.store(true, Ordering::Release);
 				return;
 			}
 
 			if let Some(mut page) = Self::singleton()._pageArray.get_mut(&oldpage)
 			{
 				page.event_trigger(event_type::EXIT);
-				page.cache_clear();
-			}
-
-			Self::singleton()._activePage.swap(Arc::new(name.clone()));
+				page.cache_remove();
+			};
 
 			if let Some(mut page) = Self::singleton()._pageArray.get_mut(&name)
 			{
@@ -104,12 +112,7 @@ impl ManagerInterface
 				page.cache_checkupdate();
 			}
 
-			// sometime cleaning is too long ?
-			thread::sleep(Duration::from_millis(10));
-			if let Some(page) = Self::singleton()._pageArray.get_mut(&oldpage)
-			{
-				page.cache_clear();
-			}
+			Self::singleton()._canChangePage.store(true, Ordering::Release);
 		});
 	}
 
@@ -145,15 +148,13 @@ impl ManagerInterface
 	pub fn UiPageAppend(&self, name: impl Into<String>, page: UiPage)
 	{
 		let name = name.into();
-		let old = self._pageArray.insert(name.clone(), page);
+		if let Some(oldpage) = self._pageArray.insert(name.clone(), page)
+		{
+			oldpage.cache_remove();
+		}
 
 		if (self.getActivePage() == name)
 		{
-			if let Some(oldpage) = old
-			{
-				oldpage.cache_clear();
-			}
-
 			if let Some(mut page) = self._pageArray.get_mut(&name)
 			{
 				page.cache_checkupdate();

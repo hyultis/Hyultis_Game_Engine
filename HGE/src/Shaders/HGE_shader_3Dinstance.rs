@@ -297,6 +297,7 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 					selfdata.cache_reset();
 				}
 			});
+		self._haveUpdate.store(true, Ordering::Release);
 	}
 
 	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)

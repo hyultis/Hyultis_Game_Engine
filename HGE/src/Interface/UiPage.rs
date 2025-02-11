@@ -1,22 +1,22 @@
-use std::any::Any;
-use std::collections::BTreeMap;
-use downcast_rs::{Downcast, impl_downcast};
-use dyn_clone::DynClone;
-use HArcMut::HArcMut;
 use crate::components::event::{event, event_trait, event_type};
 use crate::Interface::UiHitbox::UiHitbox;
 use crate::Shaders::ShaderDrawerImpl::ShaderDrawerImpl;
+use downcast_rs::{impl_downcast, Downcast};
+use dyn_clone::DynClone;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
+use std::any::Any;
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use HArcMut::HArcMut;
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone, Debug)]
 pub enum UiPageContent_type
 {
 	IDLE,
 	// no interaction
-	INTERACTIVE,        // Interactive function will be called (hover/clicked)
+	INTERACTIVE, // Interactive function will be called (hover/clicked)
 }
 
 pub enum UiEvent
@@ -31,7 +31,7 @@ pub trait UiPageContent: DynClone + event_trait + ShaderDrawerImpl + Downcast
 	{
 		return UiPageContent_type::IDLE;
 	}
-	
+
 	fn getHitbox(&self) -> UiHitbox;
 }
 
@@ -42,20 +42,19 @@ impl_downcast!(UiPageContent);
 pub struct UiPage
 {
 	_content: BTreeMap<String, HArcMut<Box<dyn UiPageContent + Sync + Send>>>,
-	_events: event<UiPage>
+	_events: event<UiPage>,
 }
 
 impl UiPage
 {
 	pub fn new() -> Self
 	{
-		return UiPage
-		{
+		return UiPage {
 			_content: BTreeMap::new(),
 			_events: event::new(),
 		};
 	}
-	
+
 	pub fn add(&mut self, name: impl Into<String>, content: impl UiPageContent + Any + Clone + Sync + Send + 'static) -> HArcMut<Box<dyn UiPageContent + Sync + Send>>
 	{
 		let name: String = name.into();
@@ -66,10 +65,10 @@ impl UiPage
 			oldone.setDrop();
 			oldone.get_mut().cache_remove();
 		}
-		
+
 		return returning;
 	}
-	
+
 	pub fn remove(&mut self, name: impl Into<String>)
 	{
 		let name = name.into();
@@ -81,78 +80,81 @@ impl UiPage
 
 	pub fn get(&self, name: impl Into<String>) -> Option<HArcMut<Box<dyn UiPageContent + Sync + Send>>>
 	{
-		self._content.get(&name.into()).map(|item|item.clone())
+		self._content.get(&name.into()).map(|item| item.clone())
 	}
-	
+
 	pub fn eventEnter(&mut self, func: impl Fn(&mut UiPage) -> bool + Send + Sync + 'static)
 	{
 		self._events.add(event_type::ENTER, func);
 	}
-	
+
 	pub fn eventExit(&mut self, func: impl Fn(&mut UiPage) -> bool + Send + Sync + 'static)
 	{
 		self._events.add(event_type::EXIT, func);
 	}
-	
+
 	pub fn eventMouse(&self, x: u16, y: u16, clicked: bool) -> bool
 	{
 		let haveClicked = Arc::new(AtomicBool::new(false));
-		self._content.par_iter()
+		self._content
+			.par_iter()
 			.filter(|(_, elem)| {
 				let tmp = elem.get();
 				tmp.getType() == UiPageContent_type::INTERACTIVE && (tmp.event_have(event_type::IDLE) || tmp.event_have(event_type::CLICKED) || tmp.event_have(event_type::HOVER))
 			})
 			.for_each(|(_, elem)| {
 				let sub_haveClicked = haveClicked.clone();
-				elem.updateIf(move |i|
-				{
+				elem.updateIf(move |i| {
 					let mut eventtype = event_type::IDLE;
 					if (i.getHitbox().isInside(x, y))
 					{
 						if (clicked)
 						{
 							eventtype = event_type::CLICKED;
-						} else {
+						}
+						else
+						{
 							eventtype = event_type::HOVER;
 						}
 					}
-					
+
 					let eventok = i.event_trigger(eventtype);
-					if(eventtype==event_type::CLICKED && eventok)
+					if (eventtype == event_type::CLICKED && eventok)
 					{
-						sub_haveClicked.clone().store(true,Ordering::Relaxed);
+						sub_haveClicked.clone().store(true, Ordering::Relaxed);
 					}
 					eventok
 				});
 			});
-		
+
 		return haveClicked.load(Ordering::Relaxed);
 	}
-	
+
 	pub fn subevent_trigger(&self, eventtype: event_type)
 	{
-		for (_,content) in self._content.iter().filter(|(_,elem)|{
+		for (_, content) in self._content.iter().filter(|(_, elem)| {
 			let tmp = elem.get();
 			tmp.event_have(eventtype)
 		})
 		{
-			content.updateIf(|i|{i.event_trigger(eventtype)});
+			content.updateIf(|i| i.event_trigger(eventtype));
 		}
 	}
-	
+
 	pub fn eventWinRefresh(&self)
 	{
-		self._content.iter()
+		self._content
+			.iter()
 			.filter(|(_, elem)| {
 				let tmp = elem.get();
 				tmp.getType() == UiPageContent_type::INTERACTIVE && tmp.event_have(event_type::WINREFRESH)
 			})
 			.for_each(|(_, elem)| {
-				elem.updateIf(|i|i.event_trigger(event_type::WINREFRESH));
+				elem.updateIf(|i| i.event_trigger(event_type::WINREFRESH));
 			});
 	}
-	
-	pub fn cache_clear(&self)
+
+	pub fn cache_remove(&self)
 	{
 		self._content.iter().for_each(|(_, elem)| {
 			elem.update(|i| {
@@ -160,28 +162,26 @@ impl UiPage
 			});
 		});
 	}
-	
+
 	pub fn cache_checkupdate(&mut self)
 	{
-		let havedrop = self._content.iter()
-			.any(|(_, elem)| elem.isWantDrop());
-		
-		if(havedrop)
+		let havedrop = self._content.iter().any(|(_, elem)| elem.isWantDrop());
+
+		if (havedrop)
 		{
 			self._content.retain(|_, item| !item.isWantDrop());
 		}
-		
-		self._content.iter()
-			.for_each(|(_, elem)| {
-				elem.updateIf(|i|{
-					let returning = i.cache_mustUpdate();
-					if(returning)
-					{
-						i.cache_submit();
-					}
-					returning
-				});
+
+		self._content.iter().for_each(|(_, elem)| {
+			elem.updateIf(|i| {
+				let returning = i.cache_mustUpdate();
+				if (returning)
+				{
+					i.cache_submit();
+				}
+				returning
 			});
+		});
 	}
 }
 
@@ -189,9 +189,9 @@ impl event_trait for UiPage
 {
 	fn event_trigger(&mut self, event_type: event_type) -> bool
 	{
-		return self._events.clone().trigger(event_type,self);
+		return self._events.clone().trigger(event_type, self);
 	}
-	
+
 	fn event_have(&self, event_type: event_type) -> bool
 	{
 		return self._events.have(event_type);
