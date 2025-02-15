@@ -6,7 +6,6 @@ use singletonThread::SingletonThread;
 use std::sync::{Arc, OnceLock};
 use uuid::Uuid;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, SecondaryAutoCommandBuffer};
-use Htrace::namedThread;
 
 pub struct ShaderDrawer_Manager
 {
@@ -53,21 +52,37 @@ impl ShaderDrawer_Manager
 		self._datas.insert(key, Arc::new(T::init()));
 	}
 
-	pub fn inspect<T>(func: impl FnOnce(&T) + Send + 'static)
+	pub fn find<T>(func: impl FnOnce(&T) -> bool + Send + 'static) -> bool
 	where
 		T: ShaderStructHolder,
 	{
-		let _ = namedThread!(|| {
-			let Some(tmp) = Self::singleton().get::<T>()
-			else
-			{
-				return;
-			};
-			if let Some(holder) = tmp.downcast_ref::<T>()
-			{
-				func(holder);
-			};
-		});
+		let Some(tmp) = Self::singleton().get::<T>()
+		else
+		{
+			return false;
+		};
+		if let Some(holder) = tmp.downcast_ref::<T>()
+		{
+			return func(holder);
+		}
+		return false;
+	}
+
+	pub fn inspect<T>(func: impl FnOnce(&T) + Send + 'static) -> bool
+	where
+		T: ShaderStructHolder,
+	{
+		let Some(tmp) = Self::singleton().get::<T>()
+		else
+		{
+			return false;
+		};
+		if let Some(holder) = tmp.downcast_ref::<T>()
+		{
+			func(holder);
+			return true;
+		}
+		return false;
 	}
 
 	pub fn get<T>(&self) -> Option<Arc<dyn ShaderStructHolder>>

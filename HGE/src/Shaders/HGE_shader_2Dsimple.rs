@@ -315,7 +315,6 @@ impl ShaderStructHolder for HGE_shader_2Dsimple_holder
 		let mut newcache = ShaderStructCache::new();
 		newcache.update(vertex, indices);
 		self._cacheDraw.store(Some(Arc::new(newcache)));
-		self._haveUpdate.store(true, Ordering::Release);
 	}
 
 	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)

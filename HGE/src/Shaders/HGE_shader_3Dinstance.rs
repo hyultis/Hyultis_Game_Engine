@@ -122,7 +122,6 @@ impl Default for HGE_shader_3Dinstance_data
 struct HGE_shader_3Dinstance_subholder
 {
 	_model: ArcSwap<ShaderDrawerImplStruct<Box<dyn IntoVertexted<HGE_shader_3Dinstance> + Send + Sync>>>,
-	_haveUpdate: AtomicBool,
 	_instance: DashMap<String, HGE_shader_3Dinstance_data>,
 	_cacheDraw: ArcSwapOption<ShaderStructCacheInstanced<HGE_shader_3Dinstance, HGE_shader_3Dinstance_data>>,
 }
@@ -221,7 +220,6 @@ impl HGE_shader_3Dinstance_holder
 				modelname.clone(),
 				HGE_shader_3Dinstance_subholder {
 					_model: Default::default(),
-					_haveUpdate: AtomicBool::new(false),
 					_instance: Default::default(),
 					_cacheDraw: Default::default(),
 				},
@@ -268,7 +266,8 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 
 	fn reset(&self)
 	{
-		self._datas.clear()
+		self._datas.clear();
+		self._haveUpdate.store(false, Ordering::Release);
 	}
 
 	fn update(&self)
@@ -277,6 +276,7 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 		{
 			return;
 		}
+		let mut oneismissing = false;
 
 		self._datas
 			.iter()
@@ -294,10 +294,15 @@ impl ShaderStructHolder for HGE_shader_3Dinstance_holder
 				}
 				else
 				{
+					oneismissing = true;
 					selfdata.cache_reset();
 				}
 			});
-		self._haveUpdate.store(true, Ordering::Release);
+
+		if (oneismissing)
+		{
+			self._haveUpdate.store(true, Ordering::Release);
+		}
 	}
 
 	fn draw(&self, cmdBuilder: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>, pipelinename: String)
