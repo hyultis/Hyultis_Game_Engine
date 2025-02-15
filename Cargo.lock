@@ -34,6 +34,7 @@ dependencies = [
  "glyph_brush",
  "glyph_brush_layout",
  "image",
+ "ndk 0.9.0",
  "palette",
  "parking_lot",
  "raw-window-handle 0.6.2",
