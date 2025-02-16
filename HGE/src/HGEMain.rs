@@ -503,7 +503,7 @@ impl HGEMain
 
 		let mut texturesize = 256;
 		let mut texturesizebig = 1024;
-		if (cfg!(target_os = "android"))
+		//if (cfg!(target_os = "android"))
 		{
 			texturesize = 64;
 			texturesizebig = 256;

@@ -3,10 +3,7 @@ use crate::ManagerMemoryAllocator::ManagerMemoryAllocator;
 use crate::Pipeline::ManagerPipeline::ManagerPipeline;
 use crate::Textures::generate;
 use crate::Textures::Manager::ManagerTexture;
-use crate::Textures::TextureDescriptor_type::{
-	TextureDescriptor_adaptedTexture, TextureDescriptor_exclude, TextureDescriptor_process,
-	TextureDescriptor_type,
-};
+use crate::Textures::TextureDescriptor_type::{TextureDescriptor_adaptedTexture, TextureDescriptor_exclude, TextureDescriptor_process, TextureDescriptor_type};
 use crate::Textures::Textures::Texture;
 use crate::Textures::Types::TextureChannel;
 use anyhow::anyhow;
@@ -18,15 +15,11 @@ use parking_lot::RwLock;
 use std::ops::{Range, RangeBounds};
 use std::sync::Arc;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
-use vulkano::command_buffer::{
-	AutoCommandBufferBuilder, CopyBufferToImageInfo, SecondaryAutoCommandBuffer,
-};
+use vulkano::command_buffer::{AutoCommandBufferBuilder, CopyBufferToImageInfo, SecondaryAutoCommandBuffer};
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 use vulkano::format::Format;
 use vulkano::image::view::{ImageView, ImageViewCreateInfo, ImageViewType};
-use vulkano::image::{
-	Image, ImageAspects, ImageCreateInfo, ImageSubresourceRange, ImageType, ImageUsage,
-};
+use vulkano::image::{Image, ImageAspects, ImageCreateInfo, ImageSubresourceRange, ImageType, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use Htrace::HTrace;
 use Htrace::Type::Type::ERROR;
@@ -69,15 +62,13 @@ impl TextureDescriptor
 			{}
 			TextureDescriptor_process::RESIZE(x, y) =>
 			{
-				defaultTexture =
-					defaultTexture.resize_exact(*x as u32, *y as u32, FilterType::Gaussian);
+				defaultTexture = defaultTexture.resize_exact(*x as u32, *y as u32, FilterType::Gaussian);
 			}
 		};
 
 		let shaderName = shaderName.into();
 		let samplerName = samplerName.into();
-		let empty_cache =
-			Self::generate_empty_descriptorCache(&ttype, &shaderName, shaderSetId, &samplerName);
+		let empty_cache = Self::generate_empty_descriptorCache(&ttype, &shaderName, shaderSetId, &samplerName);
 
 		return Self {
 			_type: ttype.normalize(),
@@ -98,9 +89,7 @@ impl TextureDescriptor
 	pub fn texture_getId(&self, texture_name: impl Into<String>) -> Option<TextureChannel>
 	{
 		let texture_name = texture_name.into();
-		self._texturelink
-			.get(&texture_name)
-			.map(|x| TextureChannel::new(self._shaderSetid as u8, *x.value()))
+		self._texturelink.get(&texture_name).map(|x| TextureChannel::new(self._shaderSetid as u8, *x.value()))
 	}
 
 	pub fn getDescriptor(&self) -> Guard<Arc<DescriptorSet>>
@@ -198,26 +187,17 @@ impl TextureDescriptor
 			Ok(atlas) => atlas,
 			Err(err) =>
 			{
-				HTrace!((ERROR) err);
+				HTrace!((ERROR) "TextureDescriptor update {} - {:?} : {}", self._shaderName, self._type,err);
 				return;
 			}
 		};
 
-		let defaultsampler = ManagerTexture::singleton()
-			.getSampler(&self._sampler)
-			.unwrap()
-			.clone();
+		let defaultsampler = ManagerTexture::singleton().getSampler(&self._sampler).unwrap().clone();
 		self._cacheVulkan.swap(
 			DescriptorSet::new(
 				HGEMain::singleton().getDescAllocatorSet(),
-				ManagerPipeline::singleton()
-					.layoutGetDescriptor(&self._shaderName, self._shaderSetid)
-					.unwrap(),
-				[WriteDescriptorSet::image_view_sampler(
-					0,
-					atlas,
-					defaultsampler,
-				)],
+				ManagerPipeline::singleton().layoutGetDescriptor(&self._shaderName, self._shaderSetid).unwrap(),
+				[WriteDescriptorSet::image_view_sampler(0, atlas, defaultsampler)],
 				[],
 			)
 			.unwrap(),
@@ -225,18 +205,12 @@ impl TextureDescriptor
 
 		self._lastUpdate.swap(Arc::new(mustupdate));
 
-		HGEMain::SecondaryCmdBuffer_add(
-			HGEMain_secondarybuffer_type::TEXTURE,
-			cmdbuff.build().unwrap(),
-			|| {},
-		);
+		HGEMain::SecondaryCmdBuffer_add(HGEMain_secondarybuffer_type::TEXTURE, cmdbuff.build().unwrap(), || {});
 	}
 
 	//////////////// PRIVATE ///////////////
 
-	fn getProcess<T: RangeBounds<u16>>(
-		ttype: &TextureDescriptor_type<T>,
-	) -> &TextureDescriptor_process
+	fn getProcess<T: RangeBounds<u16>>(ttype: &TextureDescriptor_type<T>) -> &TextureDescriptor_process
 	{
 		match ttype
 		{
@@ -282,8 +256,7 @@ impl TextureDescriptor
 		self._contentAdapted.insert(id, contentadapted);
 	}
 
-	fn texture_resize(&self, origin: RgbaImage, x: u16, y: u16)
-		-> TextureDescriptor_adaptedTexture
+	fn texture_resize(&self, origin: RgbaImage, x: u16, y: u16) -> TextureDescriptor_adaptedTexture
 	{
 		let mut returned = TextureDescriptor_adaptedTexture {
 			x: origin.width() as u16,
@@ -299,10 +272,7 @@ impl TextureDescriptor
 		return returned;
 	}
 
-	fn update_all(
-		&self,
-		cmdbuff: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>,
-	) -> anyhow::Result<Arc<ImageView>>
+	fn update_all(&self, cmdbuff: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>) -> anyhow::Result<Arc<ImageView>>
 	{
 		match self._type
 		{
@@ -320,22 +290,10 @@ impl TextureDescriptor
 			return Err(anyhow!("Image not adapted"));
 		};
 
-		return Self::generate_atlas_imageview(
-			&self._type,
-			texture.content.clone(),
-			texture.x as u32,
-			texture.y as u32,
-			1,
-			cmdbuff,
-		);
+		return Self::generate_atlas_imageview(&self._type, texture.content.clone(), texture.x as u32, texture.y as u32, 1, cmdbuff);
 	}
 
-	fn update_resize(
-		&self,
-		x: u16,
-		y: u16,
-		cmdbuff: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>,
-	) -> anyhow::Result<Arc<ImageView>>
+	fn update_resize(&self, x: u16, y: u16, cmdbuff: &mut AutoCommandBufferBuilder<SecondaryAutoCommandBuffer>) -> anyhow::Result<Arc<ImageView>>
 	{
 		let nbmax = *self._textureLinkMax.read();
 		if (nbmax == 0)
@@ -355,14 +313,7 @@ impl TextureDescriptor
 			}
 		}
 
-		return Self::generate_atlas_imageview(
-			&self._type,
-			finalData,
-			x as u32,
-			y as u32,
-			nbmax,
-			cmdbuff,
-		);
+		return Self::generate_atlas_imageview(&self._type, finalData, x as u32, y as u32, nbmax, cmdbuff);
 	}
 
 	fn generate_atlas_imageview<T: RangeBounds<u16>>(
@@ -381,8 +332,7 @@ impl TextureDescriptor
 				..Default::default()
 			},
 			AllocationCreateInfo {
-				memory_type_filter: MemoryTypeFilter::PREFER_HOST
-					| MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+				memory_type_filter: MemoryTypeFilter::PREFER_HOST | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
 				..Default::default()
 			},
 			finalData,
@@ -405,10 +355,7 @@ impl TextureDescriptor
 			AllocationCreateInfo::default(),
 		)?;
 
-		if let Err(err) = cmdbuff.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
-			upload_buffer,
-			atlas.clone(),
-		))
+		if let Err(err) = cmdbuff.copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(upload_buffer, atlas.clone()))
 		{
 			return Err(anyhow!("Cannot create final atlas : {}", err));
 		}
@@ -441,41 +388,25 @@ impl TextureDescriptor
 		return Ok(atlas);
 	}
 
-	fn generate_empty_descriptorCache<T: RangeBounds<u16>>(
-		ttype: &TextureDescriptor_type<T>,
-		shaderName: &String,
-		shaderSetId: usize,
-		samplerName: &String,
-	) -> Arc<DescriptorSet>
+	fn generate_empty_descriptorCache<T: RangeBounds<u16>>(ttype: &TextureDescriptor_type<T>, shaderName: &String, shaderSetId: usize, samplerName: &String) -> Arc<DescriptorSet>
 	{
 		let mut combuilder = HGEMain::singleton().SecondaryCmdBuffer_generate();
 
-		let result =
-			Self::generate_atlas_imageview(ttype, vec![0, 0, 0, 0], 1, 1, 1, &mut combuilder)
-				.unwrap();
+		let result = Self::generate_atlas_imageview(ttype, vec![0, 0, 0, 0], 1, 1, 1, &mut combuilder).unwrap();
 
 		let returned = DescriptorSet::new(
 			HGEMain::singleton().getDescAllocatorSet(),
-			ManagerPipeline::singleton()
-				.layoutGetDescriptor(shaderName, shaderSetId)
-				.unwrap(),
+			ManagerPipeline::singleton().layoutGetDescriptor(shaderName, shaderSetId).unwrap(),
 			[WriteDescriptorSet::image_view_sampler(
 				0,
 				result,
-				ManagerTexture::singleton()
-					.getSampler(samplerName)
-					.unwrap()
-					.clone(),
+				ManagerTexture::singleton().getSampler(samplerName).unwrap().clone(),
 			)],
 			[],
 		)
 		.unwrap();
 
-		HGEMain::SecondaryCmdBuffer_add(
-			HGEMain_secondarybuffer_type::TEXTURE,
-			combuilder.build().unwrap(),
-			|| {},
-		);
+		HGEMain::SecondaryCmdBuffer_add(HGEMain_secondarybuffer_type::TEXTURE, combuilder.build().unwrap(), || {});
 
 		return returned;
 	}

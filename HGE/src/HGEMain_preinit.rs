@@ -33,17 +33,12 @@ impl HGEMain_preinitState
 	/// set config file for HGE
 	#[require(Initial)]
 	#[switch_to(Configured)]
-	pub fn setConfig(
-		self,
-		config: HGEconfig_general,
-	) -> anyhow::Result<HGEMain_preinitState<Configured>>
+	pub fn setConfig(self, config: HGEconfig_general) -> anyhow::Result<HGEMain_preinitState<Configured>>
 	{
 		if (config.defaultShaderLoader.is_none())
 		{
 			HTrace!((Type::ERROR) "general configuration for loading shader is empty in \"defaultShaderLoader\"");
-			return Err(anyhow!(
-				"general configuration for loading shader is empty in \"defaultShaderLoader\""
-			));
+			return Err(anyhow!("general configuration for loading shader is empty in \"defaultShaderLoader\""));
 		}
 
 		HGEconfig::defineGeneral(config);
@@ -57,17 +52,12 @@ impl HGEMain_preinitState
 	/// set config file for HGE
 	#[require(Configured)]
 	#[switch_to(Ready)]
-	pub fn setInstance(
-		self,
-		required_extensions: InstanceExtensions,
-	) -> anyhow::Result<HGEMain_preinitState<Ready>>
+	pub fn setInstance(self, required_extensions: InstanceExtensions) -> anyhow::Result<HGEMain_preinitState<Ready>>
 	{
 		HTrace!("Engine pre-initialization: creating vulkan instance");
 		let instance = Self::Init_Instance(required_extensions)?;
 
-		Ok(HGEMain_preinitState {
-			_instance: Some(instance),
-		})
+		Ok(HGEMain_preinitState { _instance: Some(instance) })
 	}
 
 	#[require(Ready)]
@@ -77,7 +67,7 @@ impl HGEMain_preinitState
 	}
 
 	#[require(A)]
-	fn Init_Instance(mut required_extensions: InstanceExtensions) -> anyhow::Result<Arc<Instance>>
+	fn Init_Instance(required_extensions: InstanceExtensions) -> anyhow::Result<Arc<Instance>>
 	{
 		let library = VulkanLibrary::new().unwrap();
 		let mut debuglayer = Vec::new();
@@ -90,7 +80,8 @@ impl HGEMain_preinitState
 
 		HTrace!("List of instance extension {:?}", required_extensions);
 
-		required_extensions.ext_surface_maintenance1 = true;
+		//required_extensions.khr_get_surface_capabilities2 = true;
+		//required_extensions.ext_surface_maintenance1 = true;
 
 		// Now creating the instance.
 		let instance = Instance::new(

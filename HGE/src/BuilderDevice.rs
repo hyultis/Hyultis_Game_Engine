@@ -1,9 +1,7 @@
 use foldhash::{HashMap, HashMapExt};
 use std::sync::Arc;
 use vulkano::device::physical::PhysicalDeviceType;
-use vulkano::device::{
-	Device, DeviceCreateInfo, DeviceExtensions, DeviceFeatures, Queue, QueueCreateInfo, QueueFlags,
-};
+use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, DeviceFeatures, Queue, QueueCreateInfo, QueueFlags};
 use vulkano::format::Format;
 use vulkano::instance::Instance;
 use vulkano::memory::MemoryPropertyFlags;
@@ -40,14 +38,7 @@ impl BuilderDevice
 {
 	pub fn newErrorLess(instance: Arc<Instance>, surface: Arc<Surface>) -> BuilderDevice
 	{
-		BuilderDevice::newInternal(
-			instance,
-			surface,
-			DeviceExtensions {
-				..DeviceExtensions::empty()
-			},
-			Version::default(),
-		)
+		BuilderDevice::newInternal(instance, surface, DeviceExtensions { ..DeviceExtensions::empty() }, Version::default())
 	}
 
 	pub fn new(instance: Arc<Instance>, surface: Arc<Surface>) -> BuilderDevice
@@ -58,6 +49,8 @@ impl BuilderDevice
 			surface,
 			DeviceExtensions {
 				khr_swapchain: true,
+				khr_maintenance1: true,
+				//khr_maintenance2: true,
 				..DeviceExtensions::empty()
 			},
 			Version::V1_1,
@@ -79,12 +72,7 @@ impl BuilderDevice
 		return self.FindQueueForX(2);
 	}
 
-	fn newInternal(
-		instance: Arc<Instance>,
-		surface: Arc<Surface>,
-		device_extensions: DeviceExtensions,
-		minversion: Version,
-	) -> BuilderDevice
+	fn newInternal(instance: Arc<Instance>, surface: Arc<Surface>, device_extensions: DeviceExtensions, minversion: Version) -> BuilderDevice
 	{
 		match instance.enumerate_physical_devices()
 		{
@@ -148,7 +136,7 @@ impl BuilderDevice
 			.enumerate_physical_devices()
 			.unwrap()
 			.filter(|p| {
-				HTrace!("device: {} (type: {:?})",p.properties().device_name,p.properties().device_type);
+				HTrace!("device: {} (type: {:?})", p.properties().device_name, p.properties().device_type);
 				HTrace!((Type::DEBUG) "comparing vulkan version : {}.{} ( needed {}.{} )",p.api_version().major,p.api_version().minor,minversion.major,minversion.minor);
 				let versionIsSupported = (p.api_version().major == minversion.major && p.api_version().minor >= minversion.minor) || p.api_version().major > minversion.major;
 				HTrace!((Type::DEBUG) "support extension : {:?}",p.supported_extensions());
@@ -163,13 +151,11 @@ impl BuilderDevice
 				p.queue_family_properties()
 					.iter()
 					.enumerate()
-					.position(|(i, q)| {
-						q.queue_flags.intersects(QueueFlags::GRAPHICS)
-							&& p.surface_support(i as u32, &surface).unwrap_or(false)
-					})
+					.position(|(i, q)| q.queue_flags.intersects(QueueFlags::GRAPHICS) && p.surface_support(i as u32, &surface).unwrap_or(false))
 					.map(|i| (p, i as u32))
 			})
-			.min_by_key(|(p, _)| match p.properties().device_type {
+			.min_by_key(|(p, _)| match p.properties().device_type
+			{
 				PhysicalDeviceType::DiscreteGpu => 0,
 				PhysicalDeviceType::IntegratedGpu => 1,
 				PhysicalDeviceType::VirtualGpu => 2,
@@ -274,28 +260,19 @@ impl BuilderDevice
 			.memory_properties()
 			.memory_types
 			.iter()
-			.filter(|x| {
-				x.property_flags
-					.intersects(MemoryPropertyFlags::DEVICE_LOCAL)
-			})
+			.filter(|x| x.property_flags.intersects(MemoryPropertyFlags::DEVICE_LOCAL))
 			.next()
 			.map(|x| x.heap_index)
 			.unwrap_or(0) as usize;
 		//device.physical_device().memory_properties().memory_heaps.iter().for_each(|x|{println!("tst {} {:?}",x.size as u64,x.flags)});
-		if let Some(gpuram) = device
-			.physical_device()
-			.memory_properties()
-			.memory_heaps
-			.get(deviceIndex)
+		if let Some(gpuram) = device.physical_device().memory_properties().memory_heaps.get(deviceIndex)
 		{
 			memorySize = ((gpuram.size as u64) / 1024) / 1024;
 		}
 		HTrace!("device max memory size : {}", memorySize);
 
 		let mut format = Format::D16_UNORM;
-		if let Ok(_) = device
-			.physical_device()
-			.format_properties(Format::D32_SFLOAT)
+		if let Ok(_) = device.physical_device().format_properties(Format::D32_SFLOAT)
 		{
 			format = Format::D32_SFLOAT
 		}
@@ -314,14 +291,7 @@ impl BuilderDevice
 			surfaceCapabilities = Some(tmp);
 		}
 
-		let isNvidia = device
-			.physical_device()
-			.properties()
-			.driver_name
-			.clone()
-			.unwrap_or("".to_string())
-			.to_uppercase()
-			== "NVIDIA";
+		let isNvidia = device.physical_device().properties().driver_name.clone().unwrap_or("".to_string()).to_uppercase() == "NVIDIA";
 
 		BuilderDevice {
 			device,
@@ -342,11 +312,7 @@ impl BuilderDevice
 
 	pub fn getQueueSharing(&self) -> Vec<u32>
 	{
-		let tmp = self
-			._queues
-			.iter()
-			.map(|(_, x)| x.queue_family_index())
-			.collect();
+		let tmp = self._queues.iter().map(|(_, x)| x.queue_family_index()).collect();
 		return tmp;
 	}
 
