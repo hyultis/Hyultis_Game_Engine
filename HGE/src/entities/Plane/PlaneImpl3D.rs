@@ -1,8 +1,8 @@
 use crate::components::cacheInfos::cacheInfos;
 use crate::components::color::color;
 use crate::components::event::{event_trait, event_trait_add, event_type};
-use crate::components::HGEC_origin;
 use crate::components::worldPosition::worldPosition;
+use crate::components::HGEC_origin;
 use crate::entities::Plane::Plane;
 use crate::Models3D::ModelUtils;
 use crate::Shaders::HGE_shader_3Dsimple::{HGE_shader_3Dsimple_def, HGE_shader_3Dsimple_holder};
@@ -11,7 +11,6 @@ use crate::Shaders::ShaderDrawerImpl::{ShaderDrawerImpl, ShaderDrawerImplReturn,
 
 impl Plane<worldPosition>
 {
-	
 	/// define a plane as flat 2D square aligned on X
 	/// X depend of leftTop
 	pub fn setSquareX(&mut self, leftTop: worldPosition, mut bottomRight: worldPosition)
@@ -31,7 +30,7 @@ impl Plane<worldPosition>
 		self._pos[3] = bottomRight;
 		self._cacheinfos.setNeedUpdate(true);
 	}
-	
+
 	/// define a plane as flat 2D square aligned on Y
 	/// Y depend of leftTop
 	pub fn setSquareY(&mut self, leftTop: worldPosition, mut bottomRight: worldPosition)
@@ -51,7 +50,7 @@ impl Plane<worldPosition>
 		self._pos[3] = bottomRight;
 		self._cacheinfos.setNeedUpdate(true);
 	}
-	
+
 	/// define a plane as flat 2D square aligned on Z
 	/// Z depend of leftTop
 	pub fn setSquareZ(&mut self, leftTop: worldPosition, mut bottomRight: worldPosition)
@@ -73,32 +72,46 @@ impl Plane<worldPosition>
 	}
 }
 
-impl ShaderDrawerImpl for Plane<worldPosition> {
-	fn cache_mustUpdate(&self) -> bool {
+impl ShaderDrawerImpl for Plane<worldPosition>
+{
+	fn cache_mustUpdate(&self) -> bool
+	{
 		self._cacheinfos.isNotShow()
 	}
-	
-	fn cache_infos(&self) -> &cacheInfos {
+
+	fn cache_infos(&self) -> &cacheInfos
+	{
 		&self._cacheinfos
 	}
-	
-	fn cache_infos_mut(&mut self) -> &mut cacheInfos {
+
+	fn cache_infos_mut(&mut self) -> &mut cacheInfos
+	{
 		&mut self._cacheinfos
 	}
-	
-	fn cache_submit(&mut self) {
-		let Some(structure) = self.cache_get() else {self.cache_remove();return};
-		
+
+	fn cache_submit(&mut self)
+	{
+		let Some(structure) = self.cache_get()
+		else
+		{
+			self.cache_remove();
+			return;
+		};
+
 		let tmp = self._cacheinfos;
-		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder|{
-			holder.insert(tmp,structure);
-		});
+		if (!ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder| {
+			holder.insert(tmp, structure);
+		}))
+		{
+			return;
+		}
 		self._cacheinfos.setPresent();
 	}
-	
-	fn cache_remove(&mut self) {
+
+	fn cache_remove(&mut self)
+	{
 		let tmp = self._cacheinfos;
-		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder|{
+		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder| {
 			holder.remove(tmp);
 		});
 		self._cacheinfos.setAbsent();
@@ -112,44 +125,44 @@ impl ShaderDrawerImplReturn<HGE_shader_3Dsimple_def> for Plane<worldPosition>
 		let texturename = self._components.texture().getName().clone();
 		let color_blend_type = self._components.texture().colorBlend().toU32();
 		let mut texturecolor = color::default();
-		let mut textureuvcoord = [[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0]];
+		let mut textureuvcoord = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 		if let Some(texture) = self._components.computeTexture()
 		{
 			texturecolor = texture.color;
 			textureuvcoord = texture.uvcoord.toArray4();
 		}
-		
+
 		let mut vecstruct = Vec::new();
 		for i in 0..4
 		{
 			let mut vertex = self._pos[i].clone();
 			self._components.computeVertex(&mut vertex);
-			
+
 			vecstruct.push(HGE_shader_3Dsimple_def {
 				position: vertex.get(),
 				normal: [0.0, 0.0, 0.0],
 				texture: texturename.clone(),
 				color_blend_type,
-				uvcoord: self._uvcoord.map(|x|{x[i]}).unwrap_or(textureuvcoord[i]),
-				color: self._color.map(|x|{x[i].blend(texturecolor)}).unwrap_or(texturecolor).toArray(),
+				uvcoord: self._uvcoord.map(|x| x[i]).unwrap_or(textureuvcoord[i]),
+				color: self._color.map(|x| x[i].blend(texturecolor)).unwrap_or(texturecolor).toArray(),
 			});
 		}
-		
+
 		let indice = [0, 1, 2, 1, 3, 2].to_vec();
 		ModelUtils::generateNormal(&mut vecstruct, &indice);
 		self._cacheinfos.setNeedUpdate(false);
-		
-		return Some(
-			ShaderDrawerImplStruct{
-				vertex: vecstruct,
-				indices: indice,
-			});
+
+		return Some(ShaderDrawerImplStruct {
+			vertex: vecstruct,
+			indices: indice,
+		});
 	}
 }
 
 impl event_trait for Plane<worldPosition>
 {
-	fn event_trigger(&mut self, eventtype: event_type) -> bool {
+	fn event_trigger(&mut self, eventtype: event_type) -> bool
+	{
 		let update = self._events.clone().trigger(eventtype, self);
 		if (eventtype == event_type::WINREFRESH)
 		{
@@ -158,7 +171,7 @@ impl event_trait for Plane<worldPosition>
 		self.cache_submit();
 		return update;
 	}
-	
+
 	fn event_have(&self, eventtype: event_type) -> bool
 	{
 		self._events.have(eventtype)
@@ -167,7 +180,8 @@ impl event_trait for Plane<worldPosition>
 
 impl event_trait_add<Plane<worldPosition>> for Plane<worldPosition>
 {
-	fn event_add(&mut self, eventtype: event_type, func: impl Fn(&mut Plane<worldPosition>) -> bool + Send + Sync + 'static) {
+	fn event_add(&mut self, eventtype: event_type, func: impl Fn(&mut Plane<worldPosition>) -> bool + Send + Sync + 'static)
+	{
 		self._events.add(eventtype, func);
 	}
 }
