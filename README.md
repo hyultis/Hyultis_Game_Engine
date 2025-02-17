@@ -65,10 +65,10 @@ There's no any lightning/shading/raytracing or any advanced rendering stuff.
 ### Shaders
 
 Vulkano shader need to be present a compile time, you need to copy the default one from <root>/HGE/tests.
-They can be modified be need to keep they default input/ouput.
+They can be modified but need to keep they default input/ouput.
 
 You can create new one if you want them to have different input, but in this case you also need to create new ShaderStructHolder for it.
-Different output implied subpass chcange, it's not supported but adding new pass is not complex.
+Different output implies subpass change, it's not supported but adding new pass is not complex.
 
 "screen" shaders is run on all the screen one time.
 
