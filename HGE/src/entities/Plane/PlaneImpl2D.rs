@@ -77,6 +77,8 @@ impl ShaderDrawerImpl for Plane<interfacePosition>
 		{
 			return;
 		}
+
+		self._cacheinfos.setNeedUpdate(false);
 		self._cacheinfos.setPresent();
 	}
 

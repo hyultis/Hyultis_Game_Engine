@@ -376,9 +376,9 @@ impl HGEMain
 
 		let threadService = SingletonThread::newFiltered(
 			|| {
-				let _ = namedThread!(|| {
-					Self::singleton()._cameraAnimation.write().retain_mut(|anim| !anim.ticks());
-				});
+				//let _ = namedThread!(|| {
+				Self::singleton()._cameraAnimation.write().retain_mut(|anim| !anim.ticks());
+				//});
 
 				ManagerInterface::singleton().tickUpdate();
 				ManagerModels::singleton().tickUpdate();

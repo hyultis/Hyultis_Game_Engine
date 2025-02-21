@@ -146,9 +146,7 @@ impl event_trait for UiButton
 					returning = true;
 				}
 			}
-			event_type::EACH_SECOND => return false,
-			event_type::EACH_TICK => return false,
-			event_type::WINREFRESH =>
+			_ =>
 			{
 				let mut update = false;
 				for x in self._content.iter_mut().filter(|x| x.event_have(eventtype))
@@ -164,12 +162,15 @@ impl event_trait for UiButton
 					returning = true;
 				}
 			}
-			_ => (),
 		};
 
 		if (self._cacheinfos.isPresent() && returning)
 		{
 			self.cache_submit();
+		}
+		else if (returning)
+		{
+			self._cacheinfos.setNeedUpdate(true);
 		}
 
 		return returning;
@@ -212,6 +213,11 @@ impl ShaderDrawerImpl for UiButton
 {
 	fn cache_mustUpdate(&self) -> bool
 	{
+		if (self._hide)
+		{
+			return self._cacheinfos.isPresent();
+		}
+
 		self.checkContentUpdate() || self._cacheinfos.isNotShow()
 	}
 
@@ -241,7 +247,7 @@ impl ShaderDrawerImpl for UiButton
 		{
 			newHitbox.updateFromHitbox(x.getHitbox());
 			x.cache_submit();
-			if (x.cache_infos().isNotShow())
+			if (!x.cache_infos().isNotShow())
 			{
 				atleastOneDrawed = true;
 			}

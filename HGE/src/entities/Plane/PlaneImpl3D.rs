@@ -114,6 +114,7 @@ impl ShaderDrawerImpl for Plane<worldPosition>
 		ShaderDrawer_Manager::inspect::<HGE_shader_3Dsimple_holder>(move |holder| {
 			holder.remove(tmp);
 		});
+		self._cacheinfos.setNeedUpdate(false);
 		self._cacheinfos.setAbsent();
 	}
 }
